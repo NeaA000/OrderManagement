@@ -21,21 +21,21 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
     }
 </style>
 <form action="" id="item-form">
-     <input type="hidden" name="id" value="<?php echo isset($id) ? $id : '' ?>">
+    <input type="hidden" name="id" value="<?php echo isset($id) ? $id : '' ?>">
     <div class="container-fluid">
         <div class="form-group">
-            <label for="name" class="control-label">Item Name</label>
+            <label for="name" class="control-label">품목명</label>
             <input type="text" name="name" id="name" class="form-control rounded-0" value="<?php echo isset($name) ? $name :"" ?>" required>
         </div>
         <div class="form-group">
-            <label for="description" class="control-label">Description</label>
+            <label for="description" class="control-label">설명</label>
             <textarea rows="3" name="description" id="description" class="form-control rounded-0" required><?php echo isset($description) ? $description :"" ?></textarea>
         </div>
         <div class="form-group">
-            <label for="status" class="control-label">Status</label>
+            <label for="status" class="control-label">상태</label>
             <select name="status" id="status" class="form-control rounded-0" required>
-                <option value="1" <?php echo isset($status) && $status =="" ? "selected": "1" ?> >Active</option>
-                <option value="0" <?php echo isset($status) && $status =="" ? "selected": "0" ?>>Inactive</option>
+                <option value="1" <?php echo isset($status) && $status =="" ? "selected": "1" ?> >활성</option>
+                <option value="0" <?php echo isset($status) && $status =="" ? "selected": "0" ?>>비활성</option>
             </select>
         </div>
     </div>
@@ -43,40 +43,40 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
 <script>
     $(function(){
         $('#item-form').submit(function(e){
-			e.preventDefault();
+            e.preventDefault();
             var _this = $(this)
-			 $('.err-msg').remove();
-			start_loader();
-			$.ajax({
-				url:_base_url_+"classes/Master.php?f=save_item",
-				data: new FormData($(this)[0]),
+            $('.err-msg').remove();
+            start_loader();
+            $.ajax({
+                url:_base_url_+"classes/Master.php?f=save_item",
+                data: new FormData($(this)[0]),
                 cache: false,
                 contentType: false,
                 processData: false,
                 method: 'POST',
                 type: 'POST',
                 dataType: 'json',
-				error:err=>{
-					console.log(err)
-					alert_toast("An error occured",'error');
-					end_loader();
-				},
-				success:function(resp){
-					if(typeof resp =='object' && resp.status == 'success'){
-						location.reload();
-					}else if(resp.status == 'failed' && !!resp.msg){
+                error:err=>{
+                    console.log(err)
+                    alert_toast("오류가 발생했습니다",'error');
+                    end_loader();
+                },
+                success:function(resp){
+                    if(typeof resp =='object' && resp.status == 'success'){
+                        location.reload();
+                    }else if(resp.status == 'failed' && !!resp.msg){
                         var el = $('<div>')
-                            el.addClass("alert alert-danger err-msg").text(resp.msg)
-                            _this.prepend(el)
-                            el.show('slow')
-                            $("html, body").animate({ scrollTop: 0 }, "fast");
+                        el.addClass("alert alert-danger err-msg").text(resp.msg)
+                        _this.prepend(el)
+                        el.show('slow')
+                        $("html, body").animate({ scrollTop: 0 }, "fast");
                     }else{
-						alert_toast("An error occured",'error');
+                        alert_toast("오류가 발생했습니다",'error');
                         console.log(resp)
-					}
+                    }
                     end_loader()
-				}
-			})
-		})
-	})
+                }
+            })
+        })
+    })
 </script>

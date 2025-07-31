@@ -17,23 +17,23 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
 <div class="container fluid">
     <callout class="callout-primary">
         <dl class="row">
-            <dt class="col-md-4">Item Name</dt>
+            <dt class="col-md-4">품목명</dt>
             <dd class="col-md-8">: <?php echo $name ?></dd>
-            <dt class="col-md-4">Description</dt>
+            <dt class="col-md-4">설명</dt>
             <dd class="col-md-8">: <?php echo $description ?></dd>
-            <dt class="col-md-4">Status</dt>
+            <dt class="col-md-4">상태</dt>
             <dd class="col-md-8">:&nbsp;
                 <?php if($status == 1): ?>
-                    <span class="badge badge-success">Active</span>
+                    <span class="badge badge-success">활성</span>
                 <?php else: ?>
-                    <span class="badge badge-secondary">Inactive</span>
+                    <span class="badge badge-secondary">비활성</span>
                 <?php endif; ?>
             </dd>
         </dl>
     </callout>
     <div class="row px-2 justify-content-end">
         <div class="col-1">
-            <button class="btn btn-dark btn-flat btn-sm" type="button" data-dismiss="modal">Close</button>
+            <button class="btn btn-dark btn-flat btn-sm" type="button" data-dismiss="modal">닫기</button>
         </div>
     </div>
 </div>
