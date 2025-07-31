@@ -1,3 +1,9 @@
+/* ====================================
+   네이버·카카오 스타일 한국형 모던 디자인 CSS
+   절제된 세련미 + 실용성 중심
+   ==================================== */
+
+/* 기존 코드 유지 */
 .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -157,4 +163,484 @@ label.star:hover {
 label.star:before {
     content: '\2605';
     font-family: FontAwesome
+}
+
+/* ====================================
+   네이버·카카오 스타일 모던 디자인
+   ==================================== */
+
+/* 1. 한글 폰트 시스템 (Noto Sans KR 기본) */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --font-family-korean: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif;
+
+    /* 네이버·카카오 스타일 컬러 팔레트 */
+    --naver-green: #03C75A;
+    --naver-green-light: #1DD371;
+    --naver-green-dark: #00B050;
+
+    --kakao-yellow: #FEE500;
+    --kakao-yellow-light: #FFEB3B;
+    --kakao-yellow-dark: #F9C43A;
+
+    --kakao-brown: #3C1E1E;
+    --kakao-brown-light: #5D4037;
+
+    /* 세련된 중성 컬러 */
+    --gray-50: #FAFAFA;
+    --gray-100: #F5F5F5;
+    --gray-200: #EEEEEE;
+    --gray-300: #E0E0E0;
+    --gray-400: #BDBDBD;
+    --gray-500: #9E9E9E;
+    --gray-600: #757575;
+    --gray-700: #616161;
+    --gray-800: #424242;
+    --gray-900: #212121;
+
+    /* 포인트 컬러 */
+    --blue-primary: #1976D2;
+    --blue-light: #42A5F5;
+    --blue-dark: #1565C0;
+
+    --red-primary: #D32F2F;
+    --orange-primary: #FF9800;
+    --purple-primary: #7B1FA2;
+    --teal-primary: #00796B;
+
+    /* 그림자 시스템 */
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-2: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+    --shadow-4: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+    --shadow-5: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
+
+    /* 둥근 모서리 */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+
+    /* 간격 시스템 */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* 트랜지션 */
+    --transition-fast: 0.15s ease-out;
+    --transition-normal: 0.25s ease-out;
+    --transition-slow: 0.35s ease-out;
+}
+
+/* 2. 전체 폰트 적용 */
+body, .content-wrapper, .main-sidebar, .main-header {
+    font-family: var(--font-family-korean) !important;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+    font-weight: 400;
+}
+
+/* 3. Small-box 카드 (네이버·카카오 스타일) */
+.small-box {
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--gray-200);
+    background: #ffffff !important;
+    box-shadow: var(--shadow-1);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: none;
+}
+
+.small-box:hover {
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+    border-color: var(--gray-300);
+}
+
+/* Small-box 색상별 스타일 (절제된 한국형) */
+.small-box.bg-info {
+    background: linear-gradient(135deg, var(--blue-primary), var(--blue-light)) !important;
+    border-color: var(--blue-primary);
+}
+
+.small-box.bg-success {
+    background: linear-gradient(135deg, var(--naver-green), var(--naver-green-light)) !important;
+    border-color: var(--naver-green);
+}
+
+.small-box.bg-warning {
+    background: linear-gradient(135deg, var(--orange-primary), #FFB74D) !important;
+    border-color: var(--orange-primary);
+}
+
+.small-box.bg-danger {
+    background: linear-gradient(135deg, var(--red-primary), #EF5350) !important;
+    border-color: var(--red-primary);
+}
+
+.small-box.bg-primary {
+    background: linear-gradient(135deg, var(--purple-primary), #BA68C8) !important;
+    border-color: var(--purple-primary);
+}
+
+.small-box.bg-secondary {
+    background: linear-gradient(135deg, var(--gray-600), var(--gray-500)) !important;
+    border-color: var(--gray-600);
+}
+
+/* 카카오 스타일 옵션 */
+.small-box.kakao-style {
+    background: linear-gradient(135deg, var(--kakao-yellow), var(--kakao-yellow-light)) !important;
+    color: var(--kakao-brown) !important;
+    border-color: var(--kakao-yellow-dark);
+}
+
+.small-box.kakao-style h3,
+.small-box.kakao-style p {
+    color: var(--kakao-brown) !important;
+}
+
+/* Small-box 내부 요소 (깔끔한 타이포그래피) */
+.small-box .inner h3 {
+    font-weight: 700 !important;
+    font-size: 2.2rem !important;
+    margin-bottom: var(--space-2);
+    letter-spacing: -0.02em;
+}
+
+.small-box .inner p {
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    opacity: 0.9;
+    margin-bottom: 0;
+    letter-spacing: -0.01em;
+}
+
+/* Small-box 아이콘 */
+.small-box .icon > i {
+    font-size: 70px !important;
+    opacity: 0.15 !important;
+    transition: all var(--transition-normal);
+}
+
+.small-box:hover .icon > i {
+    opacity: 0.2 !important;
+    transform: scale(1.05);
+}
+
+/* Small-box 푸터 */
+.small-box .small-box-footer {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: var(--space-2) 0 !important;
+    transition: all var(--transition-fast);
+}
+
+.small-box .small-box-footer:hover {
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 4. 카드 컴포넌트 (네이버 카드 스타일) */
+.card {
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-1);
+    transition: all var(--transition-normal);
+    background: #ffffff;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-2);
+    border-color: var(--gray-300);
+}
+
+.card-header {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    background: var(--gray-50) !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    font-weight: 600;
+    color: var(--gray-800);
+    padding: var(--space-4) var(--space-5);
+}
+
+/* 5. 버튼 (한국형 깔끔한 스타일) */
+.btn {
+    border-radius: var(--radius-md) !important;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    font-family: var(--font-family-korean);
+    letter-spacing: -0.01em;
+    padding: var(--space-2) var(--space-4);
+}
+
+.btn-primary {
+    background: var(--blue-primary) !important;
+    border-color: var(--blue-primary);
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background: var(--blue-dark) !important;
+    border-color: var(--blue-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+}
+
+.btn-success {
+    background: var(--naver-green) !important;
+    border-color: var(--naver-green);
+    color: white !important;
+}
+
+.btn-success:hover {
+    background: var(--naver-green-dark) !important;
+    border-color: var(--naver-green-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+}
+
+/* 카카오 스타일 버튼 */
+.btn-kakao {
+    background: var(--kakao-yellow) !important;
+    border-color: var(--kakao-yellow);
+    color: var(--kakao-brown) !important;
+    font-weight: 700;
+}
+
+.btn-kakao:hover {
+    background: var(--kakao-yellow-dark) !important;
+    border-color: var(--kakao-yellow-dark);
+    color: var(--kakao-brown) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+}
+
+/* 6. 입력 필드 */
+.form-control {
+    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--gray-300);
+    transition: all var(--transition-normal);
+    font-family: var(--font-family-korean);
+    font-size: 0.9rem;
+    padding: var(--space-3) var(--space-4);
+}
+
+.form-control:focus {
+    border-color: var(--blue-primary) !important;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1) !important;
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: var(--gray-500);
+    font-weight: 400;
+}
+
+/* 7. 테이블 (네이버 테이블 스타일) */
+.table {
+    font-family: var(--font-family-korean);
+    font-size: 0.9rem;
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--gray-200) !important;
+    background: var(--gray-50) !important;
+    font-weight: 600;
+    color: var(--gray-800);
+    padding: var(--space-3) var(--space-4);
+    letter-spacing: -0.01em;
+}
+
+.table tbody tr {
+    transition: all var(--transition-fast);
+}
+
+.table tbody tr:hover {
+    background-color: var(--gray-50) !important;
+}
+
+.table tbody td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+}
+
+/* 8. 모달 */
+.modal-content {
+    border-radius: var(--radius-xl) !important;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-5);
+}
+
+.modal-header {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+    background: var(--gray-50) !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    padding: var(--space-5) var(--space-6);
+}
+
+.modal-body {
+    padding: var(--space-6);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--gray-200);
+    padding: var(--space-4) var(--space-6);
+}
+
+/* 9. 사이드바 (깔끔한 네비게이션) */
+.main-sidebar {
+    box-shadow: 1px 0 var(--space-2) rgba(0, 0, 0, 0.05);
+}
+
+.nav-sidebar .nav-link {
+    border-radius: var(--radius-md);
+    margin: var(--space-1) var(--space-3);
+    transition: all var(--transition-fast);
+    font-weight: 500;
+    color: var(--gray-700);
+    padding: var(--space-3) var(--space-4);
+}
+
+.nav-sidebar .nav-link:hover {
+    background: var(--gray-100) !important;
+    color: var(--gray-900) !important;
+}
+
+.nav-sidebar .nav-link.active {
+    background: var(--blue-primary) !important;
+    color: white !important;
+    font-weight: 600;
+}
+
+/* 네이버 그린 테마 */
+.nav-sidebar .nav-link.active.naver-theme {
+    background: var(--naver-green) !important;
+}
+
+/* 10. 반응형 개선 */
+@media (max-width: 768px) {
+    .small-box .inner h3 {
+        font-size: 1.8rem !important;
+    }
+
+    .small-box .icon > i {
+        font-size: 60px !important;
+    }
+
+    .card-header {
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .btn {
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.85rem;
+    }
+}
+
+/* 11. 스크롤바 (깔끔한 스타일) */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gray-400);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
+}
+
+/* 12. 로딩 애니메이션 (심플) */
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--gray-200);
+    border-top: 2px solid var(--blue-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 13. 다크모드 (절제된 스타일) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gray-50: #1a1a1a;
+        --gray-100: #2d2d2d;
+        --gray-200: #404040;
+        --gray-300: #525252;
+        --gray-800: #e5e5e5;
+        --gray-900: #ffffff;
+    }
+
+    body {
+        background: var(--gray-50) !important;
+        color: var(--gray-800);
+    }
+
+    .card {
+        background: var(--gray-100) !important;
+        border-color: var(--gray-200);
+        color: var(--gray-800);
+    }
+
+    .form-control {
+        background: var(--gray-100) !important;
+        border-color: var(--gray-200);
+        color: var(--gray-800);
+    }
+}
+
+/* 14. 유틸리티 클래스 */
+.text-naver { color: var(--naver-green) !important; }
+.text-kakao { color: var(--kakao-yellow-dark) !important; }
+.bg-naver { background-color: var(--naver-green) !important; }
+.bg-kakao { background-color: var(--kakao-yellow) !important; }
+
+.rounded-korean { border-radius: var(--radius-lg) !important; }
+.shadow-korean { box-shadow: var(--shadow-2) !important; }
+
+.font-weight-korean-bold { font-weight: 700 !important; }
+.font-weight-korean-medium { font-weight: 500 !important; }
+
+/* 15. 마이크로 인터랙션 (절제된) */
+.btn, .card, .small-box, .form-control {
+    transition: all var(--transition-normal);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-3);
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
