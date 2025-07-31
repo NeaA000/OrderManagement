@@ -89,22 +89,23 @@ Class Master extends DBConnection {
             return $this->capture_err();
         if($check > 0){
             $resp['status'] = 'failed';
-            $resp['msg'] = "품목명이 이미 존재합니다.";
+            $resp['msg'] = "아이템이 이미 존재합니다.";
             return json_encode($resp);
             exit;
         }
         if(empty($id)){
             $sql = "INSERT INTO `item_list` set {$data} ";
+            $save = $this->conn->query($sql);
         }else{
             $sql = "UPDATE `item_list` set {$data} where id = '{$id}' ";
+            $save = $this->conn->query($sql);
         }
-        $save = $this->conn->query($sql);
         if($save){
             $resp['status'] = 'success';
             if(empty($id))
-                $this->settings->set_flashdata('success',"새 품목이 성공적으로 저장되었습니다.");
+                $this->settings->set_flashdata('success',"새 아이템이 성공적으로 저장되었습니다.");
             else
-                $this->settings->set_flashdata('success',"품목이 성공적으로 업데이트되었습니다.");
+                $this->settings->set_flashdata('success',"아이템이 성공적으로 업데이트되었습니다.");
         }else{
             $resp['status'] = 'failed';
             $resp['err'] = $this->conn->error."[{$sql}]";
@@ -116,7 +117,7 @@ Class Master extends DBConnection {
         $del = $this->conn->query("DELETE FROM `item_list` where id = '{$id}'");
         if($del){
             $resp['status'] = 'success';
-            $this->settings->set_flashdata('success',"품목이 성공적으로 삭제되었습니다.");
+            $this->settings->set_flashdata('success',"아이템이 성공적으로 삭제되었습니다.");
         }else{
             $resp['status'] = 'failed';
             $resp['error'] = $this->conn->error;
@@ -126,46 +127,48 @@ Class Master extends DBConnection {
     }
     function search_items(){
         extract($_POST);
-        $qry = $this->conn->query("SELECT * FROM item_list where `name` LIKE '%{$q}%'");
         $data = array();
-        while($row = $qry->fetch_assoc()){
-            $data[] = array("label"=>$row['name'],"id"=>$row['id'],"description"=>$row['description']);
+        $items = $this->conn->query("SELECT * FROM `item_list` where `name` LIKE '%{$q}%' and status = 1 order by `name` asc limit 10 ");
+        while($row = $items->fetch_assoc()){
+            $data[] = $row;
         }
         return json_encode($data);
+
+    }
+    function get_price(){
+        extract($_POST);
+        $get = $this->conn->query("SELECT * FROM `item_list` where id = '{$id}'");
+        if($get->num_rows > 0){
+            $res = $get->fetch_array();
+            return $res['price'];
+        }else{
+            return 0;
+        }
+
     }
     function save_po(){
+        if(empty($_POST['id'])){
+            $prefix = "PO";
+            $code = sprintf("%'.04d",1);
+            while(true){
+                $check = $this->conn->query("SELECT * FROM `po_list` where po_no = '".$prefix.date('Ymd')."-".$code."' ")->num_rows;
+                if($check > 0){
+                    $code = sprintf("%'.04d",abs($code) + 1);
+                }else{
+                    break;
+                }
+            }
+            $_POST['po_no'] = $prefix.date('Ymd')."-".$code;
+        }
         extract($_POST);
         $data = "";
         foreach($_POST as $k =>$v){
-            if(in_array($k,array('discount_amount','tax_amount')))
-                $v= str_replace(',','',$v);
-            if(!in_array($k,array('id','po_no')) && !is_array($_POST[$k])){
+            if(!in_array($k,array('id')) && !is_array($_POST[$k])){
                 $v = addslashes(trim($v));
                 if(!empty($data)) $data .=",";
                 $data .= " `{$k}`='{$v}' ";
             }
         }
-        if(!empty($po_no)){
-            $check = $this->conn->query("SELECT * FROM `po_list` where `po_no` = '{$po_no}' ".($id > 0 ? " and id != '{$id}' ":""))->num_rows;
-            if($this->capture_err())
-                return $this->capture_err();
-            if($check > 0){
-                $resp['status'] = 'po_failed';
-                $resp['msg'] = "구매 주문 번호가 이미 존재합니다.";
-                return json_encode($resp);
-                exit;
-            }
-        }else{
-            $po_no ="";
-            while(true){
-                $po_no = "PO-".(sprintf("%'.011d", mt_rand(1,99999999999)));
-                $check = $this->conn->query("SELECT * FROM `po_list` where `po_no` = '{$po_no}'")->num_rows;
-                if($check <= 0)
-                    break;
-            }
-        }
-        $data .= ", po_no = '{$po_no}' ";
-
         if(empty($id)){
             $sql = "INSERT INTO `po_list` set {$data} ";
         }else{
@@ -173,22 +176,27 @@ Class Master extends DBConnection {
         }
         $save = $this->conn->query($sql);
         if($save){
+            $po_id = empty($id) ? $this->conn->insert_id : $id;
             $resp['status'] = 'success';
-            $po_id = empty($id) ? $this->conn->insert_id : $id ;
-            $resp['id'] = $po_id;
-            $data = "";
-            foreach($item_id as $k =>$v){
-                if(!empty($data)) $data .=",";
-                $data .= "('{$po_id}','{$v}','{$unit[$k]}','{$unit_price[$k]}','{$qty[$k]}')";
+            if(empty($id)){
+                $resp['id'] = $po_id;
+                $this->settings->set_flashdata('success',"새 구매주문이 성공적으로 저장되었습니다.");
+            }else{
+                $this->settings->set_flashdata('success',"구매주문이 성공적으로 업데이트되었습니다.");
             }
-            if(!empty($data)){
+            if(isset($item_id)){
                 $this->conn->query("DELETE FROM `order_items` where po_id = '{$po_id}'");
-                $save = $this->conn->query("INSERT INTO `order_items` (`po_id`,`item_id`,`unit`,`unit_price`,`quantity`) VALUES {$data} ");
+                $data = "";
+                foreach($item_id as $k =>$v){
+                    if(!empty($data)) $data .=", ";
+                    $data .= "('{$po_id}','{$item_id[$k]}','{$qty[$k]}','{$price[$k]}','{$unit[$k]}')";
+                }
+                if(!empty($data)){
+                    $sql2 = "INSERT INTO `order_items` (`po_id`,`item_id`,`quantity`,`price`,`unit`) VALUES {$data}";
+                    $this->conn->query($sql2);
+                }
             }
-            if(empty($id))
-                $this->settings->set_flashdata('success',"구매 주문이 성공적으로 저장되었습니다.");
-            else
-                $this->settings->set_flashdata('success',"구매 주문이 성공적으로 업데이트되었습니다.");
+
         }else{
             $resp['status'] = 'failed';
             $resp['err'] = $this->conn->error."[{$sql}]";
@@ -197,10 +205,11 @@ Class Master extends DBConnection {
     }
     function delete_po(){
         extract($_POST);
-        $del = $this->conn->query("DELETE FROM `po_list` where unit_id = '{$id}'");
+        $del = $this->conn->query("DELETE FROM `po_list` where id = '{$id}'");
+        $del2 = $this->conn->query("DELETE FROM `order_items` where po_id = '{$id}'");
         if($del){
             $resp['status'] = 'success';
-            $this->settings->set_flashdata('success',"구매 주문이 성공적으로 삭제되었습니다.");
+            $this->settings->set_flashdata('success',"구매주문이 성공적으로 삭제되었습니다.");
         }else{
             $resp['status'] = 'failed';
             $resp['error'] = $this->conn->error;
@@ -208,59 +217,36 @@ Class Master extends DBConnection {
         return json_encode($resp);
 
     }
-    function get_price(){
-        extract($_POST);
-        $qry = $this->conn->query("SELECT * FROM price_list where unit_id = '{$unit_id}'");
-        $this->capture_err();
-        if($qry->num_rows > 0){
-            $res = $qry->fetch_array();
-            switch($rent_type){
-                case '1':
-                    $resp['price'] = $res['monthly'];
-                    break;
-                case '2':
-                    $resp['price'] = $res['quarterly'];
-                    break;
-                case '3':
-                    $resp['price'] = $res['annually'];
-                    break;
-            }
-        }else{
-            $resp['price'] = "0";
-        }
-        return json_encode($resp);
-    }
     function save_rent(){
+        if(empty($_POST['id'])){
+            $prefix = "RENT";
+            $code = sprintf("%'.04d",1);
+            while(true){
+                $check = $this->conn->query("SELECT * FROM `rent_list` where rent_no = '".$prefix.date('Ymd')."-".$code."' ")->num_rows;
+                if($check > 0){
+                    $code = sprintf("%'.04d",abs($code) + 1);
+                }else{
+                    break;
+                }
+            }
+            $_POST['rent_no'] = $prefix.date('Ymd')."-".$code;
+        }
         extract($_POST);
         $data = "";
         foreach($_POST as $k =>$v){
-            if(!in_array($k,array('id')) && !is_array($_POST[$k])){
+            if(!in_array($k,array('id'))){
+                $v = addslashes(trim($v));
                 if(!empty($data)) $data .=",";
-                $v = addslashes($v);
                 $data .= " `{$k}`='{$v}' ";
             }
         }
-        switch ($rent_type) {
-            case 1:
-                $data .= ", `date_end`='".date("Y-m-d",strtotime($date_rented.' +1 month'))."' ";
-                break;
-
-            case 2:
-                $data .= ", `date_end`='".date("Y-m-d",strtotime($date_rented.' +3 month'))."' ";
-                break;
-            case 3:
-                $data .= ", `date_end`='".date("Y-m-d",strtotime($date_rented.' +1 year'))."' ";
-                break;
-            default:
-                # code...
-                break;
-        }
         if(empty($id)){
             $sql = "INSERT INTO `rent_list` set {$data} ";
+            $save = $this->conn->query($sql);
         }else{
             $sql = "UPDATE `rent_list` set {$data} where id = '{$id}' ";
+            $save = $this->conn->query($sql);
         }
-        $save = $this->conn->query($sql);
         if($save){
             $resp['status'] = 'success';
             if(empty($id))
@@ -330,6 +316,70 @@ Class Master extends DBConnection {
         }
         return json_encode($resp);
     }
+
+    // 서류 분류 관리 함수들 추가
+    function save_category(){
+        extract($_POST);
+        $data = "";
+        foreach($_POST as $k =>$v){
+            if(!in_array($k,array('id'))){
+                $v = addslashes(trim($v));
+                if(!empty($data)) $data .=",";
+                $data .= " `{$k}`='{$v}' ";
+            }
+        }
+
+        // 중복 체크 (같은 레벨, 같은 부모 하위에서)
+        $parent_condition = !empty($parent_id) ? "parent_id = '{$parent_id}'" : "parent_id IS NULL";
+        $check = $this->conn->query("SELECT * FROM `document_categories` WHERE `name` = '{$name}' AND level = '{$level}' AND {$parent_condition} ".(!empty($id) ? " AND id != {$id} " : "")." ")->num_rows;
+
+        if($this->capture_err())
+            return $this->capture_err();
+
+        if($check > 0){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "같은 이름의 분류가 이미 존재합니다.";
+            return json_encode($resp);
+            exit;
+        }
+
+        if(empty($id)){
+            $sql = "INSERT INTO `document_categories` SET {$data} ";
+            $save = $this->conn->query($sql);
+        }else{
+            $sql = "UPDATE `document_categories` SET {$data} WHERE id = '{$id}' ";
+            $save = $this->conn->query($sql);
+        }
+
+        if($save){
+            $resp['status'] = 'success';
+            if(empty($id))
+                $this->settings->set_flashdata('success',"새 분류가 성공적으로 저장되었습니다.");
+            else
+                $this->settings->set_flashdata('success',"분류가 성공적으로 업데이트되었습니다.");
+        }else{
+            $resp['status'] = 'failed';
+            $resp['err'] = $this->conn->error."[{$sql}]";
+        }
+        return json_encode($resp);
+    }
+
+    function delete_category(){
+        extract($_POST);
+
+        // 하위 분류가 있는지 확인
+        $sub_check = $this->conn->query("SELECT COUNT(*) as cnt FROM `document_categories` WHERE parent_id = '{$id}'")->fetch_array()['cnt'];
+
+        $del = $this->conn->query("DELETE FROM `document_categories` WHERE id = '{$id}'");
+        if($del){
+            $resp['status'] = 'success';
+            $this->settings->set_flashdata('success',"분류가 성공적으로 삭제되었습니다." . ($sub_check > 0 ? " (하위 분류 {$sub_check}개도 함께 삭제됨)" : ""));
+        }else{
+            $resp['status'] = 'failed';
+            $resp['error'] = $this->conn->error;
+        }
+        return json_encode($resp);
+    }
 }
 
 $Master = new Master();
@@ -368,6 +418,12 @@ switch ($action) {
         break;
     case 'renew_rent':
         echo $Master->renew_rent();
+        break;
+    case 'save_category':
+        echo $Master->save_category();
+        break;
+    case 'delete_category':
+        echo $Master->delete_category();
         break;
 
     default:

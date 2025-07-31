@@ -9,7 +9,7 @@
         <h3 class="card-title">서류 분류별 목록 관리</h3>
         <div class="card-tools">
             <a href="javascript:void(0)" class="btn btn-flat btn-success" id="create_main_category">
-                <span class="fas fa-plus"></span> 새 대분류(체크박스) 추가
+                <span class="fas fa-plus"></span> 새 메인 카테고리 추가
             </a>
         </div>
     </div>
@@ -20,17 +20,17 @@
                 <div class="col-12">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        <strong>서류 분류 관리:</strong> 각 체크박스별로 포함될 서류 목록을 관리합니다.
-                        대분류는 체크박스, 중분류는 실제 서류, 소분류는 세부 항목입니다.
+                        <strong>서류 분류 관리:</strong> 메인 카테고리별로 포함될 서류 목록을 관리합니다.
+                        메인 카테고리 → 서류 그룹 → 실제 서류 순으로 구성됩니다.
                     </div>
                 </div>
             </div>
 
-            <!-- 10개 대분류별 서류 목록 관리 -->
+            <!-- 메인 카테고리별 서류 목록 관리 -->
             <?php
             $main_categories = $conn->query("
                 SELECT * FROM document_categories 
-                WHERE parent_id IS NULL 
+                WHERE parent_id IS NULL OR parent_id = 0
                 ORDER BY display_order ASC
             ");
 
@@ -52,19 +52,22 @@
                             </div>
 
                             <span class="badge <?php echo $main_cat['is_required'] ? 'badge-danger' : 'badge-secondary' ?> ml-auto mr-2">
-                            <?php echo $main_cat['is_required'] ? '필수' : '선택' ?>
-                        </span>
+                                <?php echo $main_cat['is_required'] ? '필수' : '선택' ?>
+                            </span>
 
                             <span class="badge badge-info mr-2">
-                            순서: <?php echo $main_cat['display_order'] ?>
-                        </span>
+                                순서: <?php echo $main_cat['display_order'] ?>
+                            </span>
 
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-outline-primary edit_main_category" data-id="<?php echo $main_cat['id'] ?>">
                                     <i class="fas fa-edit"></i> 수정
                                 </button>
                                 <button class="btn btn-sm btn-outline-success add_sub_category" data-parent-id="<?php echo $main_cat['id'] ?>">
-                                    <i class="fas fa-plus"></i> 중분류 추가
+                                    <i class="fas fa-plus"></i> 서류 그룹 추가
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete_category" data-id="<?php echo $main_cat['id'] ?>">
+                                    <i class="fas fa-trash"></i> 삭제
                                 </button>
                             </div>
                         </div>
@@ -77,8 +80,8 @@
                                     <thead class="bg-light">
                                     <tr>
                                         <th width="5%">#</th>
-                                        <th width="30%">중분류 (서류명)</th>
-                                        <th width="20%">소분류</th>
+                                        <th width="30%">서류 그룹</th>
+                                        <th width="20%">실제 서류</th>
                                         <th width="10%">필수여부</th>
                                         <th width="10%">순서</th>
                                         <th width="10%">상태</th>
@@ -95,7 +98,7 @@
 
                                     $sub_num = 1;
                                     while($sub_cat = $sub_qry->fetch_assoc()):
-                                        // 소분류 개수 확인
+                                        // 실제 서류 개수 확인
                                         $subsub_count = $conn->query("SELECT COUNT(*) as cnt FROM document_categories WHERE parent_id = '{$sub_cat['id']}'")->fetch_array()['cnt'];
 
                                         $required_badge = $sub_cat['is_required'] ?
@@ -109,7 +112,7 @@
                                         <tr>
                                             <td><?php echo $sub_num++ ?></td>
                                             <td>
-                                                <i class="fas fa-file-alt text-info mr-2"></i>
+                                                <i class="fas fa-folder text-info mr-2"></i>
                                                 <strong><?php echo htmlspecialchars($sub_cat['name']) ?></strong>
                                             </td>
                                             <td>
@@ -140,20 +143,20 @@
                                             </td>
                                         </tr>
 
-                                        <!-- 소분류 표시 (숨김/보임 토글) -->
+                                        <!-- 실제 서류 표시 (숨김/보임 토글) -->
                                         <?php
                                         $subsub_qry = $conn->query("
-                                        SELECT * FROM document_categories 
-                                        WHERE parent_id = '{$sub_cat['id']}' AND level = 3
-                                        ORDER BY display_order ASC, name ASC
-                                    ");
+                                            SELECT * FROM document_categories 
+                                            WHERE parent_id = '{$sub_cat['id']}' AND level = 3
+                                            ORDER BY display_order ASC, name ASC
+                                        ");
 
                                         if($subsub_qry->num_rows > 0):
                                             ?>
                                             <tr class="subsub-row" data-parent="<?php echo $sub_cat['id'] ?>" style="display: none;">
                                                 <td colspan="7">
                                                     <div class="ml-4 p-2 bg-light rounded">
-                                                        <small><strong>소분류 목록:</strong></small>
+                                                        <small><strong>실제 서류 목록:</strong></small>
                                                         <div class="row mt-2">
                                                             <?php while($subsub_cat = $subsub_qry->fetch_assoc()): ?>
                                                                 <div class="col-md-6 mb-2">
@@ -161,8 +164,8 @@
                                                                         <i class="fas fa-file text-success mr-2"></i>
                                                                         <span><?php echo htmlspecialchars($subsub_cat['name']) ?></span>
                                                                         <span class="badge <?php echo $subsub_cat['is_required'] ? 'badge-danger' : 'badge-light' ?> badge-sm ml-2">
-                                                                <?php echo $subsub_cat['is_required'] ? '필수' : '선택' ?>
-                                                            </span>
+                                                                            <?php echo $subsub_cat['is_required'] ? '필수' : '선택' ?>
+                                                                        </span>
                                                                         <div class="btn-group btn-group-xs ml-auto">
                                                                             <button class="btn btn-outline-primary btn-xs edit_category" data-id="<?php echo $subsub_cat['id'] ?>">
                                                                                 <i class="fas fa-edit"></i>
@@ -172,6 +175,9 @@
                                                                             </button>
                                                                         </div>
                                                                     </div>
+                                                                    <?php if(!empty($subsub_cat['description'])): ?>
+                                                                        <small class="text-muted ml-4"><?php echo htmlspecialchars($subsub_cat['description']) ?></small>
+                                                                    <?php endif; ?>
                                                                 </div>
                                                             <?php endwhile; ?>
                                                         </div>
@@ -187,9 +193,9 @@
                         <?php else: ?>
                             <div class="text-center py-4">
                                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">아직 등록된 서류가 없습니다.</p>
+                                <p class="text-muted">아직 등록된 서류 그룹이 없습니다.</p>
                                 <button class="btn btn-primary add_sub_category" data-parent-id="<?php echo $main_cat['id'] ?>">
-                                    <i class="fas fa-plus"></i> 첫 번째 서류 추가
+                                    <i class="fas fa-plus"></i> 첫 번째 서류 그룹 추가
                                 </button>
                             </div>
                         <?php endif; ?>
@@ -197,35 +203,47 @@
                 </div>
 
             <?php endwhile; ?>
+
+            <!-- 메인 카테고리가 없는 경우 -->
+            <?php if($main_categories->num_rows == 0): ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-plus fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">메인 카테고리가 없습니다</h4>
+                    <p class="text-muted">첫 번째 메인 카테고리를 추가해보세요.</p>
+                    <button class="btn btn-primary btn-lg" id="create_first_category">
+                        <i class="fas fa-plus"></i> 첫 번째 메인 카테고리 추가
+                    </button>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
 <script>
     $(document).ready(function(){
-        // 대분류(체크박스) 수정
+        // 메인 카테고리 수정
         $('.edit_main_category').click(function(){
-            uni_modal("<i class='fa fa-edit'></i> 대분류 수정", "document_categories/manage_category.php?id="+$(this).attr('data-id'), "")
+            uni_modal("<i class='fa fa-edit'></i> 메인 카테고리 수정", "document_categories/manage_category.php?id="+$(this).attr('data-id'), "mid-large")
         })
 
-        // 중분류 추가
+        // 서류 그룹 추가
         $('.add_sub_category').click(function(){
             var parent_id = $(this).attr('data-parent-id');
-            uni_modal("<i class='fa fa-plus'></i> 중분류(서류) 추가", "document_categories/manage_category.php?parent_id="+parent_id+"&level=2", "")
+            uni_modal("<i class='fa fa-plus'></i> 서류 그룹 추가", "document_categories/manage_category.php?parent_id="+parent_id+"&level=2", "mid-large")
         })
 
-        // 소분류 추가
+        // 실제 서류 추가
         $('.add_subsub_category').click(function(){
             var parent_id = $(this).attr('data-parent-id');
-            uni_modal("<i class='fa fa-plus'></i> 소분류 추가", "document_categories/manage_category.php?parent_id="+parent_id+"&level=3", "")
+            uni_modal("<i class='fa fa-plus'></i> 실제 서류 추가", "document_categories/manage_category.php?parent_id="+parent_id+"&level=3", "mid-large")
         })
 
         // 분류 수정
         $('.edit_category').click(function(){
-            uni_modal("<i class='fa fa-edit'></i> 분류 수정", "document_categories/manage_category.php?id="+$(this).attr('data-id'), "")
+            uni_modal("<i class='fa fa-edit'></i> 분류 수정", "document_categories/manage_category.php?id="+$(this).attr('data-id'), "mid-large")
         })
 
-        // 소분류 보기/숨기기 토글
+        // 실제 서류 보기/숨기기 토글
         $('.view_subsub').click(function(){
             var parent_id = $(this).attr('data-parent-id');
             var row = $('.subsub-row[data-parent="'+parent_id+'"]');
@@ -239,15 +257,26 @@
             }
         })
 
-        // 새 대분류 추가
-        $('#create_main_category').click(function(){
-            uni_modal("<i class='fa fa-plus'></i> 새 대분류(체크박스) 추가", "document_categories/manage_category.php?level=1", "")
+        // 새 메인 카테고리 추가
+        $('#create_main_category, #create_first_category').click(function(){
+            uni_modal("<i class='fa fa-plus'></i> 새 메인 카테고리 추가", "document_categories/manage_category.php?level=1", "mid-large")
         })
 
         // 분류 삭제
         $('.delete_category').click(function(){
-            _conf("정말로 이 분류를 삭제하시겠습니까?<br><small class='text-muted'>하위 분류가 있는 경우 모두 함께 삭제됩니다.</small>", "delete_category", [$(this).attr('data-id')])
+            var categoryId = $(this).attr('data-id');
+            _conf("정말로 이 분류를 삭제하시겠습니까?<br><small class='text-muted'>하위 분류가 있는 경우 모두 함께 삭제됩니다.</small>", "delete_category", [categoryId])
         })
+
+        // 체크박스 상태에 따른 스타일 적용
+        $('input[type="checkbox"]').each(function(){
+            var card = $(this).closest('.card');
+            if($(this).is(':checked')) {
+                card.removeClass('card-secondary').addClass('card-danger');
+            } else {
+                card.removeClass('card-danger').addClass('card-secondary');
+            }
+        });
     })
 
     function delete_category($id){
@@ -264,7 +293,10 @@
             },
             success: function(resp){
                 if(typeof resp == 'object' && resp.status == 'success'){
-                    location.reload();
+                    alert_toast("분류가 성공적으로 삭제되었습니다.", 'success');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
                 } else {
                     alert_toast("삭제 중 오류가 발생했습니다.", 'error');
                     end_loader();
