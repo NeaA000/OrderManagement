@@ -35,7 +35,7 @@ Class Master extends DBConnection {
             return $this->capture_err();
         if($check > 0){
             $resp['status'] = 'failed';
-            $resp['msg'] = "공급업체가 이미 존재합니다.";
+            $resp['msg'] = "의뢰처가 이미 존재합니다.";
             return json_encode($resp);
             exit;
         }
@@ -49,9 +49,9 @@ Class Master extends DBConnection {
         if($save){
             $resp['status'] = 'success';
             if(empty($id))
-                $this->settings->set_flashdata('success',"새 공급업체가 성공적으로 저장되었습니다.");
+                $this->settings->set_flashdata('success',"새 의뢰처가 성공적으로 저장되었습니다.");
             else
-                $this->settings->set_flashdata('success',"공급업체가 성공적으로 업데이트되었습니다.");
+                $this->settings->set_flashdata('success',"의뢰처 정보가 성공적으로 업데이트되었습니다.");
         }else{
             $resp['status'] = 'failed';
             $resp['err'] = $this->conn->error."[{$sql}]";
@@ -63,7 +63,7 @@ Class Master extends DBConnection {
         $del = $this->conn->query("DELETE FROM `supplier_list` where id = '{$id}'");
         if($del){
             $resp['status'] = 'success';
-            $this->settings->set_flashdata('success',"공급업체가 성공적으로 삭제되었습니다.");
+            $this->settings->set_flashdata('success',"의뢰처가 성공적으로 삭제되었습니다.");
         }else{
             $resp['status'] = 'failed';
             $resp['error'] = $this->conn->error;

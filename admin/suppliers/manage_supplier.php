@@ -24,7 +24,7 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
     <input type="hidden" name="id" value="<?php echo isset($id) ? $id : '' ?>">
     <div class="container-fluid">
         <div class="form-group">
-            <label for="name" class="control-label">공급업체명</label>
+            <label for="name" class="control-label">의뢰처명</label>
             <input type="text" name="name" id="name" class="form-control rounded-0" value="<?php echo isset($name) ? $name :"" ?>" required>
         </div>
         <div class="form-group">

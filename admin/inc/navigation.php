@@ -35,7 +35,7 @@ $type = $_settings->userdata('type');
                     <li class="nav-item dropdown">
                         <a href="<?php echo base_url ?>admin/?page=suppliers" class="nav-link nav-suppliers">
                             <i class="nav-icon fas fa-truck-loading"></i>
-                            <p>공급업체 목록</p>
+                            <p>의뢰처 관리</p>
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -59,6 +59,14 @@ $type = $_settings->userdata('type');
                         <a href="<?php echo base_url ?>admin/?page=document_categories" class="nav-link nav-document_categories">
                             <i class="nav-icon fas fa-folder"></i>
                             <p>서류 분류 관리</p>
+                        </a>
+                    </li>
+
+                    <!-- 의뢰처 관리 (기존 suppliers 페이지 활용) -->
+                    <li class="nav-item dropdown">
+                        <a href="<?php echo base_url ?>admin/?page=suppliers" class="nav-link nav-suppliers">
+                            <i class="nav-icon fas fa-building"></i>
+                            <p>의뢰처 관리</p>
                         </a>
                     </li>
 

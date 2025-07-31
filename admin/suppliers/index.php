@@ -5,7 +5,7 @@
 <?php endif;?>
 <div class="card card-outline card-primary">
     <div class="card-header">
-        <h3 class="card-title">공급업체 목록</h3>
+        <h3 class="card-title">의뢰처 목록</h3>
         <div class="card-tools">
             <a href="javascript:void(0)" id="create_new" class="btn btn-flat btn-primary"><span class="fas fa-plus"></span>  새로 만들기</a>
         </div>
@@ -16,21 +16,22 @@
                 <table class="table table-hover table-striped">
                     <colgroup>
                         <col width="5%">
+                        <col width="12%">
+                        <col width="18%">
+                        <col width="20%">
+                        <col width="25%">
                         <col width="10%">
-                        <col width="20%">
-                        <col width="20%">
-                        <col width="20%">
                         <col width="10%">
-                        <col width="15%">
                     </colgroup>
                     <thead>
                     <tr class="bg-navy disabled">
                         <th>#</th>
                         <th>생성일</th>
-                        <th>공급업체</th>
+                        <th>의뢰처명</th>
                         <th>담당자</th>
                         <th>주소</th>
-                        <th>상태</th>
+                        <th>진행중인 공사</th>
+                        <th>서류 현황</th>
                         <th>작업</th>
                     </tr>
                     </thead>
@@ -39,6 +40,17 @@
                     $i = 1;
                     $qry = $conn->query("SELECT * from `supplier_list` order by (`name`) asc ");
                     while($row = $qry->fetch_assoc()):
+                        // 해당 의뢰처의 공사 현황 조회
+                        $projects = $conn->query("SELECT 
+                            dr.*,
+                            (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id) as total_docs,
+                            (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 1) as submitted_docs
+                            FROM document_requests dr 
+                            WHERE dr.supplier_id = '{$row['id']}' 
+                            ORDER BY dr.date_created DESC");
+                        
+                        $project_count = $projects->num_rows;
+                        $latest_project = $projects->fetch_assoc();
                         ?>
                         <tr>
                             <td class="text-center"><?php echo $i++; ?></td>
@@ -51,11 +63,28 @@
                                 </p>
                             </td>
                             <td class='truncate-3' title="<?php echo $row['address'] ?>"><?php echo $row['address'] ?></td>
-                            <td class="text-center">
-                                <?php if($row['status'] == 1): ?>
-                                    <span class="badge badge-success">활성</span>
+                            <td>
+                                <?php if($project_count > 0): ?>
+                                    <span class="badge badge-primary"><?php echo $project_count ?>개 프로젝트</span>
+                                    <?php if($latest_project): ?>
+                                        <br><small class="text-muted">최근: <?php echo $latest_project['project_name'] ?></small>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="badge badge-secondary">비활성</span>
+                                    <span class="text-muted">진행중인 공사 없음</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if($latest_project && $latest_project['total_docs'] > 0): ?>
+                                    <div class="progress" style="height: 20px;">
+                                        <?php 
+                                        $progress = round(($latest_project['submitted_docs'] / $latest_project['total_docs']) * 100);
+                                        ?>
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $progress ?>%">
+                                            <?php echo $latest_project['submitted_docs'] ?>/<?php echo $latest_project['total_docs'] ?>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
                                 <?php endif; ?>
                             </td>
                             <td align="center">
@@ -64,11 +93,12 @@
                                     <span class="sr-only">Toggle Dropdown</span>
                                 </button>
                                 <div class="dropdown-menu" role="menu">
-                                    <a class="dropdown-item view_data" href="javascript:void(0)" data-id = "<?php echo $row['id'] ?>"><span class="fa fa-info text-primary"></span> 보기</a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="viewProjects(<?php echo $row['id'] ?>)"><span class="fa fa-folder-open text-info"></span> 공사 목록</a>
                                     <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item edit_data" href="javascript:void(0)" data-id = "<?php echo $row['id'] ?>"><span class="fa fa-edit text-primary"></span> 수정</a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="viewSupplierDetails(<?php echo $row['id'] ?>)"><span class="fa fa-eye text-primary"></span> 상세보기</a>
                                     <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item delete_data" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>"><span class="fa fa-trash text-danger"></span> 삭제</a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="editSupplier(<?php echo $row['id'] ?>)"><span class="fa fa-edit text-success"></span> 정보수정</a>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -82,20 +112,33 @@
 <script>
     $(document).ready(function(){
         $('.delete_data').click(function(){
-            _conf("정말로 이 공급업체를 영구적으로 삭제하시겠습니까?","delete_supplier",[$(this).attr('data-id')])
+            _conf("정말로 이 의뢰처를 영구적으로 삭제하시겠습니까?","delete_supplier",[$(this).attr('data-id')])
         })
         $('#create_new').click(function(){
-            uni_modal("<i class='fa fa-plus'></i> 새 공급업체 등록","suppliers/manage_supplier.php")
+            uni_modal("<i class='fa fa-plus'></i> 새 의뢰처 등록","suppliers/manage_supplier.php")
         })
         $('.view_data').click(function(){
-            uni_modal("<i class='fa fa-info-circle'></i> 공급업체 세부정보","suppliers/view_details.php?id="+$(this).attr('data-id'),"")
+            uni_modal("<i class='fa fa-info-circle'></i> 의뢰처 세부정보","suppliers/view_details.php?id="+$(this).attr('data-id'),"")
         })
         $('.edit_data').click(function(){
-            uni_modal("<i class='fa fa-edit'></i> 공급업체 세부정보 수정","suppliers/manage_supplier.php?id="+$(this).attr('data-id'))
+            uni_modal("<i class='fa fa-edit'></i> 의뢰처 정보 수정","suppliers/manage_supplier.php?id="+$(this).attr('data-id'))
         })
         $('.table th,.table td').addClass('px-1 py-0 align-middle')
         $('.table').dataTable();
     })
+    
+    function viewProjects(supplier_id){
+        uni_modal("<i class='fa fa-folder-open'></i> 공사 목록 및 서류 현황","suppliers/view_projects.php?id="+supplier_id,"large")
+    }
+    
+    function viewSupplierDetails(supplier_id){
+        uni_modal("<i class='fa fa-building'></i> 의뢰처 상세정보","suppliers/view_details.php?id="+supplier_id,"mid-large")
+    }
+    
+    function editSupplier(supplier_id){
+        uni_modal("<i class='fa fa-edit'></i> 의뢰처 정보 수정","suppliers/manage_supplier.php?id="+supplier_id)
+    }
+    
     function delete_supplier($id){
         start_loader();
         $.ajax({
