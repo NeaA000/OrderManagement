@@ -52,7 +52,7 @@
                         $project_count = $projects->num_rows;
                         $latest_project = $projects->fetch_assoc();
                         ?>
-                        <tr>
+                        <tr class="supplier-row" data-id="<?php echo $row['id'] ?>" style="cursor: pointer;">
                             <td class="text-center"><?php echo $i++; ?></td>
                             <td><?php echo date("Y-m-d H:i",strtotime($row['date_created'])) ?></td>
                             <td><?php echo $row['name'] ?></td>
@@ -125,14 +125,20 @@
         })
         $('.table th,.table td').addClass('px-1 py-0 align-middle')
         $('.table').dataTable();
+        
+        // 행 클릭 시 상세 페이지로 이동
+        $('.supplier-row').click(function(){
+            var id = $(this).data('id');
+            window.location.href = '?page=suppliers/view_projects&id=' + id;
+        });
     })
     
     function viewProjects(supplier_id){
-        uni_modal("<i class='fa fa-folder-open'></i> 공사 목록 및 서류 현황","suppliers/view_projects.php?id="+supplier_id,"large")
+        window.location.href = '?page=suppliers/view_projects&id=' + supplier_id;
     }
     
     function viewSupplierDetails(supplier_id){
-        uni_modal("<i class='fa fa-building'></i> 의뢰처 상세정보","suppliers/view_details.php?id="+supplier_id,"mid-large")
+        window.location.href = '?page=suppliers/view_projects&id=' + supplier_id;
     }
     
     function editSupplier(supplier_id){
