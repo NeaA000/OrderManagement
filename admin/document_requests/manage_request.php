@@ -708,7 +708,7 @@ $categoryTree = getCategoryTree($pdo);
                 <td colspan="2"><input type="text" name="project_name" required></td>
                 <th width="15%">시공방법</th>
                 <td width="25%">
-                    <select name="construction_method" required>
+                    <select name="construction_method">
                         <option value="">선택하세요</option>
                         <option value="단독">단독</option>
                         <option value="공동">공동</option>
@@ -727,17 +727,17 @@ $categoryTree = getCategoryTree($pdo);
                     </select>
                 </td>
                 <th>수주일</th>
-                <td><input type="date" name="order_date" required></td>
+                <td><input type="date" name="order_date"></td>
             </tr>
             <tr>
                 <th rowspan="2">담당자</th>
                 <th width="10%">담당</th>
                 <td>
-                    <input type="text" name="manager_name" placeholder="담당자 이름" style="width: 40%; display: inline;" required>
-                    <input type="text" name="manager_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" required>
+                    <input type="text" name="manager_name" placeholder="담당자 이름" style="width: 40%; display: inline;" >
+                    <input type="text" name="manager_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;">
                 </td>
                 <th>이메일</th>
-                <td><input type="email" name="manager_email" placeholder="이메일 주소" required></td>
+                <td><input type="email" name="manager_email" placeholder="이메일 주소"></td>
             </tr>
             <tr>
                 <th>소장</th>
@@ -746,7 +746,7 @@ $categoryTree = getCategoryTree($pdo);
                     <input type="text" name="director_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;">
                 </td>
                 <th>제출예정일</th>
-                <td><input type="date" name="submission_date" required></td>
+                <td><input type="date" name="submission_date"></td>
             </tr>
         </table>
 
@@ -827,43 +827,43 @@ $categoryTree = getCategoryTree($pdo);
         <table>
             <tr>
                 <th width="20%">안전관리계획서</th>
-                <td width="30%"><input type="text" name="safety_plan_cost" placeholder="220만원" class="cost-input"></td>
+                <td width="30%"><input type="text" name="safety_plan_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input"></td>
                 <th width="20%">유해위험방지계획서</th>
-                <td width="30%"><input type="text" name="hazard_prevention_cost" placeholder="350만원" class="cost-input"></td>
+                <td width="30%"><input type="text" name="hazard_prevention_cost" placeholder="유해위험방지계획비 입력(만원)" class="cost-input"></td>
             </tr>
             <tr>
                 <th>구조검토비</th>
-                <td><input type="text" name="structure_review_cost" placeholder="구조검토비 입력" class="cost-input"></td>
+                <td><input type="text" name="structure_review_cost" placeholder="구조검토비 입력(만원)" class="cost-input"></td>
                 <th>위탁처</th>
-                <td><input type="text" name="structure_review_agency" placeholder="위탁처 입력"></td>
+                <td><input type="text" name="structure_review_agency" placeholder="위탁처 입력(만원)"></td>
             </tr>
             <tr>
                 <th>계획서검토비</th>
-                <td><input type="text" name="plan_review_cost" placeholder="계획서검토비 입력" class="cost-input"></td>
+                <td><input type="text" name="plan_review_cost" placeholder="계획서검토비 입력(만원)" class="cost-input"></td>
                 <th>검토처</th>
-                <td><input type="text" name="plan_review_agency" placeholder="검토처 입력"></td>
+                <td><input type="text" name="plan_review_agency" placeholder="검토처 입력(만원)"></td>
             </tr>
             <tr>
                 <th>안전보건대장</th>
-                <td><input type="text" name="safety_health_cost" placeholder="130만원" class="cost-input"></td>
+                <td><input type="text" name="safety_health_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input"></td>
                 <th>교육시설</th>
-                <td><input type="text" name="education_facility_cost" placeholder="교육시설 비용" class="cost-input"></td>
+                <td><input type="text" name="education_facility_cost" placeholder="교육시설 비용 입력(만원)" class="cost-input"></td>
             </tr>
             <tr>
                 <th>철도보호</th>
-                <td><input type="text" name="railway_protection_cost" placeholder="철도보호 비용" class="cost-input"></td>
+                <td><input type="text" name="railway_protection_cost" placeholder="철도보호 비용 입력(만원)" class="cost-input"></td>
                 <th>적정성평가</th>
-                <td><input type="text" name="evaluation_cost" placeholder="적정성평가 비용" class="cost-input"></td>
+                <td><input type="text" name="evaluation_cost" placeholder="적정성평가 비용 입력(만원)" class="cost-input"></td>
             </tr>
             <tr>
                 <th>종합계</th>
                 <td colspan="3">
-                    <input type="text" name="total_cost" id="total_cost" placeholder="700만원" style="width: 200px; display: inline;" required>
+                    <input type="text" name="total_cost" id="total_cost" placeholder="0만원" style="width: 200px; display: inline;" readonly required>
                     <label style="margin-left: 20px;">
-                        <input type="radio" name="vat_included" value="1"> VAT 포함
+                        <input type="radio" name="vat_included" value="1" onchange="calculateTotalCost()"> VAT 포함
                     </label>
                     <label style="margin-left: 20px;">
-                        <input type="radio" name="vat_included" value="0" checked> VAT 별도
+                        <input type="radio" name="vat_included" value="0" checked onchange="calculateTotalCost()"> VAT 별도
                     </label>
                 </td>
             </tr>
@@ -903,7 +903,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="csi_id" placeholder="아이디" style="width: 95%; border: none;"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="csi_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off"></td>
                         </tr>
                     </table>
                 </td>
@@ -915,7 +915,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="csi_password" placeholder="비밀번호" style="width: 95%; border: none;"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="csi_password" placeholder="비밀번호" style="width: 95%; border: none;" autocomplete="new-password"></td>
                         </tr>
                     </table>
                 </td>
@@ -928,7 +928,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_id" placeholder="아이디" style="width: 95%; border: none;"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off"></td>
                         </tr>
                     </table>
                 </td>
@@ -936,7 +936,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="kosha_password" placeholder="비밀번호" style="width: 95%; border: none;"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="kosha_password" placeholder="비밀번호" style="width: 95%; border: none;" autocomplete="new-password"></td>
                         </tr>
                     </table>
                 </td>
@@ -1245,15 +1245,83 @@ $categoryTree = getCategoryTree($pdo);
         }
     }
 
+    // 총 비용 계산 함수
+    function calculateTotalCost() {
+        let total = 0;
+        
+        // 모든 비용 입력 필드 순회
+        document.querySelectorAll('.cost-input').forEach(input => {
+            if (input.value) {
+                // 숫자만 추출 (쉼표, '만원' 등 제거)
+                const value = parseInt(input.value.replace(/[^0-9]/g, ''));
+                if (!isNaN(value)) {
+                    total += value;
+                }
+            }
+        });
+        
+        // VAT 포함 여부 확인
+        const vatIncluded = document.querySelector('input[name="vat_included"]:checked');
+        let displayTotal = total;
+        let vatText = '';
+        
+        if (vatIncluded && vatIncluded.value === '1') {
+            // VAT 포함인 경우 10% 추가
+            displayTotal = Math.round(total * 1.1);
+            vatText = ' (VAT포함)';
+        } else {
+            vatText = ' (VAT별도)';
+        }
+        
+        // 종합계 필드에 합계 표시
+        const totalCostInput = document.getElementById('total_cost');
+        if (displayTotal > 0) {
+            totalCostInput.value = displayTotal.toLocaleString() + '만원' + vatText;
+        } else {
+            totalCostInput.value = '';
+        }
+    }
 
     // 숫자 입력 시 자동 포맷팅
     document.querySelectorAll('.cost-input').forEach(input => {
-        input.addEventListener('input', function(e) {
+        // 포커스 시 포맷 제거
+        input.addEventListener('focus', function(e) {
             let value = e.target.value.replace(/[^0-9]/g, '');
-            if (value) {
+            e.target.value = value;
+        });
+        
+        // 포커스 해제 시 포맷 적용
+        input.addEventListener('blur', function(e) {
+            let value = e.target.value.replace(/[^0-9]/g, '');
+            if (value && value !== '0') {
                 e.target.value = parseInt(value).toLocaleString() + '만원';
+            } else {
+                e.target.value = '';
+            }
+            // 총 비용 재계산
+            calculateTotalCost();
+        });
+        
+        // 입력 중에는 숫자만 허용
+        input.addEventListener('input', function(e) {
+            let value = e.target.value;
+            let numbers = value.replace(/[^0-9]/g, '');
+            
+            // 숫자가 아닌 문자가 입력된 경우에만 교체
+            if (value !== numbers) {
+                e.target.value = numbers;
             }
         });
+        
+        // 키 입력 시 총 비용 재계산
+        input.addEventListener('keyup', function(e) {
+            calculateTotalCost();
+        });
+    });
+    
+    // 페이지 로드 시 초기 계산
+    document.addEventListener('DOMContentLoaded', function() {
+        calculateTotalCost();
     });
 </script>
 </body>
