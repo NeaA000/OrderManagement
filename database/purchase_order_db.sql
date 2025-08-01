@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- 생성 시간: 25-07-31 12:49
+-- 생성 시간: 25-08-01 04:14
 -- 서버 버전: 10.4.32-MariaDB
 -- PHP 버전: 8.2.12
 
@@ -51,6 +51,7 @@ CREATE TABLE `document_categories` (
                                        `parent_id` int(30) DEFAULT NULL COMMENT '상위 분류 ID',
                                        `name` varchar(255) NOT NULL COMMENT '분류명',
                                        `level` tinyint(1) NOT NULL COMMENT '분류 레벨 (1=대, 2=중, 3=소)',
+                                       `type` enum('folder','document') DEFAULT 'folder',
                                        `display_order` int(11) DEFAULT 0 COMMENT '표시 순서',
                                        `is_required` tinyint(1) DEFAULT 0 COMMENT '필수 서류 여부',
                                        `status` tinyint(1) DEFAULT 1 COMMENT '활성 상태',
@@ -62,28 +63,28 @@ CREATE TABLE `document_categories` (
 -- 테이블의 덤프 데이터 `document_categories`
 --
 
-INSERT INTO `document_categories` (`id`, `parent_id`, `name`, `level`, `display_order`, `is_required`, `status`, `description`, `date_created`) VALUES
-                                                                                                                                                    (1, NULL, '안전관리계획서', 1, 1, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (2, NULL, '유해위험방지계획서', 1, 2, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (3, NULL, '교육시설안전성평가', 1, 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (4, NULL, '철도보호지구안전성평가', 1, 4, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (5, NULL, '소규모안전관리계획서', 1, 5, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (6, NULL, '기본', 1, 6, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (7, NULL, '설계', 1, 7, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (8, NULL, '공사안전보건대장', 1, 8, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (9, NULL, '적정성평가', 1, 9, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (10, NULL, '기타', 1, 10, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (25, 1, '안전점검계획서', 2, 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (26, 2, '굴착작업방지계획서', 2, 1, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (27, 2, '고소작업방지계획서', 2, 2, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (28, 2, '크레인작업방지계획서', 2, 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (29, 8, '안전보건대장 기본양식', 2, 1, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (30, 8, '작업일지', 2, 2, 1, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (31, 8, '안전교육 기록', 2, 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (32, 10, '사업자등록증', 2, 1, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (33, 10, '건설업면허증', 2, 2, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (34, 10, '보험가입증명서', 2, 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                    (35, 25, '기본안전', 3, 1, 0, 1, '', '2025-07-31 19:45:39');
+INSERT INTO `document_categories` (`id`, `parent_id`, `name`, `level`, `type`, `display_order`, `is_required`, `status`, `description`, `date_created`) VALUES
+                                                                                                                                                            (1, NULL, '안전관리계획서', 1, 'folder', 1, 0, 1, '', '2025-07-31 18:52:23'),
+                                                                                                                                                            (2, NULL, '유해위험방지계획서', 1, 'folder', 2, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (3, NULL, '교육시설안전성평가', 1, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (4, NULL, '철도보호지구안전성평가', 1, 'folder', 4, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (5, NULL, '소규모안전관리계획서', 1, 'folder', 5, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (6, NULL, '기본', 1, 'folder', 6, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (7, NULL, '설계', 1, 'folder', 7, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (8, NULL, '공사안전보건대장', 1, 'folder', 8, 1, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (9, NULL, '적정성평가', 1, 'folder', 9, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (10, NULL, '기타', 1, 'folder', 10, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (25, 1, '안전점검계획서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (26, 2, '굴착작업방지계획서', 2, 'folder', 1, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (27, 2, '고소작업방지계획서', 2, 'folder', 2, 1, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (28, 2, '크레인작업방지계획서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (29, 8, '안전보건대장 기본양식', 2, 'folder', 1, 1, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (30, 8, '작업일지', 2, 'folder', 2, 1, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (31, 8, '안전교육 기록', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (32, 10, '사업자등록증', 2, 'folder', 1, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (33, 10, '건설업면허증', 2, 'folder', 2, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (34, 10, '보험가입증명서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
+                                                                                                                                                            (35, 25, '기본안전', 3, 'folder', 1, 0, 1, '', '2025-07-31 19:45:39');
 
 -- --------------------------------------------------------
 
@@ -118,6 +119,27 @@ INSERT INTO `document_costs` (`id`, `category_id`, `base_cost`, `vat_percentage`
 -- --------------------------------------------------------
 
 --
+-- 테이블 구조 `document_cost_details`
+--
+
+CREATE TABLE `document_cost_details` (
+                                         `id` int(30) NOT NULL,
+                                         `request_id` int(30) NOT NULL,
+                                         `safety_plan_cost` varchar(50) DEFAULT NULL,
+                                         `hazard_prevention_cost` varchar(50) DEFAULT NULL,
+                                         `structure_review_cost` varchar(50) DEFAULT NULL,
+                                         `structure_review_agency` varchar(100) DEFAULT NULL,
+                                         `plan_review_cost` varchar(50) DEFAULT NULL,
+                                         `plan_review_agency` varchar(100) DEFAULT NULL,
+                                         `safety_health_cost` varchar(50) DEFAULT NULL,
+                                         `education_facility_cost` varchar(50) DEFAULT NULL,
+                                         `railway_protection_cost` varchar(50) DEFAULT NULL,
+                                         `evaluation_cost` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- 테이블 구조 `document_requests`
 --
 
@@ -134,6 +156,61 @@ CREATE TABLE `document_requests` (
                                      `created_by` int(30) NOT NULL COMMENT '생성자 ID',
                                      `date_created` datetime DEFAULT current_timestamp(),
                                      `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `document_request_details`
+--
+
+CREATE TABLE `document_request_details` (
+                                            `id` int(30) NOT NULL,
+                                            `request_id` int(30) NOT NULL,
+                                            `construction_method` varchar(50) DEFAULT NULL,
+                                            `manager_name` varchar(100) NOT NULL,
+                                            `manager_contact` varchar(50) NOT NULL,
+                                            `manager_email` varchar(100) NOT NULL,
+                                            `director_name` varchar(100) DEFAULT NULL,
+                                            `director_contact` varchar(50) DEFAULT NULL,
+                                            `order_date` date DEFAULT NULL,
+                                            `total_cost` varchar(50) DEFAULT NULL,
+                                            `vat_included` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `document_targets`
+--
+
+CREATE TABLE `document_targets` (
+                                    `id` int(30) NOT NULL,
+                                    `request_id` int(30) NOT NULL,
+                                    `safety_plan_type` varchar(50) DEFAULT NULL,
+                                    `review_agency` varchar(100) DEFAULT NULL,
+                                    `hazard_prevention_type` varchar(50) DEFAULT NULL,
+                                    `safety_health_agency` varchar(100) DEFAULT NULL,
+                                    `safety_health_ledger_type` varchar(50) DEFAULT NULL,
+                                    `evaluation_type` varchar(50) DEFAULT NULL,
+                                    `education_facility` text DEFAULT NULL,
+                                    `education_office` varchar(100) DEFAULT NULL,
+                                    `railway_protection` text DEFAULT NULL,
+                                    `railway_manager` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `document_writers`
+--
+
+CREATE TABLE `document_writers` (
+                                    `id` int(30) NOT NULL,
+                                    `request_id` int(30) NOT NULL,
+                                    `main_writer` varchar(100) DEFAULT NULL,
+                                    `revenue_manager` varchar(100) DEFAULT NULL,
+                                    `field_writers` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -300,9 +377,7 @@ CREATE TABLE `order_items` (
 --
 
 INSERT INTO `order_items` (`po_id`, `item_id`, `unit`, `unit_price`, `quantity`) VALUES
-                                                                                     (1, 1, 'boxes', 15000, 10),
-                                                                                     (1, 2, 'pcs', 17999.9, 6),
-                                                                                     (2, 1, 'pcs', 3788.99, 10);
+    (2, 1, 'pcs', 3788.99, 10);
 
 -- --------------------------------------------------------
 
@@ -329,8 +404,7 @@ CREATE TABLE `po_list` (
 --
 
 INSERT INTO `po_list` (`id`, `po_no`, `supplier_id`, `discount_percentage`, `discount_amount`, `tax_percentage`, `tax_amount`, `notes`, `status`, `date_created`, `date_updated`) VALUES
-                                                                                                                                                                                      (1, 'PO-94619964639', 1, 2, 5159.99, 12, 30959.9, 'Sample Purchase Order Only', 1, '2021-09-08 15:20:57', '2021-09-08 15:59:56'),
-                                                                                                                                                                                      (2, 'PO-92093417806', 2, 1, 378.899, 12, 4546.79, 'Sample', 1, '2021-09-08 15:49:55', '2025-07-31 17:01:31');
+    (2, 'PO-92093417806', 2, 1, 378.899, 12, 4546.79, 'Sample', 1, '2021-09-08 15:49:55', '2025-07-31 17:01:31');
 
 -- --------------------------------------------------------
 
@@ -344,7 +418,7 @@ CREATE TABLE `request_documents` (
                                      `category_id` int(30) NOT NULL COMMENT '서류 분류 ID',
                                      `document_name` varchar(255) NOT NULL COMMENT '서류명',
                                      `is_required` tinyint(1) DEFAULT 0 COMMENT '필수 여부',
-                                     `status` tinyint(1) DEFAULT 0 COMMENT '제출 상태 (0=미제출, 1=제출완료)',
+                                     `status` varchar(20) DEFAULT 'pending' COMMENT '제출 상태 (pending=미제출, completed=제출완료)',
                                      `file_name` varchar(255) DEFAULT NULL COMMENT '업로드된 파일명',
                                      `file_path` varchar(500) DEFAULT NULL COMMENT '파일 경로',
                                      `file_size` int(11) DEFAULT NULL COMMENT '파일 크기',
@@ -352,6 +426,26 @@ CREATE TABLE `request_documents` (
                                      `form_data` longtext DEFAULT NULL COMMENT '웹폼 작성 데이터 (JSON)',
                                      `uploaded_at` datetime DEFAULT NULL COMMENT '업로드 시간',
                                      `date_created` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `review_credentials`
+--
+
+CREATE TABLE `review_credentials` (
+                                      `id` int(30) NOT NULL,
+                                      `request_id` int(30) NOT NULL,
+                                      `csi_id` varchar(100) DEFAULT NULL,
+                                      `csi_password` varchar(255) DEFAULT NULL,
+                                      `csi_supervisor` varchar(100) DEFAULT NULL,
+                                      `csi_supervisor_info` varchar(100) DEFAULT NULL,
+                                      `csi_client` varchar(100) DEFAULT NULL,
+                                      `csi_client_info` varchar(100) DEFAULT NULL,
+                                      `kosha_id` varchar(100) DEFAULT NULL,
+                                      `kosha_password` varchar(255) DEFAULT NULL,
+                                      `kosha_notes` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -403,8 +497,8 @@ CREATE TABLE `supplier_list` (
 --
 
 INSERT INTO `supplier_list` (`id`, `name`, `address`, `contact_person`, `contact`, `email`, `status`, `date_created`) VALUES
-                                                                                                                          (1, 'Supplier 101', 'Sample Address Only', 'George Wilson', '09123459879', 'supplier101@gmail.com', 1, '2021-09-08 09:46:45'),
-                                                                                                                          (2, 'Supplier 102', 'Supplier 102 Address, 23rd St, Sample City, Test Province, ####', 'Samantha Lou', '09332145889', 'sLou@supplier102.com', 1, '2021-09-08 10:25:12');
+                                                                                                                          (2, 'Supplier 102', 'Supplier 102 Address, 23rd St, Sample City, Test Province, ####', 'Samantha Lou', '09332145889', 'sLou@supplier102.com', 1, '2021-09-08 10:25:12'),
+                                                                                                                          (3, '강동명', '용인시 처인구 이원로 601번길 84', '강동명', '01025304351', 'jbsafety@jbsafety.kr', 1, '2025-08-01 09:55:18');
 
 -- --------------------------------------------------------
 
@@ -526,6 +620,13 @@ ALTER TABLE `document_costs`
   ADD KEY `category_id` (`category_id`);
 
 --
+-- 테이블의 인덱스 `document_cost_details`
+--
+ALTER TABLE `document_cost_details`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `request_id` (`request_id`);
+
+--
 -- 테이블의 인덱스 `document_requests`
 --
 ALTER TABLE `document_requests`
@@ -534,6 +635,27 @@ ALTER TABLE `document_requests`
   ADD UNIQUE KEY `upload_token` (`upload_token`),
   ADD KEY `supplier_id` (`supplier_id`),
   ADD KEY `document_requests_ibfk_2` (`created_by`);
+
+--
+-- 테이블의 인덱스 `document_request_details`
+--
+ALTER TABLE `document_request_details`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `request_id` (`request_id`);
+
+--
+-- 테이블의 인덱스 `document_targets`
+--
+ALTER TABLE `document_targets`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `request_id` (`request_id`);
+
+--
+-- 테이블의 인덱스 `document_writers`
+--
+ALTER TABLE `document_writers`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `request_id` (`request_id`);
 
 --
 -- 테이블의 인덱스 `email_logs`
@@ -599,6 +721,13 @@ ALTER TABLE `request_documents`
   ADD KEY `category_id` (`category_id`);
 
 --
+-- 테이블의 인덱스 `review_credentials`
+--
+ALTER TABLE `review_credentials`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `request_id` (`request_id`);
+
+--
 -- 테이블의 인덱스 `review_organizations`
 --
 ALTER TABLE `review_organizations`
@@ -652,7 +781,7 @@ ALTER TABLE `access_tokens`
 -- 테이블의 AUTO_INCREMENT `document_categories`
 --
 ALTER TABLE `document_categories`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_costs`
@@ -661,9 +790,33 @@ ALTER TABLE `document_costs`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
+-- 테이블의 AUTO_INCREMENT `document_cost_details`
+--
+ALTER TABLE `document_cost_details`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
 -- 테이블의 AUTO_INCREMENT `document_requests`
 --
 ALTER TABLE `document_requests`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
+-- 테이블의 AUTO_INCREMENT `document_request_details`
+--
+ALTER TABLE `document_request_details`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
+-- 테이블의 AUTO_INCREMENT `document_targets`
+--
+ALTER TABLE `document_targets`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
+-- 테이블의 AUTO_INCREMENT `document_writers`
+--
+ALTER TABLE `document_writers`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
 
 --
@@ -715,6 +868,12 @@ ALTER TABLE `request_documents`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
 
 --
+-- 테이블의 AUTO_INCREMENT `review_credentials`
+--
+ALTER TABLE `review_credentials`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
 -- 테이블의 AUTO_INCREMENT `review_organizations`
 --
 ALTER TABLE `review_organizations`
@@ -724,7 +883,7 @@ ALTER TABLE `review_organizations`
 -- 테이블의 AUTO_INCREMENT `supplier_list`
 --
 ALTER TABLE `supplier_list`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- 테이블의 AUTO_INCREMENT `system_info`
@@ -773,11 +932,35 @@ ALTER TABLE `document_costs`
     ADD CONSTRAINT `document_costs_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `document_categories` (`id`) ON DELETE CASCADE;
 
 --
+-- 테이블의 제약사항 `document_cost_details`
+--
+ALTER TABLE `document_cost_details`
+    ADD CONSTRAINT `document_cost_details_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
+
+--
 -- 테이블의 제약사항 `document_requests`
 --
 ALTER TABLE `document_requests`
     ADD CONSTRAINT `document_requests_ibfk_1` FOREIGN KEY (`supplier_id`) REFERENCES `supplier_list` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
   ADD CONSTRAINT `document_requests_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+--
+-- 테이블의 제약사항 `document_request_details`
+--
+ALTER TABLE `document_request_details`
+    ADD CONSTRAINT `document_request_details_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
+
+--
+-- 테이블의 제약사항 `document_targets`
+--
+ALTER TABLE `document_targets`
+    ADD CONSTRAINT `document_targets_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
+
+--
+-- 테이블의 제약사항 `document_writers`
+--
+ALTER TABLE `document_writers`
+    ADD CONSTRAINT `document_writers_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
 
 --
 -- 테이블의 제약사항 `form_fields`
@@ -811,6 +994,12 @@ ALTER TABLE `po_list`
 ALTER TABLE `request_documents`
     ADD CONSTRAINT `request_documents_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
   ADD CONSTRAINT `request_documents_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `document_categories` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+--
+-- 테이블의 제약사항 `review_credentials`
+--
+ALTER TABLE `review_credentials`
+    ADD CONSTRAINT `review_credentials_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
 
 --
 -- 테이블의 제약사항 `workflow_status`
