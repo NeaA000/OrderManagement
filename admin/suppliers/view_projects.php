@@ -8,6 +8,9 @@ if(!$supplier){
     echo "<script>alert('의뢰처를 찾을 수 없습니다.'); location.replace('./?page=suppliers');</script>";
     exit;
 }
+
+// 필터 상태
+$status_filter = isset($_GET['status']) ? $_GET['status'] : '';
 ?>
 
 <div class="content-header">
@@ -34,14 +37,22 @@ if(!$supplier){
         <div class="card card-info">
             <div class="card-header">
                 <h3 class="card-title">의뢰처 정보</h3>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-tool btn-sm" onclick="location.href='./?page=suppliers'">
+                <div class="card-tools d-flex align-items-center">
+                    <!-- 필터 추가 -->
+                    <select class="form-control form-control-sm mr-2" style="width: 150px;" onchange="filterByStatus(this.value)">
+                        <option value="">전체 공사</option>
+                        <option value="0" <?php echo $status_filter === '0' ? 'selected' : '' ?>>대기중</option>
+                        <option value="1" <?php echo $status_filter === '1' ? 'selected' : '' ?>>진행중</option>
+                        <option value="2" <?php echo $status_filter === '2' ? 'selected' : '' ?>>완료</option>
+                    </select>
+
+                    <button type="button" class="btn btn-sm btn-default" onclick="location.href='./?page=suppliers'">
                         <i class="fa fa-arrow-left"></i> 목록으로
                     </button>
-                    <button type="button" class="btn btn-tool btn-sm" onclick="editSupplier(<?php echo $supplier['id'] ?>)">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="editSupplier(<?php echo $supplier['id'] ?>)">
                         <i class="fa fa-edit"></i> 의뢰처 수정
                     </button>
-                    <button type="button" class="btn btn-tool btn-sm bg-success" onclick="createNewRequest(<?php echo $supplier['id'] ?>)">
+                    <button type="button" class="btn btn-sm btn-success" onclick="createNewRequest(<?php echo $supplier['id'] ?>)">
                         <i class="fa fa-plus"></i> 새 서류요청
                     </button>
                 </div>
@@ -63,33 +74,42 @@ if(!$supplier){
 
         <!-- 공사 목록 -->
         <?php
+        $where_clause = "WHERE dr.supplier_id = '{$_GET['id']}'";
+        if($status_filter !== ''){
+            $where_clause .= " AND dr.status = '{$status_filter}'";
+        }
+
         $projects = $conn->query("SELECT dr.*, 
             (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id) as total_docs,
-            (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 1) as submitted_docs
+            (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 1) as submitted_docs,
+            (SELECT current_step FROM workflow_status WHERE request_id = dr.id AND is_current = 1 LIMIT 1) as workflow_step
             FROM document_requests dr 
-            WHERE dr.supplier_id = '{$_GET['id']}' 
+            {$where_clause}
             ORDER BY dr.date_created DESC");
 
-        if($projects->num_rows > 0):
-            ?>
-            <div class="alert alert-info">
-                <i class="fa fa-info-circle"></i> 진행중인 공사가 없습니다.
-                <button class="btn btn-sm btn-primary float-right" onclick="createNewRequest(<?php echo $supplier['id'] ?>)">
-                    <i class="fa fa-plus"></i> 첫 서류요청 만들기
-                </button>
-            </div>
-        <?php
-        else:
+        if($projects && $projects->num_rows > 0):
             while($project = $projects->fetch_assoc()):
                 $progress = $project['total_docs'] > 0 ? round(($project['submitted_docs'] / $project['total_docs']) * 100) : 0;
+
+                // 워크플로우 단계별 라벨
+                $workflow_labels = [
+                    'created' => ['text' => '생성됨', 'color' => 'secondary'],
+                    'documents_requested' => ['text' => '서류요청', 'color' => 'info'],
+                    'in_progress' => ['text' => '진행중', 'color' => 'primary'],
+                    'under_review' => ['text' => '검토중', 'color' => 'warning'],
+                    'completed' => ['text' => '완료', 'color' => 'success'],
+                    'rejected' => ['text' => '반려', 'color' => 'danger']
+                ];
+
+                $current_workflow = $workflow_labels[$project['workflow_step']] ?? $workflow_labels['created'];
                 ?>
                 <div class="card shadow-sm mb-3">
                     <div class="card-header bg-<?php echo $project['status'] == 2 ? 'success' : ($project['status'] == 1 ? 'primary' : 'secondary') ?> text-white">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-hard-hat"></i> <?php echo $project['project_name'] ?>
                             <span class="badge badge-light float-right">
-                        <?php echo $project['status'] == 2 ? '완료' : ($project['status'] == 1 ? '진행중' : '대기') ?>
-                    </span>
+                                <?php echo $current_workflow['text'] ?>
+                            </span>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -124,8 +144,8 @@ if(!$supplier){
                                         </div>
                                     </div>
                                     <span class="progress-description">
-                                <?php echo $project['submitted_docs'] ?>/<?php echo $project['total_docs'] ?> (<?php echo $progress ?>%)
-                            </span>
+                                        <?php echo $project['submitted_docs'] ?>/<?php echo $project['total_docs'] ?> (<?php echo $progress ?>%)
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -139,56 +159,70 @@ if(!$supplier){
                                     <th width="5%" class="text-center">#</th>
                                     <th width="35%">서류명</th>
                                     <th width="10%" class="text-center">필수여부</th>
-                                    <th width="15%" class="text-center">상태</th>
-                                    <th width="20%" class="text-center">제출일시</th>
-                                    <th width="15%" class="text-center">파일</th>
+                                    <th width="15%" class="text-center">제출상태</th>
+                                    <th width="15%" class="text-center">업무진행상태</th>
+                                    <th width="15%" class="text-center">제출일시</th>
+                                    <th width="5%" class="text-center">파일</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <?php
                                 $docs = $conn->query("SELECT rd.*, dc.name as category_name 
-                                FROM request_documents rd 
-                                LEFT JOIN document_categories dc ON rd.category_id = dc.id 
-                                WHERE rd.request_id = '{$project['id']}' 
-                                ORDER BY rd.is_required DESC, dc.name ASC");
+                                    FROM request_documents rd 
+                                    LEFT JOIN document_categories dc ON rd.category_id = dc.id 
+                                    WHERE rd.request_id = '{$project['id']}' 
+                                    ORDER BY rd.is_required DESC, dc.name ASC");
 
-                                $doc_no = 1;
-                                while($doc = $docs->fetch_assoc()):
+                                if($docs && $docs->num_rows > 0):
+                                    $doc_no = 1;
+                                    while($doc = $docs->fetch_assoc()):
+                                        ?>
+                                        <tr>
+                                            <td class="text-center"><?php echo $doc_no++ ?></td>
+                                            <td>
+                                                <?php echo $doc['document_name'] ?>
+                                                <small class="text-muted d-block"><?php echo $doc['category_name'] ?></small>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if($doc['is_required']): ?>
+                                                    <span class="badge badge-danger">필수</span>
+                                                <?php else: ?>
+                                                    <span class="badge badge-secondary">선택</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if($doc['status'] == 1): ?>
+                                                    <span class="badge badge-success"><i class="fa fa-check"></i> 제출완료</span>
+                                                <?php else: ?>
+                                                    <span class="badge badge-danger"><i class="fa fa-times"></i> 미제출</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-center">
+                                            <span class="badge badge-<?php echo $current_workflow['color'] ?>">
+                                                <?php echo $current_workflow['text'] ?>
+                                            </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php echo $doc['uploaded_at'] ? date("Y-m-d H:i", strtotime($doc['uploaded_at'])) : '-' ?>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if($doc['file_name']): ?>
+                                                    <button class="btn btn-xs btn-info" onclick="downloadFile('<?php echo $doc['file_path'] ?>')">
+                                                        <i class="fa fa-download"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    -
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php
+                                    endwhile;
+                                else:
                                     ?>
                                     <tr>
-                                        <td class="text-center"><?php echo $doc_no++ ?></td>
-                                        <td>
-                                            <?php echo $doc['document_name'] ?>
-                                            <small class="text-muted d-block"><?php echo $doc['category_name'] ?></small>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if($doc['is_required']): ?>
-                                                <span class="badge badge-danger">필수</span>
-                                            <?php else: ?>
-                                                <span class="badge badge-secondary">선택</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if($doc['status'] == 1): ?>
-                                                <span class="badge badge-success"><i class="fa fa-check"></i> 제출완료</span>
-                                            <?php else: ?>
-                                                <span class="badge badge-danger"><i class="fa fa-times"></i> 미제출</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php echo $doc['uploaded_at'] ? date("Y-m-d H:i", strtotime($doc['uploaded_at'])) : '-' ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if($doc['file_name']): ?>
-                                                <button class="btn btn-xs btn-info" onclick="downloadFile('<?php echo $doc['file_path'] ?>')">
-                                                    <i class="fa fa-download"></i> 다운로드
-                                                </button>
-                                            <?php else: ?>
-                                                -
-                                            <?php endif; ?>
-                                        </td>
+                                        <td colspan="7" class="text-center">등록된 서류가 없습니다.</td>
                                     </tr>
-                                <?php endwhile; ?>
+                                <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -200,17 +234,44 @@ if(!$supplier){
                             <button class="btn btn-sm btn-warning" onclick="sendReminder(<?php echo $project['id'] ?>)">
                                 <i class="fa fa-envelope"></i> 리마인더 발송
                             </button>
+                            <button class="btn btn-sm btn-success" onclick="downloadAll(<?php echo $project['id'] ?>)">
+                                <i class="fa fa-download"></i> 전체 다운로드
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="exportExcel(<?php echo $project['id'] ?>)">
+                                <i class="fa fa-file-excel"></i> 엑셀 다운로드
+                            </button>
                         </div>
                     </div>
                 </div>
             <?php
             endwhile;
-        endif;
-        ?>
+        else:
+            ?>
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-hard-hat fa-5x text-muted mb-3"></i>
+                    <h4 class="text-muted">
+                        <?php if($status_filter !== ''): ?>
+                            해당 상태의 공사가 없습니다.
+                        <?php else: ?>
+                            아직 등록된 공사가 없습니다.
+                        <?php endif; ?>
+                    </h4>
+                    <p class="text-muted mb-4">새로운 서류 요청을 생성하여 공사를 시작하세요.</p>
+                    <button class="btn btn-lg btn-primary" onclick="createNewRequest(<?php echo $supplier['id'] ?>)">
+                        <i class="fa fa-plus"></i> 첫 서류요청 만들기
+                    </button>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </section>
 
 <script>
+    function filterByStatus(status){
+        location.href = './?page=suppliers/view_projects&id=<?php echo $_GET['id'] ?>&status=' + status;
+    }
+
     function editSupplier(id){
         uni_modal("<i class='fa fa-edit'></i> 의뢰처 정보 수정", "suppliers/manage_supplier.php?id=" + id);
     }
@@ -248,6 +309,18 @@ if(!$supplier){
                 end_loader();
             }
         });
+    }
+
+    function downloadAll(request_id){
+        start_loader();
+        window.location.href = _base_url_ + "classes/DocumentManager.php?f=download_all&request_id=" + request_id;
+        end_loader();
+    }
+
+    function exportExcel(request_id){
+        start_loader();
+        window.location.href = _base_url_ + "classes/DocumentManager.php?f=export_excel&request_id=" + request_id;
+        end_loader();
     }
 
     function downloadFile(filepath){

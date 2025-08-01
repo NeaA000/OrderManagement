@@ -380,6 +380,37 @@ Class Master extends DBConnection {
         }
         return json_encode($resp);
     }
+
+    function update_category_order(){
+        extract($_POST);
+        
+        // order가 JSON 문자열로 전달되므로 디코드
+        $order_array = json_decode($order, true);
+        
+        if(!is_array($order_array)){
+            return json_encode(array('status'=>'failed','msg'=>'Invalid order data'));
+        }
+        
+        $success = true;
+        
+        foreach($order_array as $item){
+            $id = $this->conn->real_escape_string($item['id']);
+            $display_order = $this->conn->real_escape_string($item['order']);
+            
+            $sql = "UPDATE `document_categories` SET `display_order` = '{$display_order}' WHERE `id` = '{$id}'";
+            
+            if(!$this->conn->query($sql)){
+                $success = false;
+                break;
+            }
+        }
+        
+        if($success){
+            return json_encode(array('status'=>'success'));
+        } else {
+            return json_encode(array('status'=>'failed','msg'=>'Database update failed'));
+        }
+    }
 }
 
 $Master = new Master();
@@ -425,6 +456,10 @@ switch ($action) {
     case 'delete_category':
         echo $Master->delete_category();
         break;
+    case 'update_category_order':
+        echo $Master->update_category_order();
+        break;
+
 
     default:
         // echo $sysset->index();

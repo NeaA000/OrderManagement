@@ -88,11 +88,11 @@
                                 <?php endif; ?>
                             </td>
                             <td align="center">
-                                <button type="button" class="btn btn-flat btn-default btn-sm dropdown-toggle dropdown-icon py-0" data-toggle="dropdown">
+                                <button type="button" class="btn btn-flat btn-default btn-sm dropdown-toggle dropdown-icon py-0" data-toggle="dropdown" data-boundary="viewport">
                                     작업
                                     <span class="sr-only">Toggle Dropdown</span>
                                 </button>
-                                <div class="dropdown-menu" role="menu">
+                                <div class="dropdown-menu dropdown-menu-right" role="menu">
                                     <a class="dropdown-item" href="javascript:void(0)" onclick="viewProjects(<?php echo $row['id'] ?>)"><span class="fa fa-folder-open text-info"></span> 공사 목록</a>
                                     <div class="dropdown-divider"></div>
                                     <a class="dropdown-item" href="javascript:void(0)" onclick="viewSupplierDetails(<?php echo $row['id'] ?>)"><span class="fa fa-eye text-primary"></span> 상세보기</a>
