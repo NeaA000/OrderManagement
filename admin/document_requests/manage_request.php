@@ -84,11 +84,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute();
 
             // 2. 상세 정보 업데이트
+            // total_cost에서 숫자만 추출
+            $total_cost = str_replace(['만원', ',', ' ', '(VAT포함)', '(VAT별도)'], '', $_POST['total_cost']);
+            
             $stmt = $conn->prepare("UPDATE document_request_details SET
                 construction_method = ?, manager_name = ?, manager_contact = ?, 
                 manager_email = ?, director_name = ?, director_contact = ?, order_date = ?,
                 total_cost = ?, vat_included = ? WHERE request_id = ?");
-            $stmt->bind_param("ssssssssii",
+            $stmt->bind_param("sssssssiis",
                 $_POST['construction_method'],
                 $_POST['manager_name'],
                 $_POST['manager_contact'],
@@ -96,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['director_name'],
                 $_POST['director_contact'],
                 $_POST['order_date'],
-                $_POST['total_cost'],
+                $total_cost,
                 isset($_POST['vat_included']) ? $_POST['vat_included'] : 0,
                 $request_id
             );
@@ -159,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 request_id, category_id, document_name, is_required, status
             ) VALUES (?, ?, ?, 1, 'pending')");
 
-            foreach ($_POST['selected_documents'] as $doc_id) {
+            foreach (array_unique($_POST['selected_documents']) as $doc_id) {
                 // 문서 정보 조회
                 $doc_stmt = $conn->prepare("SELECT id, name FROM document_categories WHERE id = ?");
                 $doc_stmt->bind_param("i", $doc_id);
@@ -1236,7 +1239,7 @@ $categoryTree = getCategoryTree($conn);
 
     // 편집 모드일 때 기존 선택 문서 복원
     <?php if ($is_edit && !empty($selected_documents)): ?>
-    let existingDocuments = <?php echo json_encode($selected_documents); ?>;
+    let existingDocuments = <?php echo json_encode(array_map('strval', $selected_documents)); ?>;
     <?php endif; ?>
 
     // 페이지 로드 시 체크박스에 이벤트 추가
@@ -1316,6 +1319,8 @@ $categoryTree = getCategoryTree($conn);
     // 카테고리 내 선택된 문서 찾기
     function findSelectedInCategory(category) {
         let selected = [];
+        const categoryId = category.id.toString();
+        const processedIds = new Set();
 
         function searchInChildren(items) {
             items.forEach(item => {
@@ -1324,7 +1329,11 @@ $categoryTree = getCategoryTree($conn);
                 } else {
                     // 최하위 문서
                     if (allSelectedDocuments.has(item.id.toString())) {
-                        selected.push(item.id.toString());
+                        const docId = item.id.toString();
+                        if (!processedIds.has(docId)) {
+                            selected.push(docId);
+                            processedIds.add(docId);
+                        }
                     }
                 }
             });
@@ -1341,7 +1350,7 @@ $categoryTree = getCategoryTree($conn);
     // 카테고리 모달 열기
     function openCategoryModal(checkbox) {
         currentParentCheckbox = checkbox;
-        const categoryId = checkbox.getAttribute('data-category-id');
+        const categoryId = checkbox.getAttribute('data-category-id').toString();
         const categoryName = checkbox.parentElement.textContent.trim();
 
         // 모달 제목 설정
@@ -1350,12 +1359,29 @@ $categoryTree = getCategoryTree($conn);
         // 해당 카테고리 찾기
         const category = findCategoryById(categoryData, categoryId);
         if (category) {
-            // 해당 카테고리의 기존 선택 문서들을 임시 Set에 복사
+            console.log('=== openCategoryModal ===');
+            console.log('카테고리 ID:', categoryId);
+            console.log('기존 저장된 문서:', selectedDocumentsByCategory[categoryId] ? Array.from(selectedDocumentsByCategory[categoryId]) : 'none');
+
+            // 중요: clear()만 사용! 새 객체 할당 금지!
+            tempSelectedDocuments.clear();
+
             if (selectedDocumentsByCategory[categoryId]) {
-                tempSelectedDocuments = new Set(selectedDocumentsByCategory[categoryId]);
+                selectedDocumentsByCategory[categoryId].forEach(docId => {
+                    tempSelectedDocuments.add(docId);
+                });
             } else {
-                tempSelectedDocuments = new Set();
+                // 편집 모드에서 처음 열 때, 해당 카테고리의 선택된 문서들을 찾아서 추가
+                <?php if ($is_edit && !empty($selected_documents)): ?>
+                existingDocuments.forEach(docId => {
+                    if (isDocumentInCategory(category, docId)) {
+                        tempSelectedDocuments.add(docId);
+                    }
+                });
+                <?php endif; ?>
             }
+
+            console.log('tempSelectedDocuments 설정 후:', Array.from(tempSelectedDocuments));
 
             renderTree(category);
             updateSelectedCount();
@@ -1371,9 +1397,22 @@ $categoryTree = getCategoryTree($conn);
         if (category.children && category.children.length > 0) {
             const treeHtml = buildTreeHtml(category.children, 0);
             container.innerHTML = treeHtml;
+            
+            // 트리 렌더링 후 체크박스 상태 복원
+            updateModalCheckboxes();
         } else {
             container.innerHTML = '<p style="color: #999;">하위 문서가 없습니다.</p>';
         }
+    }
+    
+    // 모달 체크박스 상태 업데이트
+    function updateModalCheckboxes() {
+        document.querySelectorAll('.doc-checkbox').forEach(checkbox => {
+            const docId = checkbox.value.toString();
+            if (tempSelectedDocuments.has(docId)) {
+                checkbox.checked = true;
+            }
+        });
     }
 
     // 트리 HTML 생성
@@ -1429,10 +1468,11 @@ $categoryTree = getCategoryTree($conn);
 
     // 문서 선택/해제
     function toggleDocument(checkbox) {
+        const docId = checkbox.value.toString();
         if (checkbox.checked) {
-            tempSelectedDocuments.add(checkbox.value);
+            tempSelectedDocuments.add(docId);
         } else {
-            tempSelectedDocuments.delete(checkbox.value);
+            tempSelectedDocuments.delete(docId);
         }
         updateSelectedCount();
     }
@@ -1466,7 +1506,8 @@ $categoryTree = getCategoryTree($conn);
     function selectAllDocuments() {
         document.querySelectorAll('.doc-checkbox').forEach(checkbox => {
             checkbox.checked = true;
-            tempSelectedDocuments.add(checkbox.value);
+            const docId = checkbox.value.toString();
+            tempSelectedDocuments.add(docId);
         });
         updateSelectedCount();
     }
@@ -1475,18 +1516,33 @@ $categoryTree = getCategoryTree($conn);
     function deselectAllDocuments() {
         document.querySelectorAll('.doc-checkbox').forEach(checkbox => {
             checkbox.checked = false;
-            tempSelectedDocuments.delete(checkbox.value);
+            const docId = checkbox.value.toString();
+            tempSelectedDocuments.delete(docId);
         });
         updateSelectedCount();
     }
 
     // 선택 적용
     function applySelection() {
-        const categoryId = currentParentCheckbox.getAttribute('data-category-id');
+        const categoryId = currentParentCheckbox.getAttribute('data-category-id').toString();
+        
+        console.log('=== applySelection 시작 ===');
+        console.log('카테고리 ID:', categoryId);
+        console.log('tempSelectedDocuments:', Array.from(tempSelectedDocuments));
 
         // 현재 카테고리의 선택을 저장
         if (tempSelectedDocuments.size > 0) {
-            selectedDocumentsByCategory[categoryId] = new Set(tempSelectedDocuments);
+            // 기존 Set이 없으면 새로 생성
+            if (!selectedDocumentsByCategory[categoryId]) {
+                selectedDocumentsByCategory[categoryId] = new Set();
+            } else {
+                // 있으면 clear만
+                selectedDocumentsByCategory[categoryId].clear();
+            }
+            tempSelectedDocuments.forEach(docId => {
+                selectedDocumentsByCategory[categoryId].add(docId);
+            });
+            console.log('저장된 문서들:', Array.from(selectedDocumentsByCategory[categoryId]));
         } else {
             delete selectedDocumentsByCategory[categoryId];
         }
@@ -1501,7 +1557,11 @@ $categoryTree = getCategoryTree($conn);
             countSpan.remove();
         }
         if (tempSelectedDocuments.size > 0) {
-            label.innerHTML += ' <span class="doc-count" style="color: #1976d2; font-weight: bold;">(' + tempSelectedDocuments.size + ')</span>';
+            const newCountSpan = document.createElement('span');
+            newCountSpan.className = 'doc-count';
+            newCountSpan.style.cssText = 'color: #1976d2; font-weight: bold;';
+            newCountSpan.textContent = ' (' + tempSelectedDocuments.size + ')';
+            label.appendChild(newCountSpan);
         }
 
         // 전체 선택된 문서 업데이트
@@ -1510,6 +1570,8 @@ $categoryTree = getCategoryTree($conn);
             categorySet.forEach(docId => allSelectedDocuments.add(docId));
         });
 
+        console.log('전체 선택된 문서:', Array.from(allSelectedDocuments));
+        
         updateHiddenCheckboxes();
         updateSelectedDocumentsList();
         closeModal();
@@ -1533,6 +1595,32 @@ $categoryTree = getCategoryTree($conn);
             }
         }
         return null;
+    }
+
+    // 문서가 특정 카테고리에 속하는지 확인
+    function isDocumentInCategory(category, docId) {
+        function searchInCategory(cat) {
+            if (cat.id.toString() === docId) {
+                return true;
+            }
+            if (cat.children && cat.children.length > 0) {
+                for (let child of cat.children) {
+                    if (searchInCategory(child)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        if (category.children) {
+            for (let child of category.children) {
+                if (searchInCategory(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // HTML 특수문자 이스케이프
@@ -1561,7 +1649,8 @@ $categoryTree = getCategoryTree($conn);
     // 숨겨진 체크박스들 업데이트
     function updateHiddenCheckboxes() {
         document.querySelectorAll('#hidden-documents input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = allSelectedDocuments.has(checkbox.value);
+            const docId = checkbox.value.toString();
+            checkbox.checked = allSelectedDocuments.has(docId);
         });
     }
 
@@ -1579,7 +1668,7 @@ $categoryTree = getCategoryTree($conn);
         // 선택된 문서들의 경로 수집
         document.querySelectorAll('#hidden-documents input[type="checkbox"]:checked').forEach(checkbox => {
             const path = checkbox.getAttribute('data-path');
-            const docId = checkbox.value;
+            const docId = checkbox.value.toString();
             if (path && allSelectedDocuments.has(docId)) {
                 selectedPaths.set(docId, path);
             }
@@ -1623,6 +1712,9 @@ $categoryTree = getCategoryTree($conn);
         const vatIncluded = document.querySelector('input[name="vat_included"]:checked');
         let displayTotal = total;
         let vatText = '';
+
+        // 실제 저장값은 원본 total 사용
+        document.getElementById('total_cost').setAttribute('data-raw-value', total);
 
         if (vatIncluded && vatIncluded.value === '1') {
             // VAT 포함인 경우 10% 추가
