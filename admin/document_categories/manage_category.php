@@ -150,6 +150,19 @@ $form_title = isset($id) && $id > 0 ?
 
             $('.err-msg').remove();
 
+            // FormData 준비
+            var formData = new FormData($(this)[0]);
+
+            // parent_id가 빈 문자열인 경우 제거 (NULL로 처리되도록)
+            if(formData.get('parent_id') === '' || formData.get('parent_id') === '0') {
+                formData.delete('parent_id');
+            }
+
+            // is_required 체크박스 처리 (체크되지 않은 경우 0으로 설정)
+            if(!$('#is_required').is(':checked')) {
+                formData.set('is_required', '0');
+            }
+
             // start_loader 함수가 없는 경우를 대비한 체크
             if(typeof start_loader === 'function') {
                 start_loader();
@@ -157,7 +170,7 @@ $form_title = isset($id) && $id > 0 ?
 
             $.ajax({
                 url: "<?php echo base_url ?>classes/Master.php?f=save_category",
-                data: new FormData($(this)[0]),
+                data: formData,
                 cache: false,
                 contentType: false,
                 processData: false,
@@ -166,6 +179,7 @@ $form_title = isset($id) && $id > 0 ?
                 dataType: 'json',
                 error: err => {
                     console.log(err)
+                    console.log("Response:", err.responseText); // 디버깅용
                     alert_toast("오류가 발생했습니다", 'error');
                     if(typeof end_loader === 'function') {
                         end_loader();

@@ -320,27 +320,49 @@ Class Master extends DBConnection {
     // 서류 분류 관리 함수들 추가
     function save_category(){
         extract($_POST);
+
+        // parent_id가 빈 문자열이거나 0인 경우 제거
+        if(isset($parent_id) && ($parent_id === '' || $parent_id == 0)) {
+            unset($_POST['parent_id']);
+            unset($parent_id);
+        }
+
+        // is_required가 설정되지 않은 경우 0으로 설정
+        if(!isset($_POST['is_required'])) {
+            $_POST['is_required'] = '0';
+        }
+
         $data = "";
         foreach($_POST as $k =>$v){
             if(!in_array($k,array('id'))){
-                $v = addslashes(trim($v));
-                if(!empty($data)) $data .=",";
-                $data .= " `{$k}`='{$v}' ";
+                // 빈 값이 아닌 경우만 업데이트 (단, is_required는 0일 수 있으므로 예외)
+                if($k == 'is_required' || !empty($v) || $v === '0') {
+                    $v = addslashes(trim($v));
+                    if(!empty($data)) $data .=",";
+
+                    if($k == 'parent_id' && empty($v)) {
+                        $data .= " `{$k}`=NULL ";
+                    } else {
+                        $data .= " `{$k}`='{$v}' ";
+                    }
+                }
             }
         }
 
-        // 중복 체크 (같은 레벨, 같은 부모 하위에서)
-        $parent_condition = !empty($parent_id) ? "parent_id = '{$parent_id}'" : "parent_id IS NULL";
-        $check = $this->conn->query("SELECT * FROM `document_categories` WHERE `name` = '{$name}' AND level = '{$level}' AND {$parent_condition} ".(!empty($id) ? " AND id != {$id} " : "")." ")->num_rows;
+        // 중복 체크는 새로 추가할 때만
+        if(empty($id)){
+            $parent_condition = !empty($parent_id) ? "parent_id = '{$parent_id}'" : "parent_id IS NULL";
+            $check = $this->conn->query("SELECT * FROM `document_categories` WHERE `name` = '{$name}' AND level = '{$level}' AND {$parent_condition}")->num_rows;
 
-        if($this->capture_err())
-            return $this->capture_err();
+            if($this->capture_err())
+                return $this->capture_err();
 
-        if($check > 0){
-            $resp['status'] = 'failed';
-            $resp['msg'] = "같은 이름의 분류가 이미 존재합니다.";
-            return json_encode($resp);
-            exit;
+            if($check > 0){
+                $resp['status'] = 'failed';
+                $resp['msg'] = "같은 이름의 분류가 이미 존재합니다.";
+                return json_encode($resp);
+                exit;
+            }
         }
 
         if(empty($id)){
@@ -383,28 +405,28 @@ Class Master extends DBConnection {
 
     function update_category_order(){
         extract($_POST);
-        
+
         // order가 JSON 문자열로 전달되므로 디코드
         $order_array = json_decode($order, true);
-        
+
         if(!is_array($order_array)){
             return json_encode(array('status'=>'failed','msg'=>'Invalid order data'));
         }
-        
+
         $success = true;
-        
+
         foreach($order_array as $item){
             $id = $this->conn->real_escape_string($item['id']);
             $display_order = $this->conn->real_escape_string($item['order']);
-            
+
             $sql = "UPDATE `document_categories` SET `display_order` = '{$display_order}' WHERE `id` = '{$id}'";
-            
+
             if(!$this->conn->query($sql)){
                 $success = false;
                 break;
             }
         }
-        
+
         if($success){
             return json_encode(array('status'=>'success'));
         } else {
