@@ -626,6 +626,65 @@ Class Master extends DBConnection {
 
         return json_encode($resp);
     }
+
+    function save_document_request() {
+        extract($_POST);
+        $data = "";
+        
+        // 요청번호 생성
+        $request_no = "REQ-" . date('Ymd') . "-";
+        $count_qry = $this->conn->query("SELECT COUNT(*) as count FROM document_requests WHERE DATE(date_created) = CURDATE()");
+        $count = $count_qry->fetch_assoc()['count'] + 1;
+        $request_no .= str_pad($count, 3, '0', STR_PAD_LEFT);
+        
+        // 업로드 토큰 생성
+        $upload_token = bin2hex(random_bytes(32));
+        
+        // 기본 데이터 준비
+        $data .= " request_no = '{$request_no}' ";
+        $data .= ", supplier_id = '{$supplier_id}' ";
+        $data .= ", project_name = '{$project_name}' ";
+        $data .= ", due_date = '{$due_date}' ";
+        $data .= ", additional_notes = '{$additional_notes}' ";
+        $data .= ", upload_token = '{$upload_token}' ";
+        $data .= ", status = 0 ";
+        $data .= ", created_by = '{$this->settings->userdata('id')}' ";
+        
+        // document_requests 테이블에 저장
+        $save = $this->conn->query("INSERT INTO document_requests SET {$data}");
+        
+        if($save) {
+            $request_id = $this->conn->insert_id;
+            
+            // 선택된 서류들을 request_documents 테이블에 저장
+            if(isset($documents) && is_array($documents)) {
+                foreach($documents as $doc_id) {
+                    // 서류 정보 조회
+                    $doc_qry = $this->conn->query("SELECT * FROM document_categories WHERE id = '{$doc_id}'");
+                    $doc = $doc_qry->fetch_assoc();
+                    
+                    $doc_data = "";
+                    $doc_data .= " request_id = '{$request_id}' ";
+                    $doc_data .= ", category_id = '{$doc_id}' ";
+                    $doc_data .= ", document_name = '{$doc['name']}' ";
+                    $doc_data .= ", is_required = '{$doc['is_required']}' ";
+                    $doc_data .= ", status = 'pending' ";
+                    
+                    $this->conn->query("INSERT INTO request_documents SET {$doc_data}");
+                }
+            }
+            
+            $resp['status'] = 'success';
+            $resp['msg'] = '서류 요청이 성공적으로 생성되었습니다.';
+            $resp['request_id'] = $request_id;
+        } else {
+            $resp['status'] = 'failed';
+            $resp['msg'] = '서류 요청 생성에 실패했습니다.';
+            $resp['error'] = $this->conn->error;
+        }
+        
+        return json_encode($resp);
+    }
 }
 
 $Master = new Master();
@@ -680,7 +739,9 @@ switch ($action) {
     case 'send_request_email':
         echo $Master->send_request_email();
         break;
-
+    case 'save_document_request':
+        echo $Master->save_document_request();
+        break;
 
     default:
         // echo $sysset->index();

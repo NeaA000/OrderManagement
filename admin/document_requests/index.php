@@ -8,28 +8,32 @@
     <div class="card-header">
         <h3 class="card-title">서류 요청 목록</h3>
         <div class="card-tools">
-            <a href="./?page=document_requests/manage_request" class="btn btn-flat btn-primary"><span class="fas fa-plus"></span> 새 요청 추가</a>
+            <a href="./?page=document_requests/manage_request" class="btn btn-flat btn-primary">
+                <span class="fas fa-plus"></span> 새 요청 생성
+            </a>
         </div>
     </div>
     <div class="card-body">
         <div class="container-fluid">
-            <table class="table table-bordered table-striped" id="request-list">
+            <table class="table table-bordered table-stripped" id="request-table">
                 <colgroup>
                     <col width="5%">
                     <col width="15%">
                     <col width="20%">
                     <col width="20%">
-                    <col width="15%">
                     <col width="10%">
-                    <col width="15%">
+                    <col width="10%">
+                    <col width="10%">
+                    <col width="10%">
                 </colgroup>
                 <thead>
                 <tr>
                     <th>#</th>
                     <th>요청번호</th>
-                    <th>프로젝트명</th>
                     <th>의뢰처</th>
+                    <th>프로젝트명</th>
                     <th>제출기한</th>
+                    <th>진행률</th>
                     <th>상태</th>
                     <th>작업</th>
                 </tr>
@@ -37,41 +41,62 @@
                 <tbody>
                 <?php
                 $i = 1;
-                $qry = $conn->query("SELECT r.*, s.name as supplier_name, 
-						(SELECT COUNT(*) FROM request_documents WHERE request_id = r.id) as total_docs,
-						(SELECT COUNT(*) FROM request_documents WHERE request_id = r.id AND status = 'completed') as completed_docs
-						FROM `document_requests` r 
-						LEFT JOIN `supplier_list` s ON r.supplier_id = s.id 
-						ORDER BY r.date_created DESC");
+                $qry = $conn->query("SELECT dr.*, sl.name as supplier_name, 
+                                        (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id) as total_docs,
+                                        (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 'completed') as completed_docs
+                                        FROM document_requests dr 
+                                        LEFT JOIN supplier_list sl ON dr.supplier_id = sl.id 
+                                        ORDER BY dr.date_created DESC");
+
                 while($row = $qry->fetch_assoc()):
                     $progress = $row['total_docs'] > 0 ? round(($row['completed_docs'] / $row['total_docs']) * 100) : 0;
+
+                    // 상태에 따른 색상
+                    $status_class = '';
+                    $status_text = '';
+                    switch($row['status']) {
+                        case 0:
+                            $status_class = 'badge-secondary';
+                            $status_text = '대기';
+                            break;
+                        case 1:
+                            $status_class = 'badge-primary';
+                            $status_text = '진행중';
+                            break;
+                        case 2:
+                            $status_class = 'badge-success';
+                            $status_text = '완료';
+                            break;
+                    }
+
+                    // 마감일까지 남은 일수
+                    $days_left = floor((strtotime($row['due_date']) - strtotime(date('Y-m-d'))) / 86400);
+                    $due_class = $days_left <= 3 ? 'text-danger' : '';
                     ?>
                     <tr>
                         <td class="text-center"><?php echo $i++; ?></td>
                         <td><?php echo $row['request_no'] ?></td>
-                        <td><?php echo $row['project_name'] ?></td>
                         <td><?php echo $row['supplier_name'] ?></td>
-                        <td><?php echo date("Y-m-d", strtotime($row['due_date'])) ?></td>
-                        <td class="text-center">
-                            <?php
-                            $status_badge = '';
-                            switch($row['status']) {
-                                case 0:
-                                    $status_badge = '<span class="badge badge-secondary">대기중</span>';
-                                    break;
-                                case 1:
-                                    $status_badge = '<span class="badge badge-primary">진행중</span>';
-                                    break;
-                                case 2:
-                                    $status_badge = '<span class="badge badge-success">완료</span>';
-                                    break;
-                            }
-                            echo $status_badge;
-                            ?>
-                            <div class="progress mt-1" style="height: 10px;">
-                                <div class="progress-bar" role="progressbar" style="width: <?php echo $progress ?>%"></div>
+                        <td><?php echo $row['project_name'] ?></td>
+                        <td class="<?php echo $due_class ?>">
+                            <?php echo date('Y-m-d', strtotime($row['due_date'])) ?>
+                            <?php if($days_left >= 0): ?>
+                                <small>(D-<?php echo $days_left ?>)</small>
+                            <?php else: ?>
+                                <small>(만료)</small>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar <?php echo $progress == 100 ? 'bg-success' : 'bg-primary' ?>"
+                                     style="width: <?php echo $progress ?>%">
+                                    <?php echo $progress ?>%
+                                </div>
                             </div>
-                            <small><?php echo $row['completed_docs'] ?>/<?php echo $row['total_docs'] ?> 서류</small>
+                            <small><?php echo $row['completed_docs'] ?>/<?php echo $row['total_docs'] ?>개</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge <?php echo $status_class ?>"><?php echo $status_text ?></span>
                         </td>
                         <td align="center">
                             <button type="button" class="btn btn-flat btn-default btn-sm dropdown-toggle dropdown-icon" data-toggle="dropdown">
@@ -80,19 +105,26 @@
                             </button>
                             <div class="dropdown-menu" role="menu">
                                 <a class="dropdown-item" href="./?page=document_requests/view_request&id=<?php echo $row['id'] ?>">
-                                    <span class="fa fa-eye text-dark"></span> 보기
+                                    <span class="fa fa-eye text-primary"></span> 상태 보기
                                 </a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="./?page=document_requests/manage_request&id=<?php echo $row['id'] ?>">
-                                    <span class="fa fa-edit text-primary"></span> 수정
+                                    <span class="fa fa-edit text-success"></span> 수정하기
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="./document_requests/upload.php?token=<?php echo $row['upload_token'] ?>" target="_blank">
-                                    <span class="fa fa-upload text-info"></span> 업로드 링크
-                                </a>
+                                <?php if(empty($row['email_sent_at'])): ?>
+                                    <a class="dropdown-item send-email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                        <span class="fa fa-paper-plane text-info"></span> 이메일 발송
+                                    </a>
+                                <?php else: ?>
+                                    <a class="dropdown-item send-email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                        <span class="fa fa-redo text-warning"></span> 리마인더 발송
+                                    </a>
+                                <?php endif; ?>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item send_email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
-                                    <span class="fa fa-envelope text-success"></span> 이메일 발송
+                                <a class="dropdown-item copy-link" href="javascript:void(0)"
+                                   data-link="<?php echo base_url ?>upload_portal/?token=<?php echo $row['upload_token'] ?>">
+                                    <span class="fa fa-copy text-secondary"></span> 업로드 링크 복사
                                 </a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item delete_data" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
@@ -110,83 +142,85 @@
 
 <script>
     $(document).ready(function(){
-        $('#request-list').dataTable({
-            columnDefs: [
-                { orderable: false, targets: [6] }
-            ],
+        $('#request-table').dataTable({
             order: [[0, 'desc']],
             language: {
-                "emptyTable": "데이터가 없습니다.",
-                "lengthMenu": "_MENU_ 개씩 보기",
-                "info": "_START_ - _END_ / _TOTAL_건",
-                "infoEmpty": "데이터 없음",
-                "infoFiltered": "( _MAX_건의 데이터에서 필터링됨 )",
-                "search": "검색: ",
-                "zeroRecords": "일치하는 데이터가 없습니다.",
-                "loadingRecords": "로딩중...",
-                "processing": "처리중...",
-                "paginate": {
-                    "first": "첫 페이지",
-                    "last": "마지막 페이지",
-                    "next": "다음",
-                    "previous": "이전"
-                }
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Korean.json'
             }
         });
 
+        // 이메일 발송
+        $('.send-email').click(function(){
+            var id = $(this).data('id');
+
+            if(confirm('이메일을 발송하시겠습니까?')) {
+                start_loader();
+
+                $.ajax({
+                    url: _base_url_ + 'admin/document_requests/send_email.php',
+                    method: 'POST',
+                    data: {request_id: id},
+                    dataType: 'json',
+                    success: function(resp) {
+                        if(resp.status == 'success') {
+                            alert_toast('이메일이 성공적으로 발송되었습니다!', 'success');
+                            setTimeout(function() {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            alert_toast('이메일 발송 실패: ' + resp.msg, 'error');
+                        }
+                        end_loader();
+                    },
+                    error: function(err) {
+                        console.log(err);
+                        alert_toast('이메일 발송 중 오류가 발생했습니다.', 'error');
+                        end_loader();
+                    }
+                });
+            }
+        });
+
+        // 링크 복사
+        $('.copy-link').click(function(){
+            var link = $(this).data('link');
+
+            // 임시 textarea 생성
+            var $temp = $("<textarea>");
+            $("body").append($temp);
+            $temp.val(link).select();
+            document.execCommand("copy");
+            $temp.remove();
+
+            alert_toast('업로드 링크가 클립보드에 복사되었습니다!', 'success');
+        });
+
+        // 삭제
         $('.delete_data').click(function(){
-            _conf("이 서류 요청을 삭제하시겠습니까?", "delete_request", [$(this).attr('data-id')])
-        })
+            var id = $(this).data('id');
 
-        $('.send_email').click(function(){
-            _conf("의뢰처에 서류 요청 이메일을 발송하시겠습니까?", "send_email", [$(this).attr('data-id')])
-        })
+            if(confirm('정말로 이 서류 요청을 삭제하시겠습니까?')) {
+                start_loader();
+                $.ajax({
+                    url: _base_url_ + "classes/Master.php?f=delete_request",
+                    method: "POST",
+                    data: {id: id},
+                    dataType: "json",
+                    error: err => {
+                        console.log(err);
+                        alert_toast("An error occured.", 'error');
+                        end_loader();
+                    },
+                    success: function(resp){
+                        if(typeof resp == 'object' && resp.status == 'success'){
+                            location.reload();
+                        } else {
+                            alert_toast("An error occured.", 'error');
+                            end_loader();
+                        }
+                    }
+                });
+            }
+        });
     })
-
-    function delete_request($id){
-        start_loader();
-        $.ajax({
-            url: _base_url_+"classes/Master.php?f=delete_request",
-            method: "POST",
-            data: {id: $id},
-            dataType: "json",
-            error: err => {
-                console.log(err)
-                alert_toast("An error occurred.", 'error');
-                end_loader();
-            },
-            success: function(resp){
-                if(typeof resp == 'object' && resp.status == 'success'){
-                    location.reload();
-                } else {
-                    alert_toast("An error occurred.", 'error');
-                    end_loader();
-                }
-            }
-        })
-    }
-
-    function send_email($id){
-        start_loader();
-        $.ajax({
-            url: _base_url_+"classes/Master.php?f=send_request_email",
-            method: "POST",
-            data: {id: $id},
-            dataType: "json",
-            error: err => {
-                console.log(err)
-                alert_toast("An error occurred.", 'error');
-                end_loader();
-            },
-            success: function(resp){
-                if(typeof resp == 'object' && resp.status == 'success'){
-                    alert_toast("이메일이 성공적으로 발송되었습니다.", 'success');
-                    end_loader();
-                } else {
-                    alert_toast("An error occurred.", 'error');
-                    end_loader();
-                }
-            }
-        })
-    }
 </script>

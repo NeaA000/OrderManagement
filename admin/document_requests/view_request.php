@@ -322,7 +322,7 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                         <td class="detail-label">철도보호</td>
                         <td><?php echo $costs['railway_protection_cost'] ? number_format($costs['railway_protection_cost']) . '만원' : '-' ?></td>
                         <td class="detail-label">적정성평가</td>
-                        <td><?php echo $costs['evaluation_cost'] ? number_format($costs['evaluation_cost']) . '만원' : '-' ?></td>
+                        <td><?php echo $costs['evaluation_cost'] ? number_format($costs['evaluation_cost'])  : '-' ?></td>
                     </tr>
                     <tr class="bg-light">
                         <td class="detail-label">종합계</td>

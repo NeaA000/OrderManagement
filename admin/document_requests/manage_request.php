@@ -1,210 +1,429 @@
 <?php
-// config.php - 데이터베이스 설정
-// 세션이 이미 시작되었는지 확인
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// AdminLTE 환경에서는 이미 config.php가 로드되어 있으므로 $conn을 직접 사용
+// 로그인 체크는 AdminLTE에서 처리되므로 생략
 
-// 상수가 이미 정의되었는지 확인 - 각각 개별적으로 확인
-if (!defined('DB_HOST')) {
-    define('DB_HOST', 'localhost');
-}
-if (!defined('DB_NAME')) {
-    define('DB_NAME', 'purchase_order_db');
-}
-if (!defined('DB_USER')) {
-    define('DB_USER', 'root');
-}
-if (!defined('DB_PASS')) {
-    define('DB_PASS', '');
-}
+// 편집 모드 확인
+$is_edit = isset($_GET['id']) && !empty($_GET['id']);
+$request_id = $is_edit ? $_GET['id'] : null;
 
-// 데이터베이스 연결
-try {
-    $pdo = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
-    die("연결 실패: " . $e->getMessage());
-}
+// 편집 모드일 때 기존 데이터 조회
+if ($is_edit) {
+    // 기본 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM document_requests WHERE id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $request_data = $result->fetch_assoc();
 
-// 로그인 체크 (임시)
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = 1; // 임시로 admin 사용
+    if (!$request_data) {
+        echo "<script>alert('요청을 찾을 수 없습니다.'); location.href='./?page=document_requests';</script>";
+        exit;
+    }
+
+    // 상세 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM document_request_details WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $details_data = $stmt->get_result()->fetch_assoc();
+
+    // 작성 대상 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM document_targets WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $targets_data = $stmt->get_result()->fetch_assoc();
+
+    // 비용 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM document_cost_details WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $costs_data = $stmt->get_result()->fetch_assoc();
+
+    // 작성자 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM document_writers WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $writers_data = $stmt->get_result()->fetch_assoc();
+
+    // 검토 기관 정보 조회
+    $stmt = $conn->prepare("SELECT * FROM review_credentials WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $review_data = $stmt->get_result()->fetch_assoc();
+
+    // 선택된 문서 목록 조회
+    $stmt = $conn->prepare("SELECT category_id FROM request_documents WHERE request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $selected_documents = [];
+    while ($row = $result->fetch_assoc()) {
+        $selected_documents[] = $row['category_id'];
+    }
 }
 
 // 폼 제출 처리
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // 트랜잭션 시작
-        $pdo->beginTransaction();
+        $conn->begin_transaction();
 
-        // 1. document_requests 테이블에 기본 정보 저장
-        $stmt = $pdo->prepare("INSERT INTO document_requests (
-            request_no, supplier_id, project_name, due_date, 
-            additional_notes, upload_token, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)");
+        if ($is_edit) {
+            // UPDATE 모드
+            // 1. 기본 정보 업데이트
+            $stmt = $conn->prepare("UPDATE document_requests SET 
+                request_no = ?, supplier_id = ?, project_name = ?, due_date = ?, 
+                additional_notes = ? WHERE id = ?");
+            $stmt->bind_param("sisssi",
+                $_POST['request_no'],
+                $_POST['supplier_id'],
+                $_POST['project_name'],
+                $_POST['submission_date'],
+                $_POST['additional_notes'],
+                $request_id
+            );
+            $stmt->execute();
 
-        // 업로드 토큰 생성
-        $upload_token = bin2hex(random_bytes(32));
+            // 2. 상세 정보 업데이트
+            $stmt = $conn->prepare("UPDATE document_request_details SET
+                construction_method = ?, manager_name = ?, manager_contact = ?, 
+                manager_email = ?, director_name = ?, director_contact = ?, order_date = ?,
+                total_cost = ?, vat_included = ? WHERE request_id = ?");
+            $stmt->bind_param("ssssssssii",
+                $_POST['construction_method'],
+                $_POST['manager_name'],
+                $_POST['manager_contact'],
+                $_POST['manager_email'],
+                $_POST['director_name'],
+                $_POST['director_contact'],
+                $_POST['order_date'],
+                $_POST['total_cost'],
+                isset($_POST['vat_included']) ? $_POST['vat_included'] : 0,
+                $request_id
+            );
+            $stmt->execute();
 
-        $stmt->execute([
-            $_POST['request_no'],
-            $_POST['supplier_id'],
-            $_POST['project_name'],
-            $_POST['submission_date'],
-            $_POST['additional_notes'] ?? '',
-            $upload_token,
-            $_SESSION['user_id']
-        ]);
+            // 3. 선택된 서류 업데이트 (기존 삭제 후 새로 추가)
+            $stmt = $conn->prepare("DELETE FROM request_documents WHERE request_id = ?");
+            $stmt->bind_param("i", $request_id);
+            $stmt->execute();
 
-        $request_id = $pdo->lastInsertId();
+        } else {
+            // INSERT 모드
+            // 1. document_requests 테이블에 기본 정보 저장
+            $upload_token = bin2hex(random_bytes(32));
+            $stmt = $conn->prepare("INSERT INTO document_requests (
+                request_no, supplier_id, project_name, due_date, 
+                additional_notes, upload_token, status, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)");
 
-        // 2. document_request_details 테이블에 상세 정보 저장 (새 테이블)
-        $stmt = $pdo->prepare("INSERT INTO document_request_details (
-            request_id, construction_method, manager_name, manager_contact, 
-            manager_email, director_name, director_contact, order_date,
-            total_cost, vat_included
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sissssi",
+                $_POST['request_no'],
+                $_POST['supplier_id'],
+                $_POST['project_name'],
+                $_POST['submission_date'],
+                $_POST['additional_notes'],
+                $upload_token,
+                $_SESSION['userdata']['id']
+            );
+            $stmt->execute();
+            $request_id = $conn->insert_id;
 
-        $stmt->execute([
-            $request_id,
-            $_POST['construction_method'],
-            $_POST['manager_name'],
-            $_POST['manager_contact'],
-            $_POST['manager_email'],
-            $_POST['director_name'] ?? null,
-            $_POST['director_contact'] ?? null,
-            $_POST['order_date'],
-            $_POST['total_cost'],
-            isset($_POST['vat_included']) ? 1 : 0
-        ]);
+            // 2. document_request_details 테이블에 상세 정보 저장
+            $stmt = $conn->prepare("INSERT INTO document_request_details (
+                request_id, construction_method, manager_name, manager_contact, 
+                manager_email, director_name, director_contact, order_date,
+                total_cost, vat_included
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            $total_cost = str_replace(['만원', ',', ' ', '(VAT포함)', '(VAT별도)'], '', $_POST['total_cost']);
+            $vat_included = isset($_POST['vat_included']) ? $_POST['vat_included'] : 0;
+
+            $stmt->bind_param("isssssssii",
+                $request_id,
+                $_POST['construction_method'],
+                $_POST['manager_name'],
+                $_POST['manager_contact'],
+                $_POST['manager_email'],
+                $_POST['director_name'],
+                $_POST['director_contact'],
+                $_POST['order_date'],
+                $total_cost,
+                $vat_included
+            );
+            $stmt->execute();
+        }
 
         // 3. 선택된 서류들을 request_documents 테이블에 저장
-        // 모달에서 선택된 실제 문서들 처리
         if (isset($_POST['selected_documents'])) {
-            $stmt = $pdo->prepare("INSERT INTO request_documents (
+            $stmt = $conn->prepare("INSERT INTO request_documents (
                 request_id, category_id, document_name, is_required, status
             ) VALUES (?, ?, ?, 1, 'pending')");
 
             foreach ($_POST['selected_documents'] as $doc_id) {
                 // 문서 정보 조회
-                $doc_stmt = $pdo->prepare("SELECT id, name FROM document_categories WHERE id = ?");
-                $doc_stmt->execute([$doc_id]);
-                $doc_info = $doc_stmt->fetch();
+                $doc_stmt = $conn->prepare("SELECT id, name FROM document_categories WHERE id = ?");
+                $doc_stmt->bind_param("i", $doc_id);
+                $doc_stmt->execute();
+                $doc_result = $doc_stmt->get_result();
+                $doc_info = $doc_result->fetch_assoc();
 
                 if ($doc_info) {
-                    $stmt->execute([$request_id, $doc_id, $doc_info['name']]);
+                    $stmt->bind_param("iis", $request_id, $doc_id, $doc_info['name']);
+                    $stmt->execute();
                 }
             }
         }
 
-        // 4. 작성 대상 정보 저장 (새 테이블)
-        $stmt = $pdo->prepare("INSERT INTO document_targets (
-            request_id, safety_plan_type, review_agency, hazard_prevention_type,
-            safety_health_agency, safety_health_ledger_type, evaluation_type,
-            education_facility, education_office, railway_protection, railway_manager
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        // 나머지 테이블들도 UPDATE/INSERT 처리
+        if ($is_edit) {
+            // 작성 대상 정보 업데이트
+            $stmt = $conn->prepare("UPDATE document_targets SET
+                safety_plan_type = ?, review_agency = ?, hazard_prevention_type = ?,
+                safety_health_agency = ?, safety_health_ledger_type = ?, evaluation_type = ?,
+                education_facility = ?, education_office = ?, railway_protection = ?, 
+                railway_manager = ? WHERE request_id = ?");
+            $stmt->bind_param("ssssssssssi",
+                $_POST['safety_plan_type'],
+                $_POST['review_agency'],
+                $_POST['hazard_prevention_type'],
+                $_POST['safety_health_agency'],
+                $_POST['safety_health_ledger_type'],
+                $_POST['evaluation_type'],
+                $_POST['education_facility'],
+                $_POST['education_office'],
+                $_POST['railway_protection'],
+                $_POST['railway_manager'],
+                $request_id
+            );
+            $stmt->execute();
 
-        $stmt->execute([
-            $request_id,
-            $_POST['safety_plan_type'] ?? null,
-            $_POST['review_agency'] ?? null,
-            $_POST['hazard_prevention_type'] ?? null,
-            $_POST['safety_health_agency'] ?? null,
-            $_POST['safety_health_ledger_type'] ?? null,
-            $_POST['evaluation_type'] ?? null,
-            $_POST['education_facility'] ?? null,
-            $_POST['education_office'] ?? null,
-            $_POST['railway_protection'] ?? null,
-            $_POST['railway_manager'] ?? null
-        ]);
+            // 비용 정보 업데이트
+            $stmt = $conn->prepare("UPDATE document_cost_details SET
+                safety_plan_cost = ?, hazard_prevention_cost = ?, structure_review_cost = ?,
+                structure_review_agency = ?, plan_review_cost = ?, plan_review_agency = ?,
+                safety_health_cost = ?, education_facility_cost = ?, railway_protection_cost = ?,
+                evaluation_cost = ? WHERE request_id = ?");
 
-        // 5. 비용 정보 저장 (새 테이블)
-        $stmt = $pdo->prepare("INSERT INTO document_cost_details (
-            request_id, safety_plan_cost, hazard_prevention_cost, structure_review_cost,
-            structure_review_agency, plan_review_cost, plan_review_agency,
-            safety_health_cost, education_facility_cost, railway_protection_cost,
-            evaluation_cost
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            // 비용 필드 처리
+            $costs = [];
+            $cost_fields = ['safety_plan_cost', 'hazard_prevention_cost', 'structure_review_cost',
+                'plan_review_cost', 'safety_health_cost', 'education_facility_cost',
+                'railway_protection_cost'];
+            foreach ($cost_fields as $field) {
+                $costs[] = !empty($_POST[$field]) ? str_replace(['만원', ',', ' '], '', $_POST[$field]) : null;
+            }
 
-        $stmt->execute([
-            $request_id,
-            $_POST['safety_plan_cost'] ?? null,
-            $_POST['hazard_prevention_cost'] ?? null,
-            $_POST['structure_review_cost'] ?? null,
-            $_POST['structure_review_agency'] ?? null,
-            $_POST['plan_review_cost'] ?? null,
-            $_POST['plan_review_agency'] ?? null,
-            $_POST['safety_health_cost'] ?? null,
-            $_POST['education_facility_cost'] ?? null,
-            $_POST['railway_protection_cost'] ?? null,
-            $_POST['evaluation_cost'] ?? null
-        ]);
+            $stmt->bind_param("iiisississi",
+                $costs[0], $costs[1], $costs[2],
+                $_POST['structure_review_agency'],
+                $costs[3],
+                $_POST['plan_review_agency'],
+                $costs[4], $costs[5], $costs[6],
+                $_POST['evaluation_cost'],  // 문자열로 처리
+                $request_id
+            );
+            $stmt->execute();
 
-        // 6. 작성자 정보 저장 (새 테이블)
-        $stmt = $pdo->prepare("INSERT INTO document_writers (
-            request_id, main_writer, revenue_manager, field_writers
-        ) VALUES (?, ?, ?, ?)");
+            // 작성자 정보 업데이트
+            $stmt = $conn->prepare("UPDATE document_writers SET
+                main_writer = ?, revenue_manager = ?, field_writers = ?
+                WHERE request_id = ?");
+            $stmt->bind_param("sssi",
+                $_POST['main_writer'],
+                $_POST['revenue_manager'],
+                $_POST['field_writers'],
+                $request_id
+            );
+            $stmt->execute();
 
-        $stmt->execute([
-            $request_id,
-            $_POST['main_writer'] ?? null,
-            $_POST['revenue_manager'] ?? null,
-            $_POST['field_writers'] ?? null
-        ]);
+        } else {
+            // INSERT 모드일 때 나머지 테이블들도 추가
+            // 4. 작성 대상 정보 저장
+            $stmt = $conn->prepare("INSERT INTO document_targets (
+                request_id, safety_plan_type, review_agency, hazard_prevention_type,
+                safety_health_agency, safety_health_ledger_type, evaluation_type,
+                education_facility, education_office, railway_protection, railway_manager
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        // 7. 검토 기관 로그인 정보 저장 (새 테이블)
-        if (!empty($_POST['csi_id']) || !empty($_POST['kosha_id'])) {
-            $stmt = $pdo->prepare("INSERT INTO review_credentials (
-                request_id, 
-                csi_id, csi_password, csi_supervisor, csi_supervisor_info,
-                csi_client, csi_client_info,
-                kosha_id, kosha_password, kosha_notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-            $stmt->execute([
+            $stmt->bind_param("issssssssss",
                 $request_id,
-                $_POST['csi_id'] ?? null,
-                !empty($_POST['csi_password']) ? password_hash($_POST['csi_password'], PASSWORD_DEFAULT) : null,
-                $_POST['csi_supervisor'] ?? null,
-                $_POST['csi_supervisor_info'] ?? null,
-                $_POST['csi_client'] ?? null,
-                $_POST['csi_client_info'] ?? null,
-                $_POST['kosha_id'] ?? null,
-                !empty($_POST['kosha_password']) ? password_hash($_POST['kosha_password'], PASSWORD_DEFAULT) : null,
-                $_POST['kosha_notes'] ?? null
-            ]);
+                $_POST['safety_plan_type'],
+                $_POST['review_agency'],
+                $_POST['hazard_prevention_type'],
+                $_POST['safety_health_agency'],
+                $_POST['safety_health_ledger_type'],
+                $_POST['evaluation_type'],
+                $_POST['education_facility'],
+                $_POST['education_office'],
+                $_POST['railway_protection'],
+                $_POST['railway_manager']
+            );
+            $stmt->execute();
+
+            // 5. 비용 정보 저장
+            $stmt = $conn->prepare("INSERT INTO document_cost_details (
+                request_id, safety_plan_cost, hazard_prevention_cost, structure_review_cost,
+                structure_review_agency, plan_review_cost, plan_review_agency,
+                safety_health_cost, education_facility_cost, railway_protection_cost,
+                evaluation_cost
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            // 비용 필드 처리
+            $costs = [];
+            $cost_fields = ['safety_plan_cost', 'hazard_prevention_cost', 'structure_review_cost',
+                'plan_review_cost', 'safety_health_cost', 'education_facility_cost',
+                'railway_protection_cost'];
+            foreach ($cost_fields as $field) {
+                $costs[] = !empty($_POST[$field]) ? str_replace(['만원', ',', ' '], '', $_POST[$field]) : null;
+            }
+
+            $stmt->bind_param("iiiisississ",
+                $request_id,
+                $costs[0], $costs[1], $costs[2],
+                $_POST['structure_review_agency'],
+                $costs[3],
+                $_POST['plan_review_agency'],
+                $costs[4], $costs[5], $costs[6],
+                $_POST['evaluation_cost']  // 문자열로 처리
+            );
+            $stmt->execute();
+
+            // 6. 작성자 정보 저장
+            $stmt = $conn->prepare("INSERT INTO document_writers (
+                request_id, main_writer, revenue_manager, field_writers
+            ) VALUES (?, ?, ?, ?)");
+
+            $stmt->bind_param("isss",
+                $request_id,
+                $_POST['main_writer'],
+                $_POST['revenue_manager'],
+                $_POST['field_writers']
+            );
+            $stmt->execute();
+
+            // 7. 워크플로우 상태 초기화
+            $stmt = $conn->prepare("INSERT INTO workflow_status (
+                request_id, current_step, step_name, step_description, 
+                started_at, assigned_to, is_current
+            ) VALUES (?, 'created', '요청 생성', '서류 요청이 생성되었습니다.', NOW(), ?, 1)");
+
+            $stmt->bind_param("ii", $request_id, $_SESSION['userdata']['id']);
+            $stmt->execute();
         }
 
-        // 8. 워크플로우 상태 초기화
-        $stmt = $pdo->prepare("INSERT INTO workflow_status (
-            request_id, current_step, step_name, step_description, 
-            started_at, assigned_to, is_current
-        ) VALUES (?, 'created', '요청 생성', '서류 요청이 생성되었습니다.', NOW(), ?, 1)");
+        // 8. 검토 기관 로그인 정보 저장/업데이트
+        if (!empty($_POST['csi_id']) || !empty($_POST['kosha_id'])) {
+            if ($is_edit) {
+                // 기존 데이터가 있는지 확인
+                $check_stmt = $conn->prepare("SELECT id FROM review_credentials WHERE request_id = ?");
+                $check_stmt->bind_param("i", $request_id);
+                $check_stmt->execute();
+                $check_result = $check_stmt->get_result();
 
+                if ($check_result->num_rows > 0) {
+                    // UPDATE
+                    $stmt = $conn->prepare("UPDATE review_credentials SET
+                        csi_id = ?, csi_password = ?, csi_supervisor = ?, csi_supervisor_info = ?,
+                        csi_client = ?, csi_client_info = ?,
+                        kosha_id = ?, kosha_password = ?, kosha_notes = ?
+                        WHERE request_id = ?");
 
-        $stmt->execute([$request_id, $_SESSION['user_id']]);
+                    // 비밀번호는 입력된 경우에만 업데이트
+                    $csi_password = !empty($_POST['csi_password']) ? password_hash($_POST['csi_password'], PASSWORD_DEFAULT) :
+                        ($review_data['csi_password'] ?? null);
+                    $kosha_password = !empty($_POST['kosha_password']) ? password_hash($_POST['kosha_password'], PASSWORD_DEFAULT) :
+                        ($review_data['kosha_password'] ?? null);
 
-        $pdo->commit();
-        $success_message = "서류 요청이 성공적으로 저장되었습니다. (요청번호: {$_POST['request_no']})";
+                    $stmt->bind_param("sssssssssi",
+                        $_POST['csi_id'],
+                        $csi_password,
+                        $_POST['csi_supervisor'],
+                        $_POST['csi_supervisor_info'],
+                        $_POST['csi_client'],
+                        $_POST['csi_client_info'],
+                        $_POST['kosha_id'],
+                        $kosha_password,
+                        $_POST['kosha_notes'],
+                        $request_id
+                    );
+                    $stmt->execute();
+                } else {
+                    // INSERT
+                    $stmt = $conn->prepare("INSERT INTO review_credentials (
+                        request_id, csi_id, csi_password, csi_supervisor, csi_supervisor_info,
+                        csi_client, csi_client_info, kosha_id, kosha_password, kosha_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+                    $stmt->bind_param("isssssssss",
+                        $request_id,
+                        $_POST['csi_id'],
+                        !empty($_POST['csi_password']) ? password_hash($_POST['csi_password'], PASSWORD_DEFAULT) : null,
+                        $_POST['csi_supervisor'],
+                        $_POST['csi_supervisor_info'],
+                        $_POST['csi_client'],
+                        $_POST['csi_client_info'],
+                        $_POST['kosha_id'],
+                        !empty($_POST['kosha_password']) ? password_hash($_POST['kosha_password'], PASSWORD_DEFAULT) : null,
+                        $_POST['kosha_notes']
+                    );
+                    $stmt->execute();
+                }
+            } else {
+                // INSERT
+                $stmt = $conn->prepare("INSERT INTO review_credentials (
+                    request_id, csi_id, csi_password, csi_supervisor, csi_supervisor_info,
+                    csi_client, csi_client_info, kosha_id, kosha_password, kosha_notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+                $stmt->bind_param("isssssssss",
+                    $request_id,
+                    $_POST['csi_id'],
+                    !empty($_POST['csi_password']) ? password_hash($_POST['csi_password'], PASSWORD_DEFAULT) : null,
+                    $_POST['csi_supervisor'],
+                    $_POST['csi_supervisor_info'],
+                    $_POST['csi_client'],
+                    $_POST['csi_client_info'],
+                    $_POST['kosha_id'],
+                    !empty($_POST['kosha_password']) ? password_hash($_POST['kosha_password'], PASSWORD_DEFAULT) : null,
+                    $_POST['kosha_notes']
+                );
+                $stmt->execute();
+            }
+        }
+
+        $conn->commit();
+
+        if ($is_edit) {
+            $success_message = "서류 요청이 성공적으로 수정되었습니다.";
+        } else {
+            $success_message = "서류 요청이 성공적으로 저장되었습니다. (요청번호: {$_POST['request_no']})";
+        }
 
     } catch (Exception $e) {
-        $pdo->rollBack();
+        $conn->rollback();
         $error_message = "저장 중 오류가 발생했습니다: " . $e->getMessage();
     }
 }
 
-// 요청번호 자동 생성
-$date = date('Ymd');
-$stmt = $pdo->query("SELECT COUNT(*) + 1 as cnt FROM document_requests WHERE request_no LIKE 'REQ-$date-%'");
-$count = str_pad($stmt->fetch()['cnt'], 3, '0', STR_PAD_LEFT);
-$auto_request_no = "REQ-$date-$count";
+// 요청번호 자동 생성 (신규일 때만)
+if (!$is_edit) {
+    $date = date('Ymd');
+    $stmt = $conn->query("SELECT COUNT(*) + 1 as cnt FROM document_requests WHERE request_no LIKE 'REQ-$date-%'");
+    $count = str_pad($stmt->fetch_assoc()['cnt'], 3, '0', STR_PAD_LEFT);
+    $auto_request_no = "REQ-$date-$count";
+} else {
+    $auto_request_no = $request_data['request_no'];
+}
 
 // 의뢰처 목록 조회
-$suppliers = $pdo->query("SELECT id, name FROM supplier_list WHERE status = 1 ORDER BY name")->fetchAll(PDO::FETCH_KEY_PAIR);
+$suppliers = [];
+$result = $conn->query("SELECT id, name FROM supplier_list WHERE status = 1 ORDER BY name");
+while ($row = $result->fetch_assoc()) {
+    $suppliers[$row['id']] = $row['name'];
+}
 
 // 서류 카테고리 계층 구조로 조회
-function getCategoryTree($pdo, $parent_id = null) {
+function getCategoryTree($conn, $parent_id = null) {
     $sql = "SELECT * FROM document_categories WHERE status = 1";
     if ($parent_id === null) {
         $sql .= " AND parent_id IS NULL";
@@ -213,18 +432,22 @@ function getCategoryTree($pdo, $parent_id = null) {
     }
     $sql .= " ORDER BY display_order, name";
 
-    $stmt = $pdo->query($sql);
-    $categories = $stmt->fetchAll();
-
-    foreach ($categories as &$category) {
-        $category['children'] = getCategoryTree($pdo, $category['id']);
+    $result = $conn->query($sql);
+    $categories = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['children'] = getCategoryTree($conn, $row['id']);
+        $categories[] = $row;
     }
 
     return $categories;
 }
 
-$categories = $pdo->query("SELECT id, name FROM document_categories WHERE level = 1 AND status = 1 ORDER BY display_order")->fetchAll();
-$categoryTree = getCategoryTree($pdo);
+$categories = [];
+$result = $conn->query("SELECT id, name FROM document_categories WHERE level = 1 AND status = 1 ORDER BY display_order");
+while ($row = $result->fetch_assoc()) {
+    $categories[] = $row;
+}
+$categoryTree = getCategoryTree($conn);
 ?>
 
 <!DOCTYPE html>
@@ -232,7 +455,7 @@ $categoryTree = getCategoryTree($pdo);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>서류 요청 관리 시스템</title>
+    <title>서류 요청 <?php echo $is_edit ? '수정' : '등록' ?></title>
     <style>
         * {
             margin: 0;
@@ -645,7 +868,7 @@ $categoryTree = getCategoryTree($pdo);
 <div class="container">
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h1 style="margin: 0;">서류 요청 관리 시스템</h1>
+        <h1 style="margin: 0;">서류 요청 <?php echo $is_edit ? '수정' : '등록' ?></h1>
         <button type="button" class="btn-secondary" onclick="goBack()" style="padding: 10px 20px;">
             <span style="margin-right: 5px;">←</span>
             목록으로
@@ -710,14 +933,14 @@ $categoryTree = getCategoryTree($pdo);
         <table>
             <tr>
                 <th width="15%">공사명</th>
-                <td colspan="2"><input type="text" name="project_name" required></td>
+                <td colspan="2"><input type="text" name="project_name" value="<?php echo $is_edit ? htmlspecialchars($request_data['project_name']) : '' ?>" required></td>
                 <th width="15%">시공방법</th>
                 <td width="25%">
                     <select name="construction_method">
                         <option value="">선택하세요</option>
-                        <option value="단독">단독</option>
-                        <option value="공동">공동</option>
-                        <option value="분담">분담</option>
+                        <option value="단독" <?php echo ($is_edit && $details_data['construction_method'] == '단독') ? 'selected' : '' ?>>단독</option>
+                        <option value="공동" <?php echo ($is_edit && $details_data['construction_method'] == '공동') ? 'selected' : '' ?>>공동</option>
+                        <option value="분담" <?php echo ($is_edit && $details_data['construction_method'] == '분담') ? 'selected' : '' ?>>분담</option>
                     </select>
                 </td>
             </tr>
@@ -727,31 +950,31 @@ $categoryTree = getCategoryTree($pdo);
                     <select name="supplier_id" required>
                         <option value="">선택하세요</option>
                         <?php foreach ($suppliers as $id => $name): ?>
-                            <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                            <option value="<?php echo $id; ?>" <?php echo ($is_edit && $request_data['supplier_id'] == $id) ? 'selected' : '' ?>><?php echo htmlspecialchars($name); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </td>
                 <th>수주일</th>
-                <td><input type="date" name="order_date"></td>
+                <td><input type="date" name="order_date" value="<?php echo $is_edit && $details_data['order_date'] ? date('Y-m-d', strtotime($details_data['order_date'])) : '' ?>"></td>
             </tr>
             <tr>
                 <th rowspan="2">담당자</th>
                 <th width="10%">담당</th>
                 <td>
-                    <input type="text" name="manager_name" placeholder="담당자 이름" style="width: 40%; display: inline;" >
-                    <input type="text" name="manager_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;">
+                    <input type="text" name="manager_name" placeholder="담당자 이름" style="width: 40%; display: inline;" value="<?php echo $is_edit ? htmlspecialchars($details_data['manager_name'] ?? '') : '' ?>">
+                    <input type="text" name="manager_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo $is_edit ? htmlspecialchars($details_data['manager_contact'] ?? '') : '' ?>">
                 </td>
                 <th>이메일</th>
-                <td><input type="email" name="manager_email" placeholder="이메일 주소"></td>
+                <td><input type="email" name="manager_email" placeholder="이메일 주소" value="<?php echo $is_edit ? htmlspecialchars($details_data['manager_email'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>소장</th>
                 <td>
-                    <input type="text" name="director_name" placeholder="소장 이름" style="width: 40%; display: inline;">
-                    <input type="text" name="director_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;">
+                    <input type="text" name="director_name" placeholder="소장 이름" style="width: 40%; display: inline;" value="<?php echo $is_edit ? htmlspecialchars($details_data['director_name'] ?? '') : '' ?>">
+                    <input type="text" name="director_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo $is_edit ? htmlspecialchars($details_data['director_contact'] ?? '') : '' ?>">
                 </td>
                 <th>제출예정일</th>
-                <td><input type="date" name="submission_date"></td>
+                <td><input type="date" name="submission_date" value="<?php echo $is_edit && $request_data['due_date'] ? date('Y-m-d', strtotime($request_data['due_date'])) : '' ?>"></td>
             </tr>
         </table>
 
@@ -764,17 +987,17 @@ $categoryTree = getCategoryTree($pdo);
                 <td width="35%">
                     <select name="safety_plan_type">
                         <option value="">선택 안함</option>
-                        <option value="1종">1종</option>
-                        <option value="2종">2종</option>
-                        <option value="기타">기타(천공기, 동바리)</option>
+                        <option value="1종" <?php echo ($is_edit && isset($targets_data['safety_plan_type']) && $targets_data['safety_plan_type'] == '1종') ? 'selected' : '' ?>>1종</option>
+                        <option value="2종" <?php echo ($is_edit && isset($targets_data['safety_plan_type']) && $targets_data['safety_plan_type'] == '2종') ? 'selected' : '' ?>>2종</option>
+                        <option value="기타" <?php echo ($is_edit && isset($targets_data['safety_plan_type']) && $targets_data['safety_plan_type'] == '기타') ? 'selected' : '' ?>>기타(천공기, 동바리)</option>
                     </select>
                 </td>
                 <th width="15%">검토처</th>
                 <td>
                     <select name="review_agency">
                         <option value="">선택 안함</option>
-                        <option value="국토안전관리원">국토안전관리원</option>
-                        <option value="안전점검기관">안전점검기관</option>
+                        <option value="국토안전관리원" <?php echo ($is_edit && isset($targets_data['review_agency']) && $targets_data['review_agency'] == '국토안전관리원') ? 'selected' : '' ?>>국토안전관리원</option>
+                        <option value="안전점검기관" <?php echo ($is_edit && isset($targets_data['review_agency']) && $targets_data['review_agency'] == '안전점검기관') ? 'selected' : '' ?>>안전점검기관</option>
                     </select>
                 </td>
             </tr>
@@ -783,46 +1006,46 @@ $categoryTree = getCategoryTree($pdo);
                 <td>
                     <select name="hazard_prevention_type">
                         <option value="">선택 안함</option>
-                        <option value="높이31m이상">높이 31m 이상</option>
-                        <option value="굴착10m이상">굴착 10m 이상</option>
-                        <option value="교량">교량</option>
-                        <option value="기타">기타</option>
+                        <option value="높이31m이상" <?php echo ($is_edit && isset($targets_data['hazard_prevention_type']) && $targets_data['hazard_prevention_type'] == '높이31m이상') ? 'selected' : '' ?>>높이 31m 이상</option>
+                        <option value="굴착10m이상" <?php echo ($is_edit && isset($targets_data['hazard_prevention_type']) && $targets_data['hazard_prevention_type'] == '굴착10m이상') ? 'selected' : '' ?>>굴착 10m 이상</option>
+                        <option value="교량" <?php echo ($is_edit && isset($targets_data['hazard_prevention_type']) && $targets_data['hazard_prevention_type'] == '교량') ? 'selected' : '' ?>>교량</option>
+                        <option value="기타" <?php echo ($is_edit && isset($targets_data['hazard_prevention_type']) && $targets_data['hazard_prevention_type'] == '기타') ? 'selected' : '' ?>>기타</option>
                     </select>
                 </td>
                 <th>안전보건공단</th>
-                <td><input type="text" name="safety_health_agency" placeholder="강원동부지사"></td>
+                <td><input type="text" name="safety_health_agency" placeholder="강원동부지사" value="<?php echo $is_edit ? htmlspecialchars($targets_data['safety_health_agency'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>안전보건대장</th>
                 <td>
                     <select name="safety_health_ledger_type">
                         <option value="">선택 안함</option>
-                        <option value="기본">기본</option>
-                        <option value="설계">설계</option>
-                        <option value="공사">공사</option>
+                        <option value="기본" <?php echo ($is_edit && isset($targets_data['safety_health_ledger_type']) && $targets_data['safety_health_ledger_type'] == '기본') ? 'selected' : '' ?>>기본</option>
+                        <option value="설계" <?php echo ($is_edit && isset($targets_data['safety_health_ledger_type']) && $targets_data['safety_health_ledger_type'] == '설계') ? 'selected' : '' ?>>설계</option>
+                        <option value="공사" <?php echo ($is_edit && isset($targets_data['safety_health_ledger_type']) && $targets_data['safety_health_ledger_type'] == '공사') ? 'selected' : '' ?>>공사</option>
                     </select>
                 </td>
                 <th>적정성평가</th>
                 <td>
                     <select name="evaluation_type">
                         <option value="">선택 안함</option>
-                        <option value="기본">기본</option>
-                        <option value="설계">설계</option>
-                        <option value="공사">공사</option>
+                        <option value="기본" <?php echo ($is_edit && isset($targets_data['evaluation_type']) && $targets_data['evaluation_type'] == '기본') ? 'selected' : '' ?>>기본</option>
+                        <option value="설계" <?php echo ($is_edit && isset($targets_data['evaluation_type']) && $targets_data['evaluation_type'] == '설계') ? 'selected' : '' ?>>설계</option>
+                        <option value="공사" <?php echo ($is_edit && isset($targets_data['evaluation_type']) && $targets_data['evaluation_type'] == '공사') ? 'selected' : '' ?>>공사</option>
                     </select>
                 </td>
             </tr>
             <tr>
                 <th>교육시설</th>
-                <td><input type="text" name="education_facility" placeholder="교육시설 정보 입력"></td>
+                <td><input type="text" name="education_facility" placeholder="교육시설 정보 입력" value="<?php echo $is_edit ? htmlspecialchars($targets_data['education_facility'] ?? '') : '' ?>"></td>
                 <th>관할교육청</th>
-                <td><input type="text" name="education_office" placeholder="관할교육청 입력"></td>
+                <td><input type="text" name="education_office" placeholder="관할교육청 입력" value="<?php echo $is_edit ? htmlspecialchars($targets_data['education_office'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>철도보호지구</th>
-                <td><input type="text" name="railway_protection" placeholder="철도보호지구 관련정보"></td>
+                <td><input type="text" name="railway_protection" placeholder="철도보호지구 관련정보" value="<?php echo $is_edit ? htmlspecialchars($targets_data['railway_protection'] ?? '') : '' ?>"></td>
                 <th>철도보호지구관리자</th>
-                <td><input type="text" name="railway_manager" placeholder="철도보호지구관리자 입력"></td>
+                <td><input type="text" name="railway_manager" placeholder="철도보호지구관리자 입력" value="<?php echo $is_edit ? htmlspecialchars($targets_data['railway_manager'] ?? '') : '' ?>"></td>
             </tr>
         </table>
 
@@ -832,43 +1055,43 @@ $categoryTree = getCategoryTree($pdo);
         <table>
             <tr>
                 <th width="20%">안전관리계획서</th>
-                <td width="30%"><input type="text" name="safety_plan_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input"></td>
+                <td width="30%"><input type="text" name="safety_plan_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['safety_plan_cost']) ? $costs_data['safety_plan_cost'] : '' ?>"></td>
                 <th width="20%">유해위험방지계획서</th>
-                <td width="30%"><input type="text" name="hazard_prevention_cost" placeholder="유해위험방지계획비 입력(만원)" class="cost-input"></td>
+                <td width="30%"><input type="text" name="hazard_prevention_cost" placeholder="유해위험방지계획비 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['hazard_prevention_cost']) ? $costs_data['hazard_prevention_cost'] : '' ?>"></td>
             </tr>
             <tr>
                 <th>구조검토비</th>
-                <td><input type="text" name="structure_review_cost" placeholder="구조검토비 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="structure_review_cost" placeholder="구조검토비 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['structure_review_cost']) ? $costs_data['structure_review_cost'] : '' ?>"></td>
                 <th>위탁처</th>
-                <td><input type="text" name="structure_review_agency" placeholder="위탁처 입력(만원)"></td>
+                <td><input type="text" name="structure_review_agency" placeholder="위탁처 입력" value="<?php echo $is_edit ? htmlspecialchars($costs_data['structure_review_agency'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>계획서검토비</th>
-                <td><input type="text" name="plan_review_cost" placeholder="계획서검토비 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="plan_review_cost" placeholder="계획서검토비 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['plan_review_cost']) ? $costs_data['plan_review_cost'] : '' ?>"></td>
                 <th>검토처</th>
-                <td><input type="text" name="plan_review_agency" placeholder="검토처 입력(만원)"></td>
+                <td><input type="text" name="plan_review_agency" placeholder="검토처 입력" value="<?php echo $is_edit ? htmlspecialchars($costs_data['plan_review_agency'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>안전보건대장</th>
-                <td><input type="text" name="safety_health_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="safety_health_cost" placeholder="안전관리계획비 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['safety_health_cost']) ? $costs_data['safety_health_cost'] : '' ?>"></td>
                 <th>교육시설</th>
-                <td><input type="text" name="education_facility_cost" placeholder="교육시설 비용 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="education_facility_cost" placeholder="교육시설 비용 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['education_facility_cost']) ? $costs_data['education_facility_cost'] : '' ?>"></td>
             </tr>
             <tr>
                 <th>철도보호</th>
-                <td><input type="text" name="railway_protection_cost" placeholder="철도보호 비용 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="railway_protection_cost" placeholder="철도보호 비용 입력(만원)" class="cost-input" value="<?php echo $is_edit && isset($costs_data['railway_protection_cost']) ? $costs_data['railway_protection_cost'] : '' ?>"></td>
                 <th>적정성평가</th>
-                <td><input type="text" name="evaluation_cost" placeholder="적정성평가 비용 입력(만원)" class="cost-input"></td>
+                <td><input type="text" name="evaluation_cost" placeholder="적정성평가 정보 입력" value="<?php echo $is_edit ? htmlspecialchars($costs_data['evaluation_cost'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>종합계</th>
                 <td colspan="3">
-                    <input type="text" name="total_cost" id="total_cost" placeholder="0만원" style="width: 200px; display: inline;" readonly required>
+                    <input type="text" name="total_cost" id="total_cost" placeholder="0만원" style="width: 200px; display: inline;" readonly required value="<?php echo $is_edit && isset($details_data['total_cost']) ? $details_data['total_cost'] : '' ?>">
                     <label style="margin-left: 20px;">
-                        <input type="radio" name="vat_included" value="1" onchange="calculateTotalCost()"> VAT 포함
+                        <input type="radio" name="vat_included" value="1" onchange="calculateTotalCost()" <?php echo ($is_edit && isset($details_data['vat_included']) && $details_data['vat_included'] == 1) ? 'checked' : '' ?>> VAT 포함
                     </label>
                     <label style="margin-left: 20px;">
-                        <input type="radio" name="vat_included" value="0" checked onchange="calculateTotalCost()"> VAT 별도
+                        <input type="radio" name="vat_included" value="0" <?php echo (!$is_edit || !isset($details_data['vat_included']) || $details_data['vat_included'] == 0) ? 'checked' : '' ?> onchange="calculateTotalCost()"> VAT 별도
                     </label>
                 </td>
             </tr>
@@ -880,14 +1103,14 @@ $categoryTree = getCategoryTree($pdo);
         <table>
             <tr>
                 <th width="20%">주관자(의뢰처접담)</th>
-                <td width="30%"><input type="text" name="main_writer"></td>
+                <td width="30%"><input type="text" name="main_writer" value="<?php echo $is_edit ? htmlspecialchars($writers_data['main_writer'] ?? '') : '' ?>"></td>
                 <th width="20%">수주관리/소개/수당</th>
-                <td width="30%"><input type="text" name="revenue_manager"></td>
+                <td width="30%"><input type="text" name="revenue_manager" value="<?php echo $is_edit ? htmlspecialchars($writers_data['revenue_manager'] ?? '') : '' ?>"></td>
             </tr>
             <tr>
                 <th>분야별 작성자</th>
                 <td colspan="3">
-                    <input type="text" name="field_writers" placeholder="※ 정병 구분하여 작성시 기재">
+                    <input type="text" name="field_writers" placeholder="※ 정병 구분하여 작성시 기재" value="<?php echo $is_edit ? htmlspecialchars($writers_data['field_writers'] ?? '') : '' ?>">
                 </td>
             </tr>
         </table>
@@ -908,24 +1131,24 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="csi_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="csi_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off" value="<?php echo $is_edit && isset($review_data['csi_id']) ? htmlspecialchars($review_data['csi_id']) : '' ?>"></td>
                         </tr>
                     </table>
                 </td>
-                <td><input type="text" name="csi_supervisor" placeholder=""></td>
-                <td><input type="text" name="csi_client" placeholder=""></td>
+                <td><input type="text" name="csi_supervisor" placeholder="" value="<?php echo $is_edit && isset($review_data['csi_supervisor']) ? htmlspecialchars($review_data['csi_supervisor']) : '' ?>"></td>
+                <td><input type="text" name="csi_client" placeholder="" value="<?php echo $is_edit && isset($review_data['csi_client']) ? htmlspecialchars($review_data['csi_client']) : '' ?>"></td>
             </tr>
             <tr>
                 <td>
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="csi_password" placeholder="비밀번호" style="width: 95%; border: none;" autocomplete="new-password"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="csi_password" placeholder="<?php echo $is_edit ? '변경시에만 입력' : '비밀번호' ?>" style="width: 95%; border: none;" autocomplete="new-password"></td>
                         </tr>
                     </table>
                 </td>
-                <td><input type="text" name="csi_supervisor_info" placeholder=""></td>
-                <td><input type="text" name="csi_client_info" placeholder=""></td>
+                <td><input type="text" name="csi_supervisor_info" placeholder="" value="<?php echo $is_edit && isset($review_data['csi_supervisor_info']) ? htmlspecialchars($review_data['csi_supervisor_info']) : '' ?>"></td>
+                <td><input type="text" name="csi_client_info" placeholder="" value="<?php echo $is_edit && isset($review_data['csi_client_info']) ? htmlspecialchars($review_data['csi_client_info']) : '' ?>"></td>
             </tr>
             <tr>
                 <th>안전보건공단</th>
@@ -933,7 +1156,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_id" placeholder="아이디" style="width: 95%; border: none;" autocomplete="off" value="<?php echo $is_edit && isset($review_data['kosha_id']) ? htmlspecialchars($review_data['kosha_id']) : '' ?>"></td>
                         </tr>
                     </table>
                 </td>
@@ -941,7 +1164,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="kosha_password" placeholder="비밀번호" style="width: 95%; border: none;" autocomplete="new-password"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" name="kosha_password" placeholder="<?php echo $is_edit ? '변경시에만 입력' : '비밀번호' ?>" style="width: 95%; border: none;" autocomplete="new-password"></td>
                         </tr>
                     </table>
                 </td>
@@ -949,7 +1172,7 @@ $categoryTree = getCategoryTree($pdo);
                     <table style="width: 100%; border: none; margin: 0;">
                         <tr>
                             <td style="border: none; padding: 3px; width: 25%; text-align: center;">기타사항</td>
-                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_notes" placeholder="" style="width: 95%; border: none;"></td>
+                            <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" name="kosha_notes" placeholder="" style="width: 95%; border: none;" value="<?php echo $is_edit && isset($review_data['kosha_notes']) ? htmlspecialchars($review_data['kosha_notes']) : '' ?>"></td>
                         </tr>
                     </table>
                 </td>
@@ -958,7 +1181,7 @@ $categoryTree = getCategoryTree($pdo);
 
         <!-- 추가 요청사항 -->
         <div class="section-title">추가 요청사항</div>
-        <textarea name="additional_notes" rows="4" placeholder="추가로 요청할 사항이 있으시면 입력해주세요."></textarea>
+        <textarea name="additional_notes" rows="4" placeholder="추가로 요청할 사항이 있으시면 입력해주세요."><?php echo $is_edit ? htmlspecialchars($request_data['additional_notes'] ?? '') : '' ?></textarea>
 
         <!-- 선택된 서류 목록 -->
         <div class="selected-documents" id="selected-docs-container" style="display: none;">
@@ -968,7 +1191,7 @@ $categoryTree = getCategoryTree($pdo);
 
         <!-- 버튼 그룹 -->
         <div class="button-group">
-            <button type="submit" class="btn-primary">저장하기</button>
+            <button type="submit" class="btn-primary"><?php echo $is_edit ? '수정하기' : '저장하기' ?></button>
             <button type="reset" class="btn-secondary">초기화</button>
             <button type="button" class="btn-secondary" onclick="window.print()">인쇄하기</button>
         </div>
@@ -1011,16 +1234,109 @@ $categoryTree = getCategoryTree($pdo);
     let allSelectedDocuments = new Set(); // 전체 선택된 문서
     let tempSelectedDocuments = new Set();
 
+    // 편집 모드일 때 기존 선택 문서 복원
+    <?php if ($is_edit && !empty($selected_documents)): ?>
+    let existingDocuments = <?php echo json_encode($selected_documents); ?>;
+    <?php endif; ?>
+
     // 페이지 로드 시 체크박스에 이벤트 추가
     document.addEventListener('DOMContentLoaded', function() {
-        // 기존 체크박스에 클릭 이벤트 추가
+        // 편집 모드일 때 기존 선택 문서 복원을 먼저 수행
+        <?php if ($is_edit && !empty($selected_documents)): ?>
+        // 선택된 문서들을 Set에 추가
+        existingDocuments.forEach(docId => {
+            allSelectedDocuments.add(docId.toString());
+            // 숨겨진 체크박스 체크
+            const hiddenCheckbox = document.querySelector('#doc-' + docId);
+            if (hiddenCheckbox) {
+                hiddenCheckbox.checked = true;
+            }
+        });
+
+        // 카테고리별로 선택된 문서 분류
+        restoreSelectedDocuments();
+
+        // 선택된 문서 목록 표시
+        updateSelectedDocumentsList();
+        <?php endif; ?>
+
+        // 이벤트 리스너는 복원 후에 추가
         document.querySelectorAll('.main-category-checkbox').forEach(checkbox => {
             checkbox.addEventListener('click', function(e) {
                 e.preventDefault(); // 기본 체크 동작 방지
                 openCategoryModal(this);
             });
         });
+
+        // 편집 모드일 때 비용 포맷팅
+        <?php if ($is_edit): ?>
+        // 비용 필드 초기 포맷팅
+        document.querySelectorAll('.cost-input').forEach(input => {
+            if (input.value && input.value !== '0') {
+                input.value = parseInt(input.value).toLocaleString() + '만원';
+            }
+        });
+
+        // 총 비용 계산
+        calculateTotalCost();
+        <?php endif; ?>
     });
+
+    <?php if ($is_edit && !empty($selected_documents)): ?>
+    // 선택된 문서를 카테고리별로 분류하여 복원
+    function restoreSelectedDocuments() {
+        categoryData.forEach(category => {
+            const categoryId = category.id.toString();
+            const selectedInCategory = findSelectedInCategory(category);
+
+            if (selectedInCategory.length > 0) {
+                selectedDocumentsByCategory[categoryId] = new Set(selectedInCategory);
+
+                // 메인 체크박스 체크 및 개수 표시
+                const mainCheckbox = document.querySelector(`input[data-category-id="${categoryId}"]`);
+                if (mainCheckbox) {
+                    mainCheckbox.checked = true;
+                    const label = mainCheckbox.parentElement;
+                    // 기존 개수 표시 제거
+                    const existingCount = label.querySelector('.doc-count');
+                    if (existingCount) {
+                        existingCount.remove();
+                    }
+                    // 새로운 개수 표시 추가
+                    const countSpan = document.createElement('span');
+                    countSpan.className = 'doc-count';
+                    countSpan.style.cssText = 'color: #1976d2; font-weight: bold;';
+                    countSpan.textContent = ' (' + selectedInCategory.length + ')';
+                    label.appendChild(countSpan);
+                }
+            }
+        });
+    }
+
+    // 카테고리 내 선택된 문서 찾기
+    function findSelectedInCategory(category) {
+        let selected = [];
+
+        function searchInChildren(items) {
+            items.forEach(item => {
+                if (item.children && item.children.length > 0) {
+                    searchInChildren(item.children);
+                } else {
+                    // 최하위 문서
+                    if (allSelectedDocuments.has(item.id.toString())) {
+                        selected.push(item.id.toString());
+                    }
+                }
+            });
+        }
+
+        if (category.children) {
+            searchInChildren(category.children);
+        }
+
+        return selected;
+    }
+    <?php endif; ?>
 
     // 카테고리 모달 열기
     function openCategoryModal(checkbox) {
@@ -1167,7 +1483,7 @@ $categoryTree = getCategoryTree($pdo);
     // 선택 적용
     function applySelection() {
         const categoryId = currentParentCheckbox.getAttribute('data-category-id');
-        
+
         // 현재 카테고리의 선택을 저장
         if (tempSelectedDocuments.size > 0) {
             selectedDocumentsByCategory[categoryId] = new Set(tempSelectedDocuments);
@@ -1177,7 +1493,7 @@ $categoryTree = getCategoryTree($pdo);
 
         // 부모 체크박스 상태 결정
         currentParentCheckbox.checked = tempSelectedDocuments.size > 0;
-        
+
         // 부모 체크박스에 선택된 문서 개수 표시
         const label = currentParentCheckbox.parentElement;
         const countSpan = label.querySelector('.doc-count');
@@ -1291,7 +1607,7 @@ $categoryTree = getCategoryTree($pdo);
     // 총 비용 계산 함수
     function calculateTotalCost() {
         let total = 0;
-        
+
         // 모든 비용 입력 필드 순회
         document.querySelectorAll('.cost-input').forEach(input => {
             if (input.value) {
@@ -1302,12 +1618,12 @@ $categoryTree = getCategoryTree($pdo);
                 }
             }
         });
-        
+
         // VAT 포함 여부 확인
         const vatIncluded = document.querySelector('input[name="vat_included"]:checked');
         let displayTotal = total;
         let vatText = '';
-        
+
         if (vatIncluded && vatIncluded.value === '1') {
             // VAT 포함인 경우 10% 추가
             displayTotal = Math.round(total * 1.1);
@@ -1315,7 +1631,7 @@ $categoryTree = getCategoryTree($pdo);
         } else {
             vatText = ' (VAT별도)';
         }
-        
+
         // 종합계 필드에 합계 표시
         const totalCostInput = document.getElementById('total_cost');
         if (displayTotal > 0) {
@@ -1332,7 +1648,7 @@ $categoryTree = getCategoryTree($pdo);
             let value = e.target.value.replace(/[^0-9]/g, '');
             e.target.value = value;
         });
-        
+
         // 포커스 해제 시 포맷 적용
         input.addEventListener('blur', function(e) {
             let value = e.target.value.replace(/[^0-9]/g, '');
@@ -1344,28 +1660,30 @@ $categoryTree = getCategoryTree($pdo);
             // 총 비용 재계산
             calculateTotalCost();
         });
-        
+
         // 입력 중에는 숫자만 허용
         input.addEventListener('input', function(e) {
             let value = e.target.value;
             let numbers = value.replace(/[^0-9]/g, '');
-            
+
             // 숫자가 아닌 문자가 입력된 경우에만 교체
             if (value !== numbers) {
                 e.target.value = numbers;
             }
         });
-        
+
         // 키 입력 시 총 비용 재계산
         input.addEventListener('keyup', function(e) {
             calculateTotalCost();
         });
     });
-    
+
     // 페이지 로드 시 초기 계산
     document.addEventListener('DOMContentLoaded', function() {
+        <?php if (!$is_edit): ?>
         calculateTotalCost();
-        
+        <?php endif; ?>
+
         // 폼 리셋 시 선택 상태도 초기화
         document.querySelector('form').addEventListener('reset', function() {
             selectedDocumentsByCategory = {};
