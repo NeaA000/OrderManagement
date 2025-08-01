@@ -179,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             started_at, assigned_to, is_current
         ) VALUES (?, 'created', '요청 생성', '서류 요청이 생성되었습니다.', NOW(), ?, 1)");
 
+
         $stmt->execute([$request_id, $_SESSION['user_id']]);
 
         $pdo->commit();
@@ -452,10 +453,23 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
 </head>
 <body>
 <div class="container">
-    <h1>서류 요청 관리 시스템</h1>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1 style="margin: 0;">서류 요청 관리 시스템</h1>
+        <button type="button" class="btn-secondary" onclick="goBack()" style="padding: 10px 20px;">
+            <span style="margin-right: 5px;">←</span>
+            목록으로
+        </button>
+    </div>
 
     <?php if (isset($success_message)): ?>
         <div class="alert alert-success"><?php echo $success_message; ?></div>
+        <script>
+            // 성공 메시지 표시 후 1.5초 뒤에 목록 페이지로 이동
+            setTimeout(function() {
+                window.location.href = './?page=document_requests';
+            }, 1500);
+        </script>
     <?php endif; ?>
 
     <?php if (isset($error_message)): ?>
@@ -753,6 +767,15 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
 </div>
 
 <script>
+
+    // 뒤로가기 함수
+    function goBack() {
+        // AdminLTE 환경에 맞춰 목록 페이지로 이동
+        window.location.href = './?page=document_requests';
+        // 또는 브라우저 히스토리 사용
+        // window.history.back();
+    }
+
     // 서류 타입 체크박스 이벤트
     document.querySelectorAll('input[name="document_types[]"]').forEach(checkbox => {
         checkbox.addEventListener('change', updateSelectedDocuments);
