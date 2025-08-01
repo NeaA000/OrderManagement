@@ -38,19 +38,19 @@
                 $sub_count = $conn->query("SELECT COUNT(*) as cnt FROM document_categories WHERE parent_id = '{$main_cat['id']}'")->fetch_array()['cnt'];
                 ?>
 
-                <div class="card mb-4">
+                <div class="card mb-4" data-id="<?php echo $main_cat['id'] ?>">
                     <div class="card-header">
                         <div class="d-flex align-items-center">
+                            <span class="drag-handle mr-3" style="cursor: move;">
+                                <i class="fas fa-grip-vertical text-muted"></i>
+                            </span>
+
                             <h5 class="font-weight-bold mb-0 mr-3">
                                 <?php echo htmlspecialchars($main_cat['name']) ?>
                             </h5>
 
                             <span class="badge <?php echo $main_cat['is_required'] ? 'badge-danger' : 'badge-secondary' ?> ml-auto mr-2">
                                 <?php echo $main_cat['is_required'] ? '필수' : '선택' ?>
-                            </span>
-
-                            <span class="badge badge-info mr-2">
-                                순서: <?php echo $main_cat['display_order'] ?>
                             </span>
 
                             <div class="btn-group">
@@ -73,16 +73,14 @@
                                 <table class="table table-sm table-hover">
                                     <thead class="bg-light">
                                     <tr>
-                                        <th width="5%">#</th>
-                                        <th width="30%">서류 그룹</th>
-                                        <th width="20%">실제 서류</th>
-                                        <th width="10%">필수여부</th>
-                                        <th width="10%">순서</th>
-                                        <th width="10%">상태</th>
-                                        <th width="15%">작업</th>
+                                        <th width="5%"></th>
+                                        <th width="10%">#</th>
+                                        <th width="40%">서류 그룹</th>
+                                        <th width="25%">실제 서류</th>
+                                        <th width="20%">작업</th>
                                     </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody class="sortable-table" data-parent-id="<?php echo $main_cat['id'] ?>">
                                     <?php
                                     $sub_qry = $conn->query("
                                         SELECT * FROM document_categories 
@@ -94,16 +92,13 @@
                                     while($sub_cat = $sub_qry->fetch_assoc()):
                                         // 실제 서류 개수 확인
                                         $subsub_count = $conn->query("SELECT COUNT(*) as cnt FROM document_categories WHERE parent_id = '{$sub_cat['id']}'")->fetch_array()['cnt'];
-
-                                        $required_badge = $sub_cat['is_required'] ?
-                                            '<span class="badge badge-danger badge-sm">필수</span>' :
-                                            '<span class="badge badge-light badge-sm">선택</span>';
-
-                                        $status_badge = $sub_cat['status'] ?
-                                            '<span class="badge badge-success badge-sm">활성</span>' :
-                                            '<span class="badge badge-warning badge-sm">비활성</span>';
                                         ?>
-                                        <tr>
+                                        <tr data-id="<?php echo $sub_cat['id'] ?>">
+                                            <td>
+                                                <span class="drag-handle-sub" style="cursor: move;">
+                                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                                </span>
+                                            </td>
                                             <td><?php echo $sub_num++ ?></td>
                                             <td>
                                                 <i class="fas fa-folder text-info mr-2"></i>
@@ -119,9 +114,6 @@
                                                     <span class="text-muted">없음</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <td><?php echo $required_badge ?></td>
-                                            <td><?php echo $sub_cat['display_order'] ?></td>
-                                            <td><?php echo $status_badge ?></td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
                                                     <button class="btn btn-outline-primary edit_category" data-id="<?php echo $sub_cat['id'] ?>">
@@ -148,7 +140,7 @@
                                         if($subsub_qry->num_rows > 0):
                                             ?>
                                             <tr class="subsub-row" data-parent="<?php echo $sub_cat['id'] ?>" style="display: none;">
-                                                <td colspan="7">
+                                                <td colspan="5">
                                                     <div class="ml-4 p-2 bg-light rounded">
                                                         <small><strong>실제 서류 목록:</strong></small>
                                                         <div class="row mt-2">
@@ -214,6 +206,64 @@
 </div>
 
 <script>
+    // jQuery UI 포함 확인 및 추가
+    if(typeof jQuery.ui === 'undefined') {
+        var script = document.createElement('script');
+        script.src = 'https://code.jquery.com/ui/1.12.1/jquery-ui.min.js';
+        document.head.appendChild(script);
+
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css';
+        document.head.appendChild(link);
+    }
+
+    // 스타일을 JavaScript로 추가
+    $('<style>')
+        .prop('type', 'text/css')
+        .html('.ui-sortable-helper { box-shadow: 0 5px 15px rgba(0,0,0,0.3); opacity: 0.8; }')
+        .appendTo('head');
+
+    $(document).ready(function(){
+        // 드래그 앤 드롭으로 순서 변경
+        setTimeout(function() {
+            $('.container-fluid').sortable({
+                items: '.card[data-id]',
+                handle: '.drag-handle',
+                update: function(event, ui) {
+                    var order = [];
+                    $('.card[data-id]').each(function(index) {
+                        order.push({
+                            id: $(this).data('id'),
+                            order: index + 1
+                        });
+                    });
+
+                    updateCategoryOrder(order);
+                }
+            });
+
+            // 서류 그룹 드래그 앤 드롭
+            $('.sortable-table').each(function() {
+                $(this).sortable({
+                    items: 'tr[data-id]',
+                    handle: '.drag-handle-sub',
+                    update: function(event, ui) {
+                        var order = [];
+                        $(this).find('tr[data-id]').each(function(index) {
+                            order.push({
+                                id: $(this).data('id'),
+                                order: index + 1
+                            });
+                        });
+
+                        updateCategoryOrder(order);
+                    }
+                });
+            });
+        }, 500);
+    });
+
     $(document).ready(function(){
         // 메인 카테고리 수정
         $('.edit_main_category').click(function(){
@@ -284,6 +334,33 @@
                 } else {
                     alert_toast("삭제 중 오류가 발생했습니다.", 'error');
                     end_loader();
+                }
+            }
+        })
+    }
+
+    function updateCategoryOrder(order) {
+        console.log("Updating order:", order); // 디버깅용
+
+        $.ajax({
+            url: _base_url_ + "classes/Master.php?f=update_category_order",
+            method: "POST",
+            data: {order: JSON.stringify(order)}, // JSON 문자열로 변환
+            dataType: "json",
+            error: err => {
+                console.error("Ajax error:", err);
+                console.error("Response Text:", err.responseText);
+                alert_toast("순서 변경 중 오류가 발생했습니다.", 'error');
+            },
+            success: function(resp){
+                console.log("Server response:", resp); // 디버깅용
+
+                if(typeof resp == 'object' && resp.status == 'success'){
+                    // 성공 메시지 표시 (선택사항)
+                    // alert_toast("순서가 변경되었습니다.", 'success');
+                } else {
+                    console.error("Error response:", resp);
+                    alert_toast("순서 변경 중 오류가 발생했습니다.", 'error');
                 }
             }
         })

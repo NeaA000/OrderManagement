@@ -58,7 +58,7 @@ $form_title = isset($id) && $id > 0 ?
 
         <div class="row">
             <!-- 분류명 -->
-            <div class="col-md-6">
+            <div class="col-md-12">
                 <div class="form-group">
                     <label for="name" class="control-label">
                         <?php echo $level == 1 ? '카테고리명' : ($level == 2 ? '그룹명' : '서류명') ?>
@@ -68,28 +68,6 @@ $form_title = isset($id) && $id > 0 ?
                            value="<?php echo isset($name) ? htmlspecialchars($name) : '' ?>"
                            placeholder="<?php echo $level == 1 ? '예: 안전관리계획서' : ($level == 2 ? '예: 기본 안전관리' : '예: 기본안전관리계획서.docx') ?>"
                            required>
-                </div>
-            </div>
-
-            <!-- 표시 순서 -->
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label for="display_order" class="control-label">표시 순서</label>
-                    <input type="number" class="form-control" id="display_order" name="display_order"
-                           value="<?php echo isset($display_order) ? $display_order : 1 ?>"
-                           min="1" max="99">
-                    <small class="text-muted">작은 숫자가 먼저 표시됩니다</small>
-                </div>
-            </div>
-
-            <!-- 상태 -->
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label for="status" class="control-label">상태</label>
-                    <select class="form-control" id="status" name="status">
-                        <option value="1" <?php echo (!isset($status) || $status == 1) ? 'selected' : '' ?>>활성</option>
-                        <option value="0" <?php echo (isset($status) && $status == 0) ? 'selected' : '' ?>>비활성</option>
-                    </select>
                 </div>
             </div>
         </div>
