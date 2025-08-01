@@ -20,8 +20,7 @@
                     <col width="5%">
                     <col width="15%">
                     <col width="20%">
-                    <col width="20%">
-                    <col width="10%">
+                    <col width="25%">
                     <col width="10%">
                     <col width="10%">
                     <col width="10%">
@@ -32,7 +31,6 @@
                     <th>요청번호</th>
                     <th>의뢰처</th>
                     <th>프로젝트명</th>
-                    <th>제출기한</th>
                     <th>진행률</th>
                     <th>상태</th>
                     <th>작업</th>
@@ -68,24 +66,12 @@
                             $status_text = '완료';
                             break;
                     }
-
-                    // 마감일까지 남은 일수
-                    $days_left = floor((strtotime($row['due_date']) - strtotime(date('Y-m-d'))) / 86400);
-                    $due_class = $days_left <= 3 ? 'text-danger' : '';
                     ?>
                     <tr>
                         <td class="text-center"><?php echo $i++; ?></td>
                         <td><?php echo $row['request_no'] ?></td>
                         <td><?php echo $row['supplier_name'] ?></td>
                         <td><?php echo $row['project_name'] ?></td>
-                        <td class="<?php echo $due_class ?>">
-                            <?php echo date('Y-m-d', strtotime($row['due_date'])) ?>
-                            <?php if($days_left >= 0): ?>
-                                <small>(D-<?php echo $days_left ?>)</small>
-                            <?php else: ?>
-                                <small>(만료)</small>
-                            <?php endif; ?>
-                        </td>
                         <td>
                             <div class="progress">
                                 <div class="progress-bar <?php echo $progress == 100 ? 'bg-success' : 'bg-primary' ?>"

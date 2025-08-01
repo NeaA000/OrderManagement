@@ -25,11 +25,6 @@ if($request_qry->num_rows <= 0) {
 
 $request = $request_qry->fetch_assoc();
 
-// 마감일 확인
-if(strtotime($request['due_date']) < strtotime(date('Y-m-d'))) {
-    echo "<script>alert('제출 기한이 지났습니다.'); window.close();</script>";
-    exit;
-}
 
 // 요청된 서류 목록 조회
 $documents = $conn->query("
@@ -182,26 +177,10 @@ $_settings->info('name');
                 </div>
                 <div class="col-md-6">
                     <p><strong>담당자:</strong> <?php echo $request['contact_person'] ?></p>
-                    <p><strong>제출기한:</strong>
-                        <span class="text-danger font-weight-bold">
-                                <?php echo date('Y년 m월 d일', strtotime($request['due_date'])) ?>
-                            </span>
-                    </p>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- 마감일 경고 -->
-    <?php
-    $days_left = floor((strtotime($request['due_date']) - strtotime(date('Y-m-d'))) / 86400);
-    if($days_left <= 3):
-        ?>
-        <div class="deadline-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            제출 마감까지 <strong><?php echo $days_left ?>일</strong> 남았습니다. 서둘러 제출해 주세요!
-        </div>
-    <?php endif; ?>
 
     <!-- 진행률 표시 -->
     <?php

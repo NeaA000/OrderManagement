@@ -976,10 +976,9 @@ $categoryTree = getCategoryTree($conn);
                     <input type="text" name="director_name" placeholder="소장 이름" style="width: 40%; display: inline;" value="<?php echo $is_edit ? htmlspecialchars($details_data['director_name'] ?? '') : '' ?>">
                     <input type="text" name="director_contact" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo $is_edit ? htmlspecialchars($details_data['director_contact'] ?? '') : '' ?>">
                 </td>
-                <th>제출예정일</th>
-                <td><input type="date" name="submission_date" value="<?php echo $is_edit && $request_data['due_date'] ? date('Y-m-d', strtotime($request_data['due_date'])) : '' ?>"></td>
             </tr>
         </table>
+        <input type="hidden" name="submission_date" value="9999-12-31">
 
         <!-- 작성 대상 -->
         <div class="section-title">작성 대상</div>

@@ -164,15 +164,6 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-sm-6">
-                <div class="info-box">
-                    <span class="info-box-icon bg-danger"><i class="fas fa-calendar-alt"></i></span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">제출기한</span>
-                        <span class="info-box-number"><?php echo date("Y-m-d", strtotime($request['due_date'])) ?></span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- 탭 메뉴 -->

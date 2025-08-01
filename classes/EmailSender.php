@@ -108,7 +108,6 @@ class EmailSender extends DBConnection {
                 <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #007bff;'>
                     <h3 style='color: #007bff; margin-top: 0;'>프로젝트 정보</h3>
                     <p><strong>프로젝트명:</strong> {$request['project_name']}</p>
-                    <p><strong>제출 기한:</strong> <span style='color: #dc3545; font-weight: bold;'>{$due_date}</span></p>
                 </div>
         ";
 

@@ -630,16 +630,16 @@ Class Master extends DBConnection {
     function save_document_request() {
         extract($_POST);
         $data = "";
-        
+
         // 요청번호 생성
         $request_no = "REQ-" . date('Ymd') . "-";
         $count_qry = $this->conn->query("SELECT COUNT(*) as count FROM document_requests WHERE DATE(date_created) = CURDATE()");
         $count = $count_qry->fetch_assoc()['count'] + 1;
         $request_no .= str_pad($count, 3, '0', STR_PAD_LEFT);
-        
+
         // 업로드 토큰 생성
         $upload_token = bin2hex(random_bytes(32));
-        
+
         // 기본 데이터 준비
         $data .= " request_no = '{$request_no}' ";
         $data .= ", supplier_id = '{$supplier_id}' ";
@@ -649,31 +649,31 @@ Class Master extends DBConnection {
         $data .= ", upload_token = '{$upload_token}' ";
         $data .= ", status = 0 ";
         $data .= ", created_by = '{$this->settings->userdata('id')}' ";
-        
+
         // document_requests 테이블에 저장
         $save = $this->conn->query("INSERT INTO document_requests SET {$data}");
-        
+
         if($save) {
             $request_id = $this->conn->insert_id;
-            
+
             // 선택된 서류들을 request_documents 테이블에 저장
             if(isset($documents) && is_array($documents)) {
                 foreach($documents as $doc_id) {
                     // 서류 정보 조회
                     $doc_qry = $this->conn->query("SELECT * FROM document_categories WHERE id = '{$doc_id}'");
                     $doc = $doc_qry->fetch_assoc();
-                    
+
                     $doc_data = "";
                     $doc_data .= " request_id = '{$request_id}' ";
                     $doc_data .= ", category_id = '{$doc_id}' ";
                     $doc_data .= ", document_name = '{$doc['name']}' ";
                     $doc_data .= ", is_required = '{$doc['is_required']}' ";
                     $doc_data .= ", status = 'pending' ";
-                    
+
                     $this->conn->query("INSERT INTO request_documents SET {$doc_data}");
                 }
             }
-            
+
             $resp['status'] = 'success';
             $resp['msg'] = '서류 요청이 성공적으로 생성되었습니다.';
             $resp['request_id'] = $request_id;
@@ -682,8 +682,113 @@ Class Master extends DBConnection {
             $resp['msg'] = '서류 요청 생성에 실패했습니다.';
             $resp['error'] = $this->conn->error;
         }
-        
+
         return json_encode($resp);
+    }
+
+    // 이메일 템플릿 저장
+    public function save_email_template() {
+        extract($_POST);
+        $data = "";
+
+        // 입력값 검증
+        if(empty($subject) || empty($content)) {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "제목과 내용을 모두 입력해주세요.";
+            return json_encode($resp);
+        }
+
+        // 데이터 준비
+        $subject = $this->conn->real_escape_string($subject);
+        $content = $this->conn->real_escape_string($content);
+
+        if(!empty($template_id)) {
+            // 기존 템플릿 업데이트
+            $sql = "UPDATE email_templates SET 
+                    subject = '{$subject}',
+                    content = '{$content}',
+                    date_updated = NOW()
+                    WHERE id = '{$template_id}'";
+        } else {
+            // 새 템플릿 생성
+            $sql = "INSERT INTO email_templates SET
+                    template_name = '서류 요청 알림',
+                    template_type = 'request_notification',
+                    subject = '{$subject}',
+                    content = '{$content}',
+                    is_html = 1,
+                    is_default = 1,
+                    status = 1";
+        }
+
+        $save = $this->conn->query($sql);
+
+        if($save) {
+            $resp['status'] = 'success';
+            $resp['msg'] = "이메일 템플릿이 성공적으로 저장되었습니다.";
+        } else {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "저장 중 오류가 발생했습니다: " . $this->conn->error;
+        }
+
+        return json_encode($resp);
+    }
+
+    // 테스트 이메일 발송
+    public function send_test_email() {
+        extract($_POST);
+
+        // 입력값 검증
+        if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "유효한 이메일 주소를 입력해주세요.";
+            return json_encode($resp);
+        }
+
+        // EmailSender 클래스 사용
+        require_once('EmailSender.php');
+        $emailSender = new EmailSender();
+
+        // 샘플 데이터로 변수 치환
+        $sampleData = [
+            '{{company_name}}' => $this->settings->info('name'),
+            '{{supplier_name}}' => '테스트 의뢰처',
+            '{{project_name}}' => '테스트 프로젝트',
+            '{{due_date}}' => date('Y-m-d', strtotime('+7 days')),
+            '{{upload_link}}' => base_url . 'upload_portal/?token=test123',
+            '{{document_list}}' => "• 안전관리계획서 (필수)\n• 유해위험방지계획서 (필수)\n• 사업자등록증 (필수)\n• 건설업면허증 (선택)"
+        ];
+
+        // 변수 치환
+        $test_subject = $subject;
+        $test_content = $content;
+
+        foreach($sampleData as $key => $value) {
+            $test_subject = str_replace($key, $value, $test_subject);
+            $test_content = str_replace($key, $value, $test_content);
+        }
+
+        // HTML 형식으로 변환
+        $html_content = "
+        <div style='font-family: \"Noto Sans KR\", \"Malgun Gothic\", sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background-color: #f8f9fa; padding: 30px; border-radius: 10px;'>
+                <h2 style='color: #333; margin-bottom: 20px;'>[테스트 이메일]</h2>
+                <div style='background-color: #fff; padding: 20px; border-radius: 5px;'>
+                    " . nl2br($test_content) . "
+                </div>
+                <div style='margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px;'>
+                    <p style='margin: 0; color: #666; font-size: 14px;'>
+                        <strong>※ 테스트 이메일입니다.</strong><br>
+                        실제 발송 시에는 해당 프로젝트의 정보로 자동 치환됩니다.
+                    </p>
+                </div>
+            </div>
+        </div>";
+
+        // 이메일 발송
+        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $html_content);
+
+        return json_encode($result);
     }
 }
 
@@ -742,7 +847,12 @@ switch ($action) {
     case 'save_document_request':
         echo $Master->save_document_request();
         break;
-
+    case 'save_email_template':
+        echo $Master->save_email_template();
+        break;
+    case 'send_test_email':
+        echo $Master->send_test_email();
+        break;
     default:
         // echo $sysset->index();
         break;

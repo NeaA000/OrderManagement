@@ -46,7 +46,6 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
                 <tr class="bg-light">
                     <th>공사명</th>
                     <th>요청일</th>
-                    <th>마감일</th>
                     <th>진행률</th>
                     <th>상태</th>
                 </tr>
@@ -67,7 +66,6 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
                 <tr>
                     <td><?php echo $proj['project_name'] ?></td>
                     <td><?php echo date("Y-m-d", strtotime($proj['date_created'])) ?></td>
-                    <td><?php echo date("Y-m-d", strtotime($proj['due_date'])) ?></td>
                     <td>
                         <div class="progress" style="height: 15px;">
                             <div class="progress-bar bg-<?php echo $progress == 100 ? 'success' : ($progress >= 50 ? 'warning' : 'danger') ?>" 

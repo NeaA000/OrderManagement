@@ -128,14 +128,6 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="description-block border-right">
-                                    <span class="description-text">마감일</span>
-                                    <h5 class="description-header <?php echo strtotime($project['due_date']) < time() ? 'text-danger' : '' ?>">
-                                        <?php echo date("Y-m-d", strtotime($project['due_date'])) ?>
-                                    </h5>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
                                 <div class="description-block">
                                     <span class="description-text">진행률</span>
                                     <div class="progress progress-sm mt-1 mb-0">

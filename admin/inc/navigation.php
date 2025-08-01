@@ -96,9 +96,15 @@ $type = $_settings->userdata('type');
                             </a>
                         </li>
                         <li class="nav-item dropdown">
+                            <a href="<?php echo base_url ?>admin/?page=email_settings" class="nav-link nav-email_settings">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>이메일 설정</p>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
                             <a href="<?php echo base_url ?>admin/?page=system_info" class="nav-link nav-system_info">
                                 <i class="nav-icon fas fa-cogs"></i>
-                                <p>설정</p>
+                                <p>시스템 설정</p>
                             </a>
                         </li>
                     <?php endif; ?>
