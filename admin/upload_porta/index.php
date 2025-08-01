@@ -282,7 +282,7 @@ $_settings->info('name');
             <h5 class="mb-3">서류 제출을 완료하시려면 모든 필수 서류를 업로드해 주세요.</h5>
             <div class="text-muted">
                 <i class="fas fa-info-circle"></i>
-                파일 형식: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP (최대 10MB)
+                파일 형식: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX (최대 10MB)
             </div>
         <?php endif; ?>
     </div>
@@ -321,7 +321,7 @@ $_settings->info('name');
         // Dropzone 설정
         Dropzone.options.documentDropzone = {
             maxFilesize: 10, // MB
-            acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip',
+            acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.hwp,.hwpx',
             maxFiles: 1,
             addRemoveLinks: true,
             dictDefaultMessage: '파일을 여기에 드래그하거나 클릭하여 업로드하세요',

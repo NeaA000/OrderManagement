@@ -39,7 +39,9 @@ $mime_types = [
     'jpg' => 'image/jpeg',
     'jpeg' => 'image/jpeg',
     'png' => 'image/png',
-    'zip' => 'application/zip'
+    'zip' => 'application/zip',
+    'hwp' => 'application/x-hwp',
+    'hwpx' => 'application/vnd.hancom.hwpx'
 ];
 
 $mime_type = $mime_types[$file_ext] ?? 'application/octet-stream';

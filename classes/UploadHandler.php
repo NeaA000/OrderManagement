@@ -6,7 +6,7 @@ require_once('../initialize.php');
 class UploadHandler extends DBConnection {
     private $settings;
     private $upload_dir;
-    private $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip'];
+    private $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'hwp', 'hwpx'];
     private $max_size = 10485760; // 10MB
 
     function __construct() {
@@ -103,8 +103,18 @@ class UploadHandler extends DBConnection {
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'image/jpeg',
             'image/png',
-            'application/zip'
+            'application/zip',
+            'application/x-hwp',
+            'application/haansofthwp',
+            'application/vnd.hancom.hwp',
+            'application/vnd.hancom.hwpx',
+            'application/octet-stream' // 일부 시스템에서 HWP 파일이 이렇게 인식될 수 있음
         ];
+
+        // HWP 파일의 경우 MIME 타입이 다양할 수 있으므로 확장자로도 체크
+        if(in_array($file_ext, ['hwp', 'hwpx']) && $mime_type == 'application/octet-stream') {
+            return ['status' => 'success'];
+        }
 
         if(!in_array($mime_type, $allowed_mimes)) {
             return ['status' => 'error', 'msg' => '파일 내용이 올바르지 않습니다.'];
