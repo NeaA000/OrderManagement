@@ -508,7 +508,7 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
-    function send_request_email(){
+     function send_request_email(){
         extract($_POST);
 
         if(!isset($id) || empty($id)){
@@ -519,13 +519,13 @@ Class Master extends DBConnection {
 
         // 요청 정보 조회
         $qry = $this->conn->query("
-            SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
-                   d.manager_email, d.manager_name
-            FROM document_requests r
-            LEFT JOIN supplier_list s ON r.supplier_id = s.id
-            LEFT JOIN document_request_details d ON d.request_id = r.id
-            WHERE r.id = '{$id}'
-        ");
+        SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
+               d.manager_email, d.manager_name
+        FROM document_requests r
+        LEFT JOIN supplier_list s ON r.supplier_id = s.id
+        LEFT JOIN document_request_details d ON d.request_id = r.id
+        WHERE r.id = '{$id}'
+    ");
 
         if($qry->num_rows == 0){
             $resp['status'] = 'failed';
@@ -535,7 +535,23 @@ Class Master extends DBConnection {
 
         $request = $qry->fetch_assoc();
 
-        // 이메일 수신자 결정 (담당자 이메일이 있으면 우선, 없으면 의뢰처 이메일)
+        // 이메일 템플릿 가져오기
+        $template_qry = $this->conn->query("
+        SELECT * FROM email_templates 
+        WHERE template_type = 'request_notification' 
+        AND is_default = 1 
+        LIMIT 1
+    ");
+
+        if($template_qry->num_rows == 0){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "이메일 템플릿이 설정되지 않았습니다.";
+            return json_encode($resp);
+        }
+
+        $template = $template_qry->fetch_assoc();
+
+        // 이메일 수신자 결정
         $to_email = !empty($request['manager_email']) ? $request['manager_email'] : $request['email'];
         $to_name = !empty($request['manager_name']) ? $request['manager_name'] : $request['contact_person'];
 
@@ -547,81 +563,69 @@ Class Master extends DBConnection {
 
         // 업로드 링크 생성
         $upload_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") .
-            "://$_SERVER[HTTP_HOST]" . dirname($_SERVER['REQUEST_URI']) .
-            "/document_requests/upload.php?token=" . $request['upload_token'];
+            "://$_SERVER[HTTP_HOST]" . dirname(dirname($_SERVER['REQUEST_URI'])) .
+            "/upload_portal/?token=" . $request['upload_token'];
 
-        // 이메일 제목
-        $subject = "[서류요청] " . $request['project_name'] . " - 서류 제출 요청";
+        // 요청된 서류 목록 조회
+        $docs_qry = $this->conn->query("
+        SELECT document_name, is_required 
+        FROM request_documents 
+        WHERE request_id = '{$id}'
+        ORDER BY is_required DESC, document_name ASC");
 
-        // 이메일 내용
-        $message = "
-        <html>
-        <head>
-            <style>
-                body { font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-                .content { background-color: #ffffff; padding: 20px; border: 1px solid #dee2e6; border-radius: 5px; }
-                .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-                .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 0.9em; color: #6c757d; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h2>서류 제출 요청</h2>
-                </div>
-                <div class='content'>
-                    <p>안녕하세요, {$to_name}님</p>
-                    
-                    <p><strong>{$request['project_name']}</strong> 프로젝트와 관련하여 필요한 서류 제출을 요청드립니다.</p>
-                    
-                    <h3>요청 정보</h3>
-                    <ul>
-                        <li><strong>요청번호:</strong> {$request['request_no']}</li>
-                        <li><strong>프로젝트명:</strong> {$request['project_name']}</li>
-                        <li><strong>제출기한:</strong> " . date('Y년 m월 d일', strtotime($request['due_date'])) . "</li>
-                    </ul>
-                    
-                    <p>아래 링크를 클릭하여 필요한 서류를 업로드해 주시기 바랍니다:</p>
-                    
-                    <p style='text-align: center;'>
-                        <a href='{$upload_link}' class='button'>서류 업로드하기</a>
-                    </p>
-                    
-                    <p><small>또는 다음 링크를 복사하여 브라우저에 붙여넣으세요:<br>
-                    {$upload_link}</small></p>
-                    
-                    " . (!empty($request['additional_notes']) ? "
-                    <h3>추가 요청사항</h3>
-                    <p>" . nl2br(htmlspecialchars($request['additional_notes'])) . "</p>
-                    " : "") . "
-                    
-                    <div class='footer'>
-                        <p>문의사항이 있으시면 언제든 연락 주시기 바랍니다.</p>
-                        <p>감사합니다.</p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
+        $required_docs = "";
+        $optional_docs = "";
 
-        // 이메일 헤더
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= 'From: ' . $this->settings->info('company_email') . "\r\n";
+        while($doc = $docs_qry->fetch_assoc()){
+            if($doc['is_required'] == 1){
+                $required_docs .= "<li>" . $doc['document_name'] . "</li>";
+            } else {
+                $optional_docs .= "<li>" . $doc['document_name'] . "</li>";
+            }
+        }
+
+        if(!empty($required_docs)){
+            $required_docs = "<ul>" . $required_docs . "</ul>";
+        }
+        if(!empty($optional_docs)){
+            $optional_docs = "<ul>" . $optional_docs . "</ul>";
+        }
+
+        // 변수 치환 데이터
+        $replacements = array(
+            '{{contact_person}}' => $to_name,
+            '{{company_name}}' => $this->settings->info('name'),
+            '{{supplier_name}}' => $request['supplier_name'],
+            '{{project_name}}' => $request['project_name'],
+            '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
+            '{{upload_link}}' => '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px; font-weight: 500;">서류 업로드하기</a>',
+            '{{required_documents}}' => $required_docs,
+            '{{optional_documents}}' => $optional_docs,
+            '{{additional_notes}}' => nl2br(htmlspecialchars($request['additional_notes']))
+        );
+
+        // 템플릿 내용에서 변수 치환
+        $subject = $template['subject'];
+        $content = $template['content'];
+
+        foreach($replacements as $key => $value){
+            $subject = str_replace($key, $value, $subject);
+            $content = str_replace($key, $value, $content);
+        }
+
+        // EmailSender 클래스 사용
+        require_once('EmailSender.php');
+        $emailSender = new EmailSender();
 
         // 이메일 발송
-        if(mail($to_email, $subject, $message, $headers)){
+        $result = $emailSender->sendEmail($to_email, $to_name, $subject, $content);
+
+        if($result['status'] == 'success'){
             // 발송 시간 기록
             $this->conn->query("UPDATE document_requests SET email_sent_at = NOW() WHERE id = '{$id}'");
-
-            $resp['status'] = 'success';
-            $resp['msg'] = "이메일이 성공적으로 발송되었습니다.";
+            $resp = $result;
         } else {
-            $resp['status'] = 'failed';
-            $resp['msg'] = "이메일 발송에 실패했습니다.";
+            $resp = $result;
         }
 
         return json_encode($resp);
@@ -702,16 +706,24 @@ Class Master extends DBConnection {
         $subject = $this->conn->real_escape_string($subject);
         $content = $this->conn->real_escape_string($content);
 
-        if(!empty($template_id)) {
-            // 기존 템플릿 업데이트
-            $sql = "UPDATE email_templates SET 
+        // 트랜잭션 시작
+        $this->conn->begin_transaction();
+
+        try {
+            // 1. 기존의 모든 request_notification 타입 템플릿의 is_default를 0으로 변경
+            $this->conn->query("UPDATE email_templates SET is_default = 0 WHERE template_type = 'request_notification'");
+
+            if(!empty($template_id)) {
+                // 기존 템플릿 업데이트
+                $sql = "UPDATE email_templates SET 
                     subject = '{$subject}',
                     content = '{$content}',
+                    is_default = 1,
                     date_updated = NOW()
                     WHERE id = '{$template_id}'";
-        } else {
-            // 새 템플릿 생성
-            $sql = "INSERT INTO email_templates SET
+            } else {
+                // 새 템플릿 생성
+                $sql = "INSERT INTO email_templates SET
                     template_name = '서류 요청 알림',
                     template_type = 'request_notification',
                     subject = '{$subject}',
@@ -719,16 +731,42 @@ Class Master extends DBConnection {
                     is_html = 1,
                     is_default = 1,
                     status = 1";
-        }
+            }
 
-        $save = $this->conn->query($sql);
+            $save = $this->conn->query($sql);
 
-        if($save) {
-            $resp['status'] = 'success';
-            $resp['msg'] = "이메일 템플릿이 성공적으로 저장되었습니다.";
-        } else {
+            if($save) {
+                // 선택적: 오래된 템플릿 삭제 (최근 5개만 유지)
+                $this->conn->query("
+                DELETE FROM email_templates 
+                WHERE template_type = 'request_notification' 
+                AND is_default = 0 
+                AND id NOT IN (
+                    SELECT id FROM (
+                        SELECT id FROM email_templates 
+                        WHERE template_type = 'request_notification' 
+                        ORDER BY date_created DESC 
+                        LIMIT 5
+                    ) AS keep_templates
+                )
+            ");
+
+                $this->conn->commit();
+                $resp['status'] = 'success';
+                $resp['msg'] = "이메일 템플릿이 성공적으로 저장되었습니다.";
+
+                // 새로 생성된 경우 ID 반환
+                if(empty($template_id)) {
+                    $resp['template_id'] = $this->conn->insert_id;
+                }
+            } else {
+                throw new Exception($this->conn->error);
+            }
+
+        } catch (Exception $e) {
+            $this->conn->rollback();
             $resp['status'] = 'failed';
-            $resp['msg'] = "저장 중 오류가 발생했습니다: " . $this->conn->error;
+            $resp['msg'] = "저장 중 오류가 발생했습니다: " . $e->getMessage();
         }
 
         return json_encode($resp);
@@ -749,14 +787,18 @@ Class Master extends DBConnection {
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
-        // 샘플 데이터로 변수 치환
+        // 샘플 데이터로 변수 치환 - 모든 변수 포함
         $sampleData = [
+            '{{contact_person}}' => '홍길동',
             '{{company_name}}' => $this->settings->info('name'),
             '{{supplier_name}}' => '테스트 의뢰처',
             '{{project_name}}' => '테스트 프로젝트',
-            '{{due_date}}' => date('Y-m-d', strtotime('+7 days')),
-            '{{upload_link}}' => base_url . 'upload_portal/?token=test123',
-            '{{document_list}}' => "• 안전관리계획서 (필수)\n• 유해위험방지계획서 (필수)\n• 사업자등록증 (필수)\n• 건설업면허증 (선택)"
+            '{{due_date}}' => date('Y년 m월 d일', strtotime('+7 days')),
+            '{{upload_link}}' => '<a href="' . base_url . 'upload_portal/?token=test123" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px; font-weight: 500;">서류 업로드하기</a>',
+            '{{required_documents}}' => '<ul><li>안전관리계획서</li><li>유해위험방지계획서</li><li>사업자등록증</li></ul>',
+            '{{optional_documents}}' => '<ul><li>건설업면허증</li></ul>',
+            '{{additional_notes}}' => '서류는 PDF 형식으로 제출해주시기 바랍니다.',
+            '{{document_list}}' => '<ul><li>안전관리계획서 (필수)</li><li>유해위험방지계획서 (필수)</li><li>사업자등록증 (필수)</li><li>건설업면허증 (선택)</li></ul>'
         ];
 
         // 변수 치환
@@ -768,25 +810,11 @@ Class Master extends DBConnection {
             $test_content = str_replace($key, $value, $test_content);
         }
 
-        // HTML 형식으로 변환
-        $html_content = "
-        <div style='font-family: \"Noto Sans KR\", \"Malgun Gothic\", sans-serif; max-width: 600px; margin: 0 auto;'>
-            <div style='background-color: #f8f9fa; padding: 30px; border-radius: 10px;'>
-                <h2 style='color: #333; margin-bottom: 20px;'>[테스트 이메일]</h2>
-                <div style='background-color: #fff; padding: 20px; border-radius: 5px;'>
-                    " . nl2br($test_content) . "
-                </div>
-                <div style='margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px;'>
-                    <p style='margin: 0; color: #666; font-size: 14px;'>
-                        <strong>※ 테스트 이메일입니다.</strong><br>
-                        실제 발송 시에는 해당 프로젝트의 정보로 자동 치환됩니다.
-                    </p>
-                </div>
-            </div>
-        </div>";
+        // 테스트 이메일임을 표시
+        $test_subject = "[테스트] " . $test_subject;
 
         // 이메일 발송
-        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $html_content);
+        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $test_content);
 
         return json_encode($result);
     }

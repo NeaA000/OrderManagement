@@ -1,43 +1,49 @@
 <?php
-// upload_portal/index.php
+// admin/upload_porta/index.php
 require_once('../initialize.php');
 
-// 토큰 확인
+// 토큰 검증
 if(!isset($_GET['token']) || empty($_GET['token'])) {
-    echo "<script>alert('잘못된 접근입니다.'); window.close();</script>";
-    exit;
+    die('잘못된 접근입니다.');
 }
 
 $token = $conn->real_escape_string($_GET['token']);
 
 // 요청 정보 조회
-$request_qry = $conn->query("
-    SELECT dr.*, sl.name as supplier_name, sl.contact_person 
+$qry = $conn->query("
+    SELECT dr.*, p.name as project_name, s.name as supplier_name, 
+           s.email as supplier_email, dr.created_by
     FROM `document_requests` dr 
-    LEFT JOIN `supplier_list` sl ON dr.supplier_id = sl.id 
-    WHERE dr.upload_token = '{$token}'
+    LEFT JOIN `project_list` p ON dr.project_id = p.id 
+    LEFT JOIN `supplier_list` s ON dr.supplier_id = s.id 
+    WHERE dr.upload_token = '{$token}' AND dr.status = 1
 ");
 
-if($request_qry->num_rows <= 0) {
-    echo "<script>alert('유효하지 않은 링크입니다.'); window.close();</script>";
-    exit;
+if($qry->num_rows <= 0) {
+    die('유효하지 않은 링크이거나 만료된 링크입니다.');
 }
 
-$request = $request_qry->fetch_assoc();
+$request = $qry->fetch_assoc();
 
-
-// 요청된 서류 목록 조회
+// 요청된 문서 목록 조회
 $documents = $conn->query("
-    SELECT rd.*, dc.name as category_name 
+    SELECT rd.*, dc.name as doc_name, dc.description, dc.is_webform, dc.form_template 
     FROM `request_documents` rd 
-    LEFT JOIN `document_categories` dc ON rd.category_id = dc.id 
+    LEFT JOIN `document_categories` dc ON rd.document_id = dc.id 
     WHERE rd.request_id = '{$request['id']}' 
-    ORDER BY rd.is_required DESC, rd.document_name ASC
+    ORDER BY dc.`order_by` ASC
 ");
 
-$_settings->info('name');
+// 제출 완료 여부 확인
+$all_submitted = true;
+while($doc = $documents->fetch_array()) {
+    if($doc['status'] == 0) {
+        $all_submitted = false;
+        break;
+    }
+}
+$documents->data_seek(0); // 결과셋 리셋
 ?>
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -45,238 +51,196 @@ $_settings->info('name');
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo $_settings->info('name') ?> - 서류 업로드</title>
 
-    <!-- Google Font -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap">
-
-    <!-- Font Awesome -->
+    <!-- CSS -->
     <link rel="stylesheet" href="<?php echo base_url ?>plugins/fontawesome-free/css/all.min.css">
-
-    <!-- Bootstrap 4 -->
-    <link rel="stylesheet" href="<?php echo base_url ?>plugins/bootstrap/css/bootstrap.min.css">
-
-    <!-- Dropzone -->
     <link rel="stylesheet" href="<?php echo base_url ?>plugins/dropzone/min/dropzone.min.css">
+    <link rel="stylesheet" href="<?php echo base_url ?>dist/css/adminlte.min.css">
+    <link rel="stylesheet" href="<?php echo base_url ?>assets/css/custom.css">
 
-    <!-- Custom CSS -->
     <style>
         body {
-            font-family: 'Noto Sans KR', sans-serif;
             background-color: #f4f6f9;
         }
-
-        .upload-header {
+        .upload-container {
+            max-width: 1200px;
+            margin: 50px auto;
+        }
+        .company-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px 0;
-            margin-bottom: 30px;
+            padding: 30px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
         }
-
         .document-card {
             background: white;
             border-radius: 10px;
             padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
         }
-
         .document-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
-
-        .document-card.completed {
-            background-color: #d4edda;
-            border-left: 4px solid #28a745;
-        }
-
-        .document-card.required {
-            border-left: 4px solid #dc3545;
-        }
-
-        .document-card.optional {
-            border-left: 4px solid #ffc107;
-        }
-
-        .dropzone {
-            border: 2px dashed #007bff;
-            border-radius: 10px;
-            background: #f8f9fa;
-            min-height: 150px;
-        }
-
-        .dropzone .dz-message {
-            font-weight: 400;
-            font-size: 16px;
-            margin: 2em 0;
-        }
-
         .status-badge {
             display: inline-block;
-            padding: 0.25em 0.6em;
-            font-size: 0.875em;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.875rem;
             font-weight: 500;
-            border-radius: 0.25rem;
         }
-
-        .status-completed {
-            background-color: #28a745;
-            color: white;
-        }
-
         .status-pending {
-            background-color: #6c757d;
-            color: white;
+            background-color: #fef3c7;
+            color: #92400e;
         }
-
-        .deadline-warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffeeba;
-            color: #856404;
-            padding: 10px 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
         }
-
-        .progress-section {
-            background: white;
+        .dropzone-container {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            background: #fafafa;
             padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .submit-section {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .dropzone-container:hover {
+            border-color: #667eea;
+            background: #f7f7ff;
+        }
+        .dz-message {
+            font-size: 1.1rem;
+            color: #666;
+            margin: 0;
+        }
+        .dz-message i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: block;
         }
     </style>
 </head>
-
 <body>
-<div class="upload-header">
-    <div class="container">
-        <h1 class="mb-3"><?php echo $_settings->info('name') ?></h1>
-        <h3>서류 제출 포털</h3>
+<div class="upload-container">
+    <!-- 회사 헤더 -->
+    <div class="company-header">
+        <h2><?php echo $_settings->info('name') ?></h2>
+        <p class="mb-0">서류 제출 포털</p>
     </div>
-</div>
 
-<div class="container">
     <!-- 프로젝트 정보 -->
     <div class="card mb-4">
         <div class="card-body">
-            <h4 class="card-title">프로젝트 정보</h4>
+            <h4 class="card-title"><?php echo $request['project_name'] ?></h4>
             <div class="row">
                 <div class="col-md-6">
-                    <p><strong>프로젝트명:</strong> <?php echo $request['project_name'] ?></p>
-                    <p><strong>업체명:</strong> <?php echo $request['supplier_name'] ?></p>
+                    <p class="mb-1"><strong>협력업체:</strong> <?php echo $request['supplier_name'] ?></p>
+                    <p class="mb-1"><strong>이메일:</strong> <?php echo $request['supplier_email'] ?></p>
                 </div>
                 <div class="col-md-6">
-                    <p><strong>담당자:</strong> <?php echo $request['contact_person'] ?></p>
+                    <p class="mb-1"><strong>요청일:</strong> <?php echo date('Y-m-d', strtotime($request['date_created'])) ?></p>
+                    <p class="mb-1"><strong>마감일:</strong>
+                        <span class="text-danger font-weight-bold">
+                                <?php echo date('Y-m-d', strtotime($request['due_date'])) ?>
+                            </span>
+                    </p>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- 진행률 표시 -->
-    <?php
-    $total_docs = $documents->num_rows;
-    $completed_docs = 0;
-    $documents->data_seek(0);
-    while($doc = $documents->fetch_assoc()) {
-        if($doc['status'] == 1) $completed_docs++;
-    }
-    $progress = $total_docs > 0 ? round(($completed_docs / $total_docs) * 100) : 0;
-    ?>
-    <div class="progress-section">
-        <h5>전체 진행률: <?php echo $completed_docs ?>/<?php echo $total_docs ?>개 완료</h5>
-        <div class="progress" style="height: 25px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated"
-                 role="progressbar"
-                 style="width: <?php echo $progress ?>%;"
-                 aria-valuenow="<?php echo $progress ?>"
-                 aria-valuemin="0"
-                 aria-valuemax="100">
-                <?php echo $progress ?>%
-            </div>
+            <?php if(!empty($request['remarks'])): ?>
+                <div class="mt-3">
+                    <strong>요청 사항:</strong>
+                    <div class="alert alert-info mt-2 mb-0">
+                        <?php echo nl2br($request['remarks']) ?>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- 서류 목록 -->
-    <h4 class="mb-3">제출할 서류 목록</h4>
-
-    <?php
-    $documents->data_seek(0);
-    while($doc = $documents->fetch_assoc()):
-        $card_class = $doc['status'] == 1 ? 'completed' : ($doc['is_required'] ? 'required' : 'optional');
-        ?>
-        <div class="document-card <?php echo $card_class ?>" data-doc-id="<?php echo $doc['id'] ?>">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h5 class="mb-1">
-                        <?php echo $doc['document_name'] ?>
-                        <?php if($doc['is_required']): ?>
-                            <span class="badge badge-danger">필수</span>
-                        <?php else: ?>
-                            <span class="badge badge-warning">선택</span>
-                        <?php endif; ?>
-                    </h5>
-                    <small class="text-muted"><?php echo $doc['category_name'] ?></small>
-                </div>
-                <div class="col-md-4">
-                    <?php if($doc['status'] == 1): ?>
-                        <span class="status-badge status-completed">
-                            <i class="fas fa-check"></i> 제출완료
-                        </span>
-                        <br>
-                        <small class="text-muted">
-                            파일명: <?php echo $doc['file_name'] ?><br>
-                            제출일: <?php echo date('Y-m-d H:i', strtotime($doc['uploaded_at'])) ?>
-                        </small>
-                    <?php else: ?>
-                        <span class="status-badge status-pending">
-                            <i class="fas fa-clock"></i> 미제출
-                        </span>
-                    <?php endif; ?>
-                </div>
-                <div class="col-md-2 text-right">
-                    <?php if($doc['status'] == 1): ?>
-                        <button class="btn btn-sm btn-info view-file" data-doc-id="<?php echo $doc['id'] ?>">
-                            <i class="fas fa-eye"></i> 보기
-                        </button>
-                        <button class="btn btn-sm btn-danger delete-file" data-doc-id="<?php echo $doc['id'] ?>">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    <?php else: ?>
-                        <button class="btn btn-primary upload-btn" data-doc-id="<?php echo $doc['id'] ?>">
-                            <i class="fas fa-upload"></i> 업로드
-                        </button>
-                    <?php endif; ?>
-                </div>
-            </div>
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt"></i> 제출 서류 목록
+                <?php if($all_submitted): ?>
+                    <span class="badge badge-success float-right">제출 완료</span>
+                <?php else: ?>
+                    <span class="badge badge-warning float-right">제출 진행중</span>
+                <?php endif; ?>
+            </h5>
         </div>
-    <?php endwhile; ?>
-
-    <!-- 추가 요청사항 -->
-    <?php if(!empty($request['additional_notes'])): ?>
-        <div class="card mt-4">
-            <div class="card-body">
-                <h5 class="card-title">추가 요청사항</h5>
-                <p class="card-text"><?php echo nl2br($request['additional_notes']) ?></p>
-            </div>
+        <div class="card-body">
+            <?php while($doc = $documents->fetch_assoc()): ?>
+                <div class="document-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">
+                                <?php echo $doc['doc_name'] ?>
+                                <?php if($doc['status'] == 1): ?>
+                                    <span class="status-badge status-completed ml-2">
+                                        <i class="fas fa-check-circle"></i> 제출완료
+                                    </span>
+                                <?php else: ?>
+                                    <span class="status-badge status-pending ml-2">
+                                        <i class="fas fa-clock"></i> 미제출
+                                    </span>
+                                <?php endif; ?>
+                            </h6>
+                            <?php if(!empty($doc['description'])): ?>
+                                <small class="text-muted"><?php echo $doc['description'] ?></small>
+                            <?php endif; ?>
+                            <?php if($doc['status'] == 1): ?>
+                                <div class="mt-2">
+                                    <small class="text-success">
+                                        <i class="fas fa-file"></i> <?php echo $doc['file_name'] ?>
+                                        (<?php echo date('Y-m-d H:i', strtotime($doc['uploaded_at'])) ?>)
+                                    </small>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-md-4 text-right">
+                            <?php if($doc['status'] == 0): ?>
+                                <?php if($doc['is_webform'] == 1): ?>
+                                    <button type="button" class="btn btn-primary webform-btn"
+                                            data-doc-id="<?php echo $doc['id'] ?>"
+                                            data-template="<?php echo htmlspecialchars($doc['form_template']) ?>">
+                                        <i class="fas fa-edit"></i> 웹 양식 작성
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-primary upload-btn"
+                                            data-doc-id="<?php echo $doc['id'] ?>">
+                                        <i class="fas fa-upload"></i> 파일 업로드
+                                    </button>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <button type="button" class="btn btn-sm btn-info view-file"
+                                        data-doc-id="<?php echo $doc['id'] ?>">
+                                    <i class="fas fa-eye"></i> 보기
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger delete-file"
+                                        data-doc-id="<?php echo $doc['id'] ?>">
+                                    <i class="fas fa-trash"></i> 삭제
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endwhile; ?>
         </div>
-    <?php endif; ?>
+    </div>
 
-    <!-- 제출 완료 -->
-    <div class="submit-section mt-4">
-        <?php if($progress == 100): ?>
-            <h4 class="text-success mb-3">
-                <i class="fas fa-check-circle"></i> 모든 서류가 제출되었습니다!
-            </h4>
+    <!-- 안내 메시지 -->
+    <div class="alert alert-info mt-4">
+        <h5 class="alert-heading">
+            <i class="fas fa-info-circle"></i> 안내사항
+        </h5>
+        <?php if($all_submitted): ?>
+            <h4>✅ 모든 서류가 제출되었습니다.</h4>
             <p>제출해 주셔서 감사합니다. 검토 후 연락드리겠습니다.</p>
         <?php else: ?>
             <h5 class="mb-3">서류 제출을 완료하시려면 모든 필수 서류를 업로드해 주세요.</h5>
@@ -299,10 +263,15 @@ $_settings->info('name');
                 </button>
             </div>
             <div class="modal-body">
-                <form action="upload_handler.php" class="dropzone" id="documentDropzone">
-                    <input type="hidden" name="request_id" value="<?php echo $request['id'] ?>">
-                    <input type="hidden" name="document_id" id="upload_document_id">
-                </form>
+                <div id="documentDropzone" class="dropzone-container">
+                    <div class="dz-message">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>파일을 여기에 드래그하거나 클릭하여 업로드하세요</p>
+                        <small class="text-muted">최대 10MB, 허용 형식: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX</small>
+                    </div>
+                </div>
+                <input type="hidden" id="upload_request_id" value="<?php echo $request['id'] ?>">
+                <input type="hidden" id="upload_document_id">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
@@ -318,40 +287,73 @@ $_settings->info('name');
 
 <script>
     $(document).ready(function() {
-        // Dropzone 설정
-        Dropzone.options.documentDropzone = {
-            maxFilesize: 10, // MB
-            acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.hwp,.hwpx',
-            maxFiles: 1,
-            addRemoveLinks: true,
-            dictDefaultMessage: '파일을 여기에 드래그하거나 클릭하여 업로드하세요',
-            dictRemoveFile: '삭제',
-            dictCancelUpload: '취소',
-            dictFileTooBig: '파일이 너무 큽니다. ({{filesize}}MB). 최대 크기: {{maxFilesize}}MB.',
-            dictInvalidFileType: '허용되지 않은 파일 형식입니다.',
+        // Dropzone 자동 초기화 방지
+        Dropzone.autoDiscover = false;
 
-            success: function(file, response) {
-                const res = JSON.parse(response);
-                if(res.status == 'success') {
-                    alert('파일이 성공적으로 업로드되었습니다.');
-                    $('#uploadModal').modal('hide');
-                    location.reload();
-                } else {
-                    alert(res.msg);
-                    this.removeFile(file);
-                }
-            },
-            error: function(file, errorMessage) {
-                alert('업로드 중 오류가 발생했습니다: ' + errorMessage);
-                this.removeFile(file);
-            }
-        };
+        let myDropzone = null;
 
         // 업로드 버튼 클릭
         $('.upload-btn').click(function() {
             const docId = $(this).data('doc-id');
             $('#upload_document_id').val(docId);
+
+            // 기존 Dropzone 인스턴스 제거
+            if(myDropzone) {
+                myDropzone.destroy();
+            }
+
+            // 새 Dropzone 인스턴스 생성
+            myDropzone = new Dropzone("#documentDropzone", {
+                url: "upload_handler.php",
+                maxFilesize: 10, // MB
+                acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.hwp,.hwpx',
+                maxFiles: 1,
+                addRemoveLinks: true,
+                dictDefaultMessage: '파일을 여기에 드래그하거나 클릭하여 업로드하세요',
+                dictRemoveFile: '삭제',
+                dictCancelUpload: '취소',
+                dictFileTooBig: '파일이 너무 큽니다. ({{filesize}}MB). 최대 크기: {{maxFilesize}}MB.',
+                dictInvalidFileType: '허용되지 않은 파일 형식입니다.',
+
+                sending: function(file, xhr, formData) {
+                    formData.append("request_id", $('#upload_request_id').val());
+                    formData.append("document_id", $('#upload_document_id').val());
+                },
+
+                success: function(file, response) {
+                    try {
+                        const res = typeof response === 'string' ? JSON.parse(response) : response;
+                        if(res.status == 'success') {
+                            alert('파일이 성공적으로 업로드되었습니다.');
+                            $('#uploadModal').modal('hide');
+                            location.reload();
+                        } else {
+                            alert(res.msg || '업로드 중 오류가 발생했습니다.');
+                            this.removeFile(file);
+                        }
+                    } catch(e) {
+                        console.error('Response parsing error:', e);
+                        alert('서버 응답 처리 중 오류가 발생했습니다.');
+                        this.removeFile(file);
+                    }
+                },
+
+                error: function(file, errorMessage) {
+                    console.error('Upload error:', errorMessage);
+                    alert('업로드 중 오류가 발생했습니다: ' + errorMessage);
+                    this.removeFile(file);
+                }
+            });
+
             $('#uploadModal').modal('show');
+        });
+
+        // 모달 닫힐 때 Dropzone 초기화
+        $('#uploadModal').on('hidden.bs.modal', function() {
+            if(myDropzone) {
+                myDropzone.destroy();
+                myDropzone = null;
+            }
         });
 
         // 파일 보기
@@ -365,6 +367,8 @@ $_settings->info('name');
             if(!confirm('정말로 이 파일을 삭제하시겠습니까?')) return;
 
             const docId = $(this).data('doc-id');
+            const $btn = $(this);
+            $btn.prop('disabled', true);
 
             $.ajax({
                 url: 'delete_file.php',
@@ -376,18 +380,24 @@ $_settings->info('name');
                         alert('파일이 삭제되었습니다.');
                         location.reload();
                     } else {
-                        alert(res.msg);
+                        alert(res.msg || '삭제 중 오류가 발생했습니다.');
+                        $btn.prop('disabled', false);
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Delete error:', error);
                     alert('삭제 중 오류가 발생했습니다.');
+                    $btn.prop('disabled', false);
                 }
             });
         });
 
         // 자동 새로고침 (30초마다)
         setInterval(function() {
-            location.reload();
+            // 업로드 중이 아닐 때만 새로고침
+            if(!$('#uploadModal').hasClass('show')) {
+                location.reload();
+            }
         }, 30000);
     });
 </script>

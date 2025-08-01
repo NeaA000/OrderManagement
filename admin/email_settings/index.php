@@ -119,6 +119,16 @@ $smtp_from_email = $_settings->info('smtp_from_email') ?? '';
         border-color: #2196F3;
     }
 
+    .variable-item.clicked {
+        animation: clickEffect 0.3s ease-out;
+    }
+
+    @keyframes clickEffect {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.95); background: #1976D2; color: white; }
+        100% { transform: scale(1); }
+    }
+
     .variable-code {
         font-family: 'Courier New', monospace;
         color: #0066cc;
@@ -216,6 +226,25 @@ $smtp_from_email = $_settings->info('smtp_from_email') ?? '';
         border-color: #4CAF50;
         box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
     }
+
+    /* 이메일 버튼 스타일 */
+    .email-button {
+        display: inline-block;
+        padding: 12px 30px;
+        background-color: #007bff;
+        color: white !important;
+        text-decoration: none !important;
+        border-radius: 5px;
+        font-weight: 500;
+        text-align: center;
+        transition: background-color 0.3s ease;
+    }
+
+    .email-button:hover {
+        background-color: #0056b3;
+        color: white !important;
+        text-decoration: none !important;
+    }
 </style>
 
 <div class="email-container">
@@ -278,43 +307,43 @@ $smtp_from_email = $_settings->info('smtp_from_email') ?? '';
                             <i class="fas fa-code"></i> 사용 가능한 변수 (클릭하여 삽입)
                         </div>
                         <div class="variable-list">
-                            <div class="variable-item" onclick="insertVariable('{{contact_person}}')">
+                            <div class="variable-item" data-variable="{{contact_person}}">
                                 <span class="variable-code">{{contact_person}}</span>
                                 <span class="variable-desc">담당자명</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{company_name}}')">
+                            <div class="variable-item" data-variable="{{company_name}}">
                                 <span class="variable-code">{{company_name}}</span>
                                 <span class="variable-desc">회사명</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{supplier_name}}')">
+                            <div class="variable-item" data-variable="{{supplier_name}}">
                                 <span class="variable-code">{{supplier_name}}</span>
                                 <span class="variable-desc">의뢰처명</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{project_name}}')">
+                            <div class="variable-item" data-variable="{{project_name}}">
                                 <span class="variable-code">{{project_name}}</span>
                                 <span class="variable-desc">프로젝트명</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{due_date}}')">
+                            <div class="variable-item" data-variable="{{due_date}}">
                                 <span class="variable-code">{{due_date}}</span>
                                 <span class="variable-desc">제출 기한</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{upload_link}}')">
+                            <div class="variable-item" data-variable="{{upload_link}}">
                                 <span class="variable-code">{{upload_link}}</span>
                                 <span class="variable-desc">업로드 링크</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{document_list}}')">
+                            <div class="variable-item" data-variable="{{document_list}}">
                                 <span class="variable-code">{{document_list}}</span>
                                 <span class="variable-desc">요청 서류 목록</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{required_documents}}')">
+                            <div class="variable-item" data-variable="{{required_documents}}">
                                 <span class="variable-code">{{required_documents}}</span>
                                 <span class="variable-desc">필수 서류</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{optional_documents}}')">
+                            <div class="variable-item" data-variable="{{optional_documents}}">
                                 <span class="variable-code">{{optional_documents}}</span>
                                 <span class="variable-desc">선택 서류</span>
                             </div>
-                            <div class="variable-item" onclick="insertVariable('{{additional_notes}}')">
+                            <div class="variable-item" data-variable="{{additional_notes}}">
                                 <span class="variable-code">{{additional_notes}}</span>
                                 <span class="variable-desc">추가 요청사항</span>
                             </div>
@@ -351,7 +380,7 @@ $default_content = '<div style="font-family: \'Noto Sans KR\', sans-serif; max-w
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-        <a href="{{upload_link}}" style="background-color: #007bff; color: white; padding: 10px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">서류 업로드하기</a>
+        {{upload_link}}
     </div>
     
     <p>문의사항이 있으시면 회신 부탁드립니다.</p>
@@ -448,7 +477,24 @@ echo $template['content'] ?? $default_content;
                 ['view', ['fullscreen', 'codeview', 'help']]
             ],
             fontNames: ['Arial', 'Arial Black', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', '돋움', '굴림'],
-            fontNamesIgnoreCheck: ['Noto Sans KR']
+            fontNamesIgnoreCheck: ['Noto Sans KR'],
+            callbacks: {
+                onInit: function() {
+                    // 에디터 초기화 시 포커스 관련 설정
+                }
+            }
+        });
+
+        // 변수 클릭 이벤트 처리
+        $('.variable-item').click(function() {
+            const variable = $(this).data('variable');
+            insertVariable(variable);
+
+            // 클릭 효과 애니메이션
+            $(this).addClass('clicked');
+            setTimeout(() => {
+                $(this).removeClass('clicked');
+            }, 300);
         });
 
         // 폼 제출 처리
@@ -466,6 +512,11 @@ echo $template['content'] ?? $default_content;
                     end_loader();
                     if (resp.status == 'success') {
                         $('#success-alert').fadeIn().delay(3000).fadeOut();
+
+                        // 새로 생성된 템플릿의 ID를 폼에 설정
+                        if(resp.template_id) {
+                            $('input[name="template_id"]').val(resp.template_id);
+                        }
                     } else {
                         $('#error-message').text(resp.msg || '저장 중 오류가 발생했습니다.');
                         $('#error-alert').fadeIn().delay(3000).fadeOut();
@@ -481,9 +532,38 @@ echo $template['content'] ?? $default_content;
         });
     });
 
-    // 변수 삽입 함수
+    // 변수 삽입 함수 - 현재 커서 위치에 삽입
     function insertVariable(variable) {
-        $('.summernote').summernote('editor.insertText', variable);
+        // 현재 활성화된 필드 확인
+        const activeElement = document.activeElement;
+
+        // 제목 입력 필드에 커서가 있는 경우
+        if (activeElement && activeElement.id === 'email-subject') {
+            const start = activeElement.selectionStart;
+            const end = activeElement.selectionEnd;
+            const text = activeElement.value;
+
+            // 커서 위치에 변수 삽입
+            activeElement.value = text.substring(0, start) + variable + text.substring(end);
+
+            // 커서를 삽입된 변수 뒤로 이동
+            activeElement.selectionStart = activeElement.selectionEnd = start + variable.length;
+            activeElement.focus();
+        }
+        // Summernote 에디터의 경우
+        else {
+            // 에디터에 포커스 주기
+            $('.summernote').summernote('focus');
+
+            // 현재 선택 영역 저장
+            const range = $('.summernote').summernote('saveRange');
+
+            // 텍스트 삽입 (HTML이 아닌 텍스트로)
+            $('.summernote').summernote('insertText', variable);
+
+            // 또는 HTML로 삽입하려면
+            // $('.summernote').summernote('editor.insertText', variable);
+        }
     }
 
     // 미리보기 함수
@@ -498,7 +578,7 @@ echo $template['content'] ?? $default_content;
             '{{supplier_name}}': '(주)건설안전',
             '{{project_name}}': '서울시 도시재생 프로젝트',
             '{{due_date}}': '2025년 8월 15일',
-            '{{upload_link}}': '<a href="#" style="color: #007bff;">https://example.com/upload/abc123</a>',
+            '{{upload_link}}': '<a href="#" class="email-button">서류 업로드하기</a>',
             '{{document_list}}': `<ul>
                 <li>안전관리계획서 (필수)</li>
                 <li>유해위험방지계획서 (필수)</li>
@@ -521,8 +601,8 @@ echo $template['content'] ?? $default_content;
 
         // 변수 치환
         for (const [key, value] of Object.entries(sampleData)) {
-            previewSubject = previewSubject.replace(new RegExp(key, 'g'), value);
-            previewContent = previewContent.replace(new RegExp(key, 'g'), value);
+            previewSubject = previewSubject.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+            previewContent = previewContent.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
         }
 
         // 미리보기 표시
@@ -548,7 +628,7 @@ echo $template['content'] ?? $default_content;
     function doSendTestEmail() {
         const email = document.getElementById('test-email-address').value;
         const subject = document.getElementById('email-subject').value;
-        const content = $('.summernote').summernote('code');
+        let content = $('.summernote').summernote('code');
 
         if (!email) {
             alert('이메일 주소를 입력해주세요.');
@@ -580,6 +660,16 @@ echo $template['content'] ?? $default_content;
                 console.error(err);
                 alert_toast('발송 중 오류가 발생했습니다.', 'error');
             }
+        });
+    }
+
+    // 이메일 내용 처리 함수 - 업로드 링크를 버튼으로 변환
+    function processEmailContent(content) {
+        // {{upload_link}}를 찾아서 버튼 HTML로 변환
+        return content.replace(/{{upload_link}}/g, function(match) {
+            return '<div style="text-align: center; margin: 30px 0;">' +
+                '<a href="{{upload_link}}" class="email-button" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px; font-weight: 500;">서류 업로드하기</a>' +
+                '</div>';
         });
     }
 </script>
