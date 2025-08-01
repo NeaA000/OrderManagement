@@ -38,18 +38,12 @@
                 $sub_count = $conn->query("SELECT COUNT(*) as cnt FROM document_categories WHERE parent_id = '{$main_cat['id']}'")->fetch_array()['cnt'];
                 ?>
 
-                <div class="card card-outline <?php echo $main_cat['is_required'] ? 'card-danger' : 'card-secondary' ?> mb-4">
+                <div class="card mb-4">
                     <div class="card-header">
                         <div class="d-flex align-items-center">
-                            <div class="custom-control custom-checkbox mr-3">
-                                <input type="checkbox" class="custom-control-input"
-                                       id="main_cat_<?php echo $main_cat['id'] ?>"
-                                    <?php echo $main_cat['is_required'] ? 'checked' : '' ?>
-                                       disabled>
-                                <label class="custom-control-label font-weight-bold text-lg" for="main_cat_<?php echo $main_cat['id'] ?>">
-                                    <?php echo htmlspecialchars($main_cat['name']) ?>
-                                </label>
-                            </div>
+                            <h5 class="font-weight-bold mb-0 mr-3">
+                                <?php echo htmlspecialchars($main_cat['name']) ?>
+                            </h5>
 
                             <span class="badge <?php echo $main_cat['is_required'] ? 'badge-danger' : 'badge-secondary' ?> ml-auto mr-2">
                                 <?php echo $main_cat['is_required'] ? '필수' : '선택' ?>
@@ -267,16 +261,6 @@
             var categoryId = $(this).attr('data-id');
             _conf("정말로 이 분류를 삭제하시겠습니까?<br><small class='text-muted'>하위 분류가 있는 경우 모두 함께 삭제됩니다.</small>", "delete_category", [categoryId])
         })
-
-        // 체크박스 상태에 따른 스타일 적용
-        $('input[type="checkbox"]').each(function(){
-            var card = $(this).closest('.card');
-            if($(this).is(':checked')) {
-                card.removeClass('card-secondary').addClass('card-danger');
-            } else {
-                card.removeClass('card-danger').addClass('card-secondary');
-            }
-        });
     })
 
     function delete_category($id){
