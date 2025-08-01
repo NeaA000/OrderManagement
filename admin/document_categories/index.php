@@ -178,19 +178,19 @@
                                                 <i class="fas fa-grip-vertical"></i>
                                             </span>
                                             <span class="tree-toggle" onclick="toggleTree(this)">
-                                                <?php if($subsub_count > 0): ?>
+                                                <?php if(($sub_cat['type'] ?? 'folder') == 'folder' && $subsub_count > 0): ?>
                                                     <i class="fas fa-chevron-right"></i>
                                                 <?php endif; ?>
                                             </span>
                                             <span class="tree-icon">
-                                                <i class="fas fa-folder-open text-info"></i>
+                                                <i class="fas <?php echo ($sub_cat['type'] ?? 'folder') == 'folder' ? 'fa-folder-open text-info' : 'fa-file text-warning' ?>"></i>
                                             </span>
                                             <span class="tree-label">
                                                 <?php echo htmlspecialchars($sub_cat['name']) ?>
                                                 <?php if($sub_cat['is_required']): ?>
                                                     <span class="badge badge-danger tree-badge">필수</span>
                                                 <?php endif; ?>
-                                                <?php if($subsub_count > 0): ?>
+                                                <?php if(($sub_cat['type'] ?? 'folder') == 'folder' && $subsub_count > 0): ?>
                                                     <span class="text-muted small">(<?php echo $subsub_count ?>)</span>
                                                 <?php endif; ?>
                                             </span>
@@ -198,16 +198,18 @@
                                                 <button class="btn btn-sm btn-light" onclick="editCategory(<?php echo $sub_cat['id'] ?>)" title="수정">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-light" onclick="addSubsubCategory(<?php echo $sub_cat['id'] ?>)" title="실제 서류 추가">
-                                                    <i class="fas fa-plus"></i>
-                                                </button>
+                                                <?php if(($sub_cat['type'] ?? 'folder') == 'folder'): ?>
+                                                    <button class="btn btn-sm btn-light" onclick="addSubsubCategory(<?php echo $sub_cat['id'] ?>)" title="실제 서류 추가">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                <?php endif; ?>
                                                 <button class="btn btn-sm btn-light text-danger" onclick="deleteCategory(<?php echo $sub_cat['id'] ?>)" title="삭제">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <?php if($subsub_count > 0): ?>
+                                        <?php if(($sub_cat['type'] ?? 'folder') == 'folder' && $subsub_count > 0): ?>
                                             <ul class="tree-children">
                                                 <?php
                                                 $subsub_qry = $conn->query("

@@ -58,18 +58,36 @@ $form_title = isset($id) && $id > 0 ?
 
         <div class="row">
             <!-- 분류명 -->
-            <div class="col-md-12">
+            <div class="col-md-<?php echo $level == 2 ? '8' : '12' ?>">
                 <div class="form-group">
                     <label for="name" class="control-label">
-                        <?php echo $level == 1 ? '카테고리명' : ($level == 2 ? '그룹명' : '서류명') ?>
+                        <?php echo $level == 1 ? '카테고리명' : ($level == 2 ? '그룹/문서명' : '서류명') ?>
                         <span class="text-danger">*</span>
                     </label>
                     <input type="text" class="form-control" id="name" name="name"
                            value="<?php echo isset($name) ? htmlspecialchars($name) : '' ?>"
-                           placeholder="<?php echo $level == 1 ? '예: 안전관리계획서' : ($level == 2 ? '예: 기본 안전관리' : '예: 기본안전관리계획서.docx') ?>"
+                           placeholder="<?php echo $level == 1 ? '예: 안전관리계획서' : ($level == 2 ? '예: 기본 안전관리 또는 안전관리규정.pdf' : '예: 기본안전관리계획서.docx') ?>"
                            required>
                 </div>
             </div>
+
+            <!-- 서류 그룹인 경우에만 타입 선택 -->
+            <?php if($level == 2): ?>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="type" class="control-label">유형 <span class="text-danger">*</span></label>
+                        <select class="form-control" id="type" name="type" required>
+                            <option value="folder" <?php echo (!isset($type) || $type == 'folder') ? 'selected' : '' ?>>
+                                📁 폴더 (하위 문서 포함)
+                            </option>
+                            <option value="document" <?php echo (isset($type) && $type == 'document') ? 'selected' : '' ?>>
+                                📄 문서 (단일 파일)
+                            </option>
+                        </select>
+                        <small class="text-muted">폴더: 하위 문서들을 포함할 수 있음<br>문서: 직접 파일을 업로드하는 단일 문서</small>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="row">
@@ -120,7 +138,7 @@ $form_title = isset($id) && $id > 0 ?
                         <p class="mb-0"><small>• 카테고리가 선택되면 하위의 모든 서류 그룹이 요청 대상이 됩니다.</small></p>
                     <?php elseif($level == 2): ?>
                         <p class="mb-1"><strong>서류 그룹:</strong> 비슷한 성격의 서류들을 묶는 중간 분류입니다.</p>
-                        <p class="mb-0"><small>• 관련된 실제 서류들을 체계적으로 관리하기 위한 그룹입니다.</small></p>
+                        <p class="mb-0"><small>• 폴더 형태로 하위 서류를 포함하거나, 단일 문서로 직접 파일을 받을 수 있습니다.</small></p>
                     <?php else: ?>
                         <p class="mb-1"><strong>실제 서류:</strong> 사용자가 실제로 업로드하거나 작성할 구체적인 서류입니다.</p>
                         <p class="mb-0"><small>• 파일 업로드나 웹 양식으로 제출받을 최종 서류입니다.</small></p>
