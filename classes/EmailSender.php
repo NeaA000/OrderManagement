@@ -1,10 +1,27 @@
 <?php
 // classes/EmailSender.php
 
-require_once('../initialize.php');
-require_once('PHPMailer/PHPMailer.php');
-require_once('PHPMailer/SMTP.php');
-require_once('PHPMailer/Exception.php');
+// 절대 경로로 설정
+$current_dir = dirname(__FILE__);
+$root_path = dirname($current_dir) . '/';
+
+// 필요한 파일들 포함
+if(file_exists($root_path . 'initialize.php')) {
+    require_once($root_path . 'initialize.php');
+} else {
+    // initialize.php가 없으면 개별 파일들 포함
+    if(!class_exists('DBConnection')) {
+        require_once($root_path . 'classes/DBConnection.php');
+    }
+    if(!class_exists('SystemSettings')) {
+        require_once($root_path . 'classes/SystemSettings.php');
+    }
+}
+
+// PHPMailer 라이브러리
+require_once(dirname(__FILE__) . '/PHPMailer/PHPMailer.php');
+require_once(dirname(__FILE__) . '/PHPMailer/SMTP.php');
+require_once(dirname(__FILE__) . '/PHPMailer/Exception.php');
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -15,6 +32,9 @@ class EmailSender extends DBConnection {
 
     function __construct() {
         global $_settings;
+        if(!isset($_settings)) {
+            $_settings = new SystemSettings();
+        }
         $this->settings = $_settings;
         parent::__construct();
     }
@@ -70,16 +90,78 @@ class EmailSender extends DBConnection {
         }
 
         // 업로드 링크 생성
-        $upload_link = base_url."upload_portal/?token=".$request['upload_token'];
+        if(defined('base_url')) {
+            // 정확한 경로로 수정
+            $upload_link = base_url."admin/upload_portal/?token=".$request['upload_token'];
+        } else {
+            // base_url이 정의되지 않은 경우 동적으로 생성
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $path = dirname(dirname($_SERVER['SCRIPT_NAME']));
+            $upload_link = $protocol . "://" . $host . $path . "/admin/upload_portal/?token=" . $request['upload_token'];
+        }
 
-        // 이메일 본문 생성
-        $email_body = $this->generateEmailBody($request, $required_docs, $optional_docs, $upload_link);
+        // DB에서 이메일 템플릿 가져오기
+        $template_qry = $this->conn->query("
+            SELECT * FROM email_templates 
+            WHERE template_type = 'request_notification' 
+            AND is_default = 1 
+            LIMIT 1
+        ");
 
-        // 이메일 전송
+        if($template_qry && $template_qry->num_rows > 0) {
+            $template = $template_qry->fetch_assoc();
+            $subject = $template['subject'];
+            $email_body = $template['body_html'] ?? $template['content']; // body_html 또는 content 컬럼 사용
+
+            // 템플릿이 비어있는지 확인
+            if(empty($email_body)) {
+                $subject = "[{company_name}] 서류 제출 요청 - {project_name}";
+                $email_body = $this->getDefaultEmailTemplate();
+            }
+        } else {
+            // 템플릿이 없으면 기본 템플릿 사용
+            $subject = "[{company_name}] 서류 제출 요청 - {project_name}";
+            $email_body = $this->getDefaultEmailTemplate();
+        }
+
+        // 변수 치환
+        $variables = [
+            '{supplier_name}' => $request['supplier_name'],
+            '{contact_person}' => $request['contact_person'],
+            '{company_name}' => $this->settings->info('name'),
+            '{project_name}' => $request['project_name'],
+            '{due_date}' => date('Y년 m월 d일', strtotime($request['due_date'])),
+            '{upload_link}' => $upload_link,
+            '{required_documents}' => $this->formatDocumentList($required_docs),
+            '{optional_documents}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentList($optional_docs),
+            '{additional_notes}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>',
+            // 이메일 설정 페이지에서 사용하는 변수명도 지원
+            '{{supplier_name}}' => $request['supplier_name'],
+            '{{contact_person}}' => $request['contact_person'],
+            '{{company_name}}' => $this->settings->info('name'),
+            '{{project_name}}' => $request['project_name'],
+            '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
+            '{{upload_link}}' => '<a href="'.$upload_link.'" style="color: #007bff;">'.$upload_link.'</a>',
+            '{{document_list}}' => $this->formatDocumentList(array_merge($required_docs, $optional_docs))
+        ];
+
+        // 템플릿의 변수를 실제 값으로 치환
+        foreach($variables as $key => $value) {
+            $subject = str_replace($key, $value, $subject);
+            $email_body = str_replace($key, $value, $email_body);
+        }
+
+        // 최종 이메일 본문이 비어있는지 확인
+        if(empty(trim($email_body))) {
+            return ['status' => 'error', 'msg' => '이메일 본문이 비어있습니다. 템플릿을 확인해주세요.'];
+        }
+
+        // 이메일 발송
         $result = $this->sendEmail(
             $request['email'],
             $request['contact_person'],
-            "[{$this->settings->info('name')}] 서류 제출 요청 - {$request['project_name']}",
+            $subject,
             $email_body
         );
 
@@ -91,77 +173,69 @@ class EmailSender extends DBConnection {
         return $result;
     }
 
-    // 이메일 본문 생성
-    private function generateEmailBody($request, $required_docs, $optional_docs, $upload_link) {
-        $due_date = date('Y년 m월 d일', strtotime($request['due_date']));
-        $company_name = $this->settings->info('name');
-
-        $html = "
-        <div style='font-family: \"Noto Sans KR\", sans-serif; max-width: 600px; margin: 0 auto;'>
-            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px;'>
-                <h2 style='color: #333; margin-bottom: 20px;'>서류 제출 요청</h2>
-                
-                <p>안녕하세요, <strong>{$request['contact_person']}</strong>님</p>
-                
-                <p><strong>{$request['project_name']}</strong> 프로젝트와 관련하여 아래 서류 제출을 요청드립니다.</p>
-                
-                <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #007bff;'>
-                    <h3 style='color: #007bff; margin-top: 0;'>프로젝트 정보</h3>
-                    <p><strong>프로젝트명:</strong> {$request['project_name']}</p>
-                </div>
-        ";
-
-        if(count($required_docs) > 0) {
-            $html .= "
-                <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px;'>
-                    <h3 style='color: #dc3545; margin-top: 0;'>필수 제출 서류</h3>
-                    <ul style='color: #666;'>";
-            foreach($required_docs as $doc) {
-                $html .= "<li>{$doc}</li>";
-            }
-            $html .= "</ul></div>";
+    // 서류 목록 포맷팅
+    private function formatDocumentList($docs) {
+        if(empty($docs)) {
+            return '<span style="color: #6c757d;">없음</span>';
         }
 
-        if(count($optional_docs) > 0) {
-            $html .= "
-                <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px;'>
-                    <h3 style='color: #28a745; margin-top: 0;'>선택 제출 서류</h3>
-                    <ul style='color: #666;'>";
-            foreach($optional_docs as $doc) {
-                $html .= "<li>{$doc}</li>";
-            }
-            $html .= "</ul></div>";
+        $html = '<ul style="margin: 10px 0; padding-left: 20px;">';
+        foreach($docs as $doc) {
+            $html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
         }
-
-        if(!empty($request['additional_notes'])) {
-            $html .= "
-                <div style='background-color: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 5px;'>
-                    <h3 style='color: #856404; margin-top: 0;'>추가 요청사항</h3>
-                    <p style='color: #856404;'>{$request['additional_notes']}</p>
-                </div>";
-        }
-
-        $html .= "
-                <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{$upload_link}' style='display: inline-block; padding: 15px 40px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;'>서류 업로드하기</a>
-                </div>
-                
-                <div style='background-color: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 20px;'>
-                    <p style='color: #666; margin: 0; font-size: 14px;'>
-                        ※ 위 버튼을 클릭하시면 서류 업로드 페이지로 이동합니다.<br>
-                        ※ 업로드 링크: <a href='{$upload_link}' style='color: #007bff;'>{$upload_link}</a><br>
-                        ※ 문의사항이 있으시면 회신 부탁드립니다.
-                    </p>
-                </div>
-                
-                <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;'>
-                    <p style='color: #666; font-size: 14px;'>{$company_name}</p>
-                </div>
-            </div>
-        </div>
-        ";
+        $html .= '</ul>';
 
         return $html;
+    }
+
+    // 기본 이메일 템플릿
+    private function getDefaultEmailTemplate() {
+        return '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: "Noto Sans KR", sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { background-color: #f8f9fa; padding: 20px; border-radius: 10px; }
+        .content { background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .button { background-color: #007bff; color: white; padding: 10px 30px; text-decoration: none; border-radius: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>서류 제출 요청</h2>
+            <p>안녕하세요, {contact_person}님</p>
+            <p>{company_name}에서 서류 제출을 요청드립니다.</p>
+            
+            <div class="content">
+                <h3>프로젝트 정보</h3>
+                <p><strong>프로젝트명:</strong> {project_name}</p>
+                <p><strong>제출 기한:</strong> <span style="color: #dc3545; font-weight: bold;">{due_date}</span></p>
+                
+                <h3>필수 제출 서류</h3>
+                {required_documents}
+                
+                <h3>선택 제출 서류</h3>
+                {optional_documents}
+                
+                <h3>추가 요청사항</h3>
+                <p>{additional_notes}</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{upload_link}" class="button">서류 업로드하기</a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">
+                이 링크는 보안을 위해 제출 기한까지만 유효합니다.<br>
+                문의사항이 있으시면 회신 부탁드립니다.
+            </p>
+        </div>
+    </div>
+</body>
+</html>';
     }
 
     // 기본 이메일 전송 함수
@@ -170,6 +244,9 @@ class EmailSender extends DBConnection {
         $config = $this->getSMTPConfig();
 
         try {
+            // 디버그 모드 (개발 환경에서만)
+            // $mail->SMTPDebug = SMTP::DEBUG_SERVER;
+
             // 서버 설정
             $mail->isSMTP();
             $mail->Host = $config['host'];
@@ -191,9 +268,14 @@ class EmailSender extends DBConnection {
             $mail->AltBody = strip_tags($body);
 
             // 첨부파일 추가
-            foreach($attachments as $attachment) {
-                if(file_exists($attachment['path'])) {
-                    $mail->addAttachment($attachment['path'], $attachment['name']);
+            if(!empty($attachments)) {
+                foreach($attachments as $attachment) {
+                    if(is_array($attachment) && isset($attachment['path']) && file_exists($attachment['path'])) {
+                        $name = isset($attachment['name']) ? $attachment['name'] : basename($attachment['path']);
+                        $mail->addAttachment($attachment['path'], $name);
+                    } elseif(is_string($attachment) && file_exists($attachment)) {
+                        $mail->addAttachment($attachment);
+                    }
                 }
             }
 
@@ -201,7 +283,13 @@ class EmailSender extends DBConnection {
             return ['status' => 'success', 'msg' => '이메일이 성공적으로 전송되었습니다.'];
 
         } catch (Exception $e) {
-            return ['status' => 'error', 'msg' => "이메일 전송 실패: {$mail->ErrorInfo}"];
+            // 상세한 에러 메시지 (개발 환경에서만 사용)
+            $error_msg = "이메일 전송 실패: {$mail->ErrorInfo}";
+
+            // 운영 환경에서는 간단한 메시지로
+            // $error_msg = "이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.";
+
+            return ['status' => 'error', 'msg' => $error_msg];
         }
     }
 
@@ -251,6 +339,36 @@ class EmailSender extends DBConnection {
         }
 
         return ['sent' => $sent, 'failed' => $failed];
+    }
+
+    // 테스트 이메일 전송 (시스템 설정 확인용)
+    public function sendTestEmail($to_email) {
+        $subject = "[테스트] SMTP 설정 확인";
+        $body = "
+        <div style='font-family: \"Noto Sans KR\", sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px;'>
+                <h2 style='color: #333;'>SMTP 설정 테스트</h2>
+                <p>이 메일을 받으셨다면 SMTP 설정이 올바르게 구성되었습니다.</p>
+                
+                <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px;'>
+                    <h3>현재 설정 정보:</h3>
+                    <ul>
+                        <li>SMTP 호스트: " . $this->settings->info('smtp_host') . "</li>
+                        <li>SMTP 포트: " . $this->settings->info('smtp_port') . "</li>
+                        <li>보안 방식: " . $this->settings->info('smtp_secure') . "</li>
+                        <li>발신자명: " . $this->settings->info('smtp_from_name') . "</li>
+                        <li>발신 이메일: " . $this->settings->info('smtp_from_email') . "</li>
+                    </ul>
+                </div>
+                
+                <p style='color: #666; font-size: 14px;'>
+                    이 이메일은 " . $this->settings->info('name') . " 시스템에서 발송되었습니다.
+                </p>
+            </div>
+        </div>
+        ";
+
+        return $this->sendEmail($to_email, '관리자', $subject, $body);
     }
 }
 ?>

@@ -1,6 +1,8 @@
 <?php
 // admin/test_email.php
-require_once('../initialize.php');
+require_once('../config.php');
+require_once('../classes/DBConnection.php');
+require_once('../classes/SystemSettings.php');
 require_once('../classes/EmailSender.php');
 
 header('Content-Type: application/json');
