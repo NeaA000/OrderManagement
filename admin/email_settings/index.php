@@ -344,14 +344,6 @@ $smtp_from_email = $_settings->info('smtp_from_email') ?? '';
                         <span class="smtp-value"><?php echo $smtp_from_email ?: $smtp_username ?></span>
                     </div>
                 </div>
-                <?php if(!$smtp_host): ?>
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle"></i>
-                            SMTP 설정은 <a href="./?page=system_info">시스템 설정</a>에서 구성할 수 있습니다.
-                        </small>
-                    </div>
-                <?php endif; ?>
             </div>
 
             <form id="email-template-form">

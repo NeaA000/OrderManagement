@@ -34,39 +34,16 @@ $type = $_settings->userdata('type');
                     <!-- 기존 메뉴들 (모든 사용자 공통) -->
                     <li class="nav-item dropdown">
                         <a href="<?php echo base_url ?>admin/?page=suppliers" class="nav-link nav-suppliers">
-                            <i class="nav-icon fas fa-truck-loading"></i>
-                            <p>의뢰처 관리</p>
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a href="<?php echo base_url ?>admin/?page=items" class="nav-link nav-items">
-                            <i class="nav-icon fas fa-boxes"></i>
-                            <p>품목 목록</p>
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a href="<?php echo base_url ?>admin/?page=purchase_orders" class="nav-link nav-purchase_orders">
-                            <i class="nav-icon fas fa-file-invoice"></i>
-                            <p>구매 주문</p>
+                            <i class="nav-icon fas fa-building"></i>
+                            <p>의뢰처 목록</p>
                         </a>
                     </li>
 
-                    <!-- 🆕 서류 관리 섹션 (모든 사용자 공통) -->
-                    <li class="nav-header">서류 관리</li>
-
-                    <!-- 서류 분류 관리 -->
+                    <!-- 서류 카테고리 관리 -->
                     <li class="nav-item dropdown">
                         <a href="<?php echo base_url ?>admin/?page=document_categories" class="nav-link nav-document_categories">
                             <i class="nav-icon fas fa-folder"></i>
-                            <p>서류 분류 관리</p>
-                        </a>
-                    </li>
-
-                    <!-- 의뢰처 관리 (기존 suppliers 페이지 활용) -->
-                    <li class="nav-item dropdown">
-                        <a href="<?php echo base_url ?>admin/?page=suppliers" class="nav-link nav-suppliers">
-                            <i class="nav-icon fas fa-building"></i>
-                            <p>의뢰처 관리</p>
+                            <p>서류 카테고리</p>
                         </a>
                     </li>
 
@@ -86,6 +63,14 @@ $type = $_settings->userdata('type');
                         </a>
                     </li>
 
+                    <!-- 이메일 설정 - 모든 사용자가 볼 수 있도록 이동 -->
+                    <li class="nav-item dropdown">
+                        <a href="<?php echo base_url ?>admin/?page=email_settings" class="nav-link nav-email_settings">
+                            <i class="nav-icon fas fa-envelope"></i>
+                            <p>이메일 설정</p>
+                        </a>
+                    </li>
+
                     <!-- 관리자 전용 메뉴 -->
                     <?php if($_settings->userdata('type') == 1): ?>
                         <li class="nav-header">관리</li>
@@ -93,12 +78,6 @@ $type = $_settings->userdata('type');
                             <a href="<?php echo base_url ?>admin/?page=user/list" class="nav-link nav-user_list">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>사용자 목록</p>
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a href="<?php echo base_url ?>admin/?page=email_settings" class="nav-link nav-email_settings">
-                                <i class="nav-icon fas fa-envelope"></i>
-                                <p>이메일 설정</p>
                             </a>
                         </li>
                         <li class="nav-item dropdown">
