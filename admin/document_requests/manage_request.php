@@ -80,18 +80,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         // 3. 선택된 서류들을 request_documents 테이블에 저장
-        if (isset($_POST['document_types'])) {
+        // 모달에서 선택된 실제 문서들 처리
+        if (isset($_POST['selected_documents'])) {
             $stmt = $pdo->prepare("INSERT INTO request_documents (
                 request_id, category_id, document_name, is_required, status
             ) VALUES (?, ?, ?, 1, 'pending')");
 
-            foreach ($_POST['document_types'] as $cat_id) {
-                // 카테고리 이름 조회
-                $cat_stmt = $pdo->prepare("SELECT name FROM document_categories WHERE id = ?");
-                $cat_stmt->execute([$cat_id]);
-                $cat_name = $cat_stmt->fetchColumn();
+            foreach ($_POST['selected_documents'] as $doc_id) {
+                // 문서 정보 조회
+                $doc_stmt = $pdo->prepare("SELECT id, name FROM document_categories WHERE id = ?");
+                $doc_stmt->execute([$doc_id]);
+                $doc_info = $doc_stmt->fetch();
 
-                $stmt->execute([$request_id, $cat_id, $cat_name]);
+                if ($doc_info) {
+                    $stmt->execute([$request_id, $doc_id, $doc_info['name']]);
+                }
             }
         }
 
@@ -472,7 +475,6 @@ $categoryTree = getCategoryTree($pdo);
 
         /* 모달 팝업 스타일 */
         .modal {
-            display: none;
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -480,11 +482,13 @@ $categoryTree = getCategoryTree($pdo);
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-content {
             background-color: #fefefe;
-            margin: 3% auto;
             padding: 0;
             border: 1px solid #888;
             width: 90%;
@@ -493,6 +497,7 @@ $categoryTree = getCategoryTree($pdo);
             border-radius: 8px;
             display: flex;
             flex-direction: column;
+            margin: 20px;
         }
 
         .modal-header {
@@ -1002,7 +1007,8 @@ $categoryTree = getCategoryTree($pdo);
     // 전역 변수
     let currentParentCheckbox = null;
     let categoryData = <?php echo json_encode($categoryTree); ?>;
-    let selectedDocuments = new Set();
+    let selectedDocumentsByCategory = {}; // 카테고리별 선택 문서 저장
+    let allSelectedDocuments = new Set(); // 전체 선택된 문서
     let tempSelectedDocuments = new Set();
 
     // 페이지 로드 시 체크박스에 이벤트 추가
@@ -1028,12 +1034,16 @@ $categoryTree = getCategoryTree($pdo);
         // 해당 카테고리 찾기
         const category = findCategoryById(categoryData, categoryId);
         if (category) {
-            // 현재 선택된 문서들을 임시 Set에 복사
-            tempSelectedDocuments = new Set(selectedDocuments);
+            // 해당 카테고리의 기존 선택 문서들을 임시 Set에 복사
+            if (selectedDocumentsByCategory[categoryId]) {
+                tempSelectedDocuments = new Set(selectedDocumentsByCategory[categoryId]);
+            } else {
+                tempSelectedDocuments = new Set();
+            }
 
             renderTree(category);
             updateSelectedCount();
-            document.getElementById('documentModal').style.display = 'block';
+            document.getElementById('documentModal').style.display = 'flex';
         }
     }
 
@@ -1156,18 +1166,36 @@ $categoryTree = getCategoryTree($pdo);
 
     // 선택 적용
     function applySelection() {
-        // 임시 선택을 실제 선택으로 적용
-        selectedDocuments = new Set(tempSelectedDocuments);
+        const categoryId = currentParentCheckbox.getAttribute('data-category-id');
+        
+        // 현재 카테고리의 선택을 저장
+        if (tempSelectedDocuments.size > 0) {
+            selectedDocumentsByCategory[categoryId] = new Set(tempSelectedDocuments);
+        } else {
+            delete selectedDocumentsByCategory[categoryId];
+        }
 
         // 부모 체크박스 상태 결정
-        currentParentCheckbox.checked = selectedDocuments.size > 0;
+        currentParentCheckbox.checked = tempSelectedDocuments.size > 0;
+        
+        // 부모 체크박스에 선택된 문서 개수 표시
+        const label = currentParentCheckbox.parentElement;
+        const countSpan = label.querySelector('.doc-count');
+        if (countSpan) {
+            countSpan.remove();
+        }
+        if (tempSelectedDocuments.size > 0) {
+            label.innerHTML += ' <span class="doc-count" style="color: #1976d2; font-weight: bold;">(' + tempSelectedDocuments.size + ')</span>';
+        }
 
-        // 숨겨진 체크박스들 업데이트
-        document.querySelectorAll('#hidden-documents input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = selectedDocuments.has(checkbox.value);
+        // 전체 선택된 문서 업데이트
+        allSelectedDocuments.clear();
+        Object.values(selectedDocumentsByCategory).forEach(categorySet => {
+            categorySet.forEach(docId => allSelectedDocuments.add(docId));
         });
 
-        updateSelectedDocuments();
+        updateHiddenCheckboxes();
+        updateSelectedDocumentsList();
         closeModal();
     }
 
@@ -1214,21 +1242,36 @@ $categoryTree = getCategoryTree($pdo);
         }
     }
 
+    // 숨겨진 체크박스들 업데이트
+    function updateHiddenCheckboxes() {
+        document.querySelectorAll('#hidden-documents input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = allSelectedDocuments.has(checkbox.value);
+        });
+    }
+
     // 뒤로가기 함수
     function goBack() {
         // AdminLTE 환경에 맞춰 목록 페이지로 이동
         window.location.href = './?page=document_requests';
-        // 또는 브라우저 히스토리 사용
-        // window.history.back();
     }
 
     // 선택된 서류 목록 업데이트
-    function updateSelectedDocuments() {
+    function updateSelectedDocumentsList() {
         const selectedDocs = [];
+        const selectedPaths = new Map();
 
         // 선택된 문서들의 경로 수집
         document.querySelectorAll('#hidden-documents input[type="checkbox"]:checked').forEach(checkbox => {
             const path = checkbox.getAttribute('data-path');
+            const docId = checkbox.value;
+            if (path && allSelectedDocuments.has(docId)) {
+                selectedPaths.set(docId, path);
+            }
+        });
+
+        // 선택된 순서대로 표시
+        allSelectedDocuments.forEach(docId => {
+            const path = selectedPaths.get(docId);
             if (path) {
                 selectedDocs.push(path);
             }
@@ -1322,6 +1365,18 @@ $categoryTree = getCategoryTree($pdo);
     // 페이지 로드 시 초기 계산
     document.addEventListener('DOMContentLoaded', function() {
         calculateTotalCost();
+        
+        // 폼 리셋 시 선택 상태도 초기화
+        document.querySelector('form').addEventListener('reset', function() {
+            selectedDocumentsByCategory = {};
+            allSelectedDocuments.clear();
+            document.querySelectorAll('.main-category-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+                const countSpan = checkbox.parentElement.querySelector('.doc-count');
+                if (countSpan) countSpan.remove();
+            });
+            updateSelectedDocumentsList();
+        });
     });
 </script>
 </body>

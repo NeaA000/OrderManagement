@@ -433,6 +433,199 @@ Class Master extends DBConnection {
             return json_encode(array('status'=>'failed','msg'=>'Database update failed'));
         }
     }
+
+    function delete_request(){
+        extract($_POST);
+
+        // ID 확인
+        if(!isset($id) || empty($id)){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "요청 ID가 없습니다.";
+            return json_encode($resp);
+        }
+
+        // 트랜잭션 시작
+        $this->conn->begin_transaction();
+
+        try {
+            // 1. 업로드된 파일들 먼저 삭제
+            $file_qry = $this->conn->query("
+                SELECT du.file_path 
+                FROM document_uploads du 
+                INNER JOIN request_documents rd ON du.document_id = rd.id 
+                WHERE rd.request_id = '{$id}'
+            ");
+
+            while($file = $file_qry->fetch_assoc()){
+                $file_path = '../uploads/' . $file['file_path'];
+                if(file_exists($file_path)){
+                    unlink($file_path);
+                }
+            }
+
+            // 2. 관련 테이블 데이터 삭제 (외래키 제약으로 자동 삭제되지만 명시적으로 처리)
+            // document_uploads는 request_documents가 삭제되면 자동 삭제됨
+
+            // 3. request_documents 삭제
+            $this->conn->query("DELETE FROM request_documents WHERE request_id = '{$id}'");
+
+            // 4. document_request_details 삭제
+            $this->conn->query("DELETE FROM document_request_details WHERE request_id = '{$id}'");
+
+            // 5. document_targets 삭제
+            $this->conn->query("DELETE FROM document_targets WHERE request_id = '{$id}'");
+
+            // 6. document_cost_details 삭제
+            $this->conn->query("DELETE FROM document_cost_details WHERE request_id = '{$id}'");
+
+            // 7. document_writers 삭제
+            $this->conn->query("DELETE FROM document_writers WHERE request_id = '{$id}'");
+
+            // 8. review_credentials 삭제
+            $this->conn->query("DELETE FROM review_credentials WHERE request_id = '{$id}'");
+
+            // 9. workflow_status 삭제
+            $this->conn->query("DELETE FROM workflow_status WHERE request_id = '{$id}'");
+
+            // 10. 메인 테이블 삭제
+            $delete = $this->conn->query("DELETE FROM document_requests WHERE id = '{$id}'");
+
+            if($delete){
+                $this->conn->commit();
+                $resp['status'] = 'success';
+                $this->settings->set_flashdata('success', "서류 요청이 성공적으로 삭제되었습니다.");
+            } else {
+                throw new Exception("삭제 실패");
+            }
+
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            $resp['status'] = 'failed';
+            $resp['msg'] = "삭제 중 오류가 발생했습니다: " . $e->getMessage();
+            $resp['error'] = $this->conn->error;
+        }
+
+        return json_encode($resp);
+    }
+
+    function send_request_email(){
+        extract($_POST);
+
+        if(!isset($id) || empty($id)){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "요청 ID가 없습니다.";
+            return json_encode($resp);
+        }
+
+        // 요청 정보 조회
+        $qry = $this->conn->query("
+            SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
+                   d.manager_email, d.manager_name
+            FROM document_requests r
+            LEFT JOIN supplier_list s ON r.supplier_id = s.id
+            LEFT JOIN document_request_details d ON d.request_id = r.id
+            WHERE r.id = '{$id}'
+        ");
+
+        if($qry->num_rows == 0){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "요청을 찾을 수 없습니다.";
+            return json_encode($resp);
+        }
+
+        $request = $qry->fetch_assoc();
+
+        // 이메일 수신자 결정 (담당자 이메일이 있으면 우선, 없으면 의뢰처 이메일)
+        $to_email = !empty($request['manager_email']) ? $request['manager_email'] : $request['email'];
+        $to_name = !empty($request['manager_name']) ? $request['manager_name'] : $request['contact_person'];
+
+        if(empty($to_email)){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "수신자 이메일이 없습니다.";
+            return json_encode($resp);
+        }
+
+        // 업로드 링크 생성
+        $upload_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") .
+            "://$_SERVER[HTTP_HOST]" . dirname($_SERVER['REQUEST_URI']) .
+            "/document_requests/upload.php?token=" . $request['upload_token'];
+
+        // 이메일 제목
+        $subject = "[서류요청] " . $request['project_name'] . " - 서류 제출 요청";
+
+        // 이메일 내용
+        $message = "
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+                .content { background-color: #ffffff; padding: 20px; border: 1px solid #dee2e6; border-radius: 5px; }
+                .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 0.9em; color: #6c757d; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>서류 제출 요청</h2>
+                </div>
+                <div class='content'>
+                    <p>안녕하세요, {$to_name}님</p>
+                    
+                    <p><strong>{$request['project_name']}</strong> 프로젝트와 관련하여 필요한 서류 제출을 요청드립니다.</p>
+                    
+                    <h3>요청 정보</h3>
+                    <ul>
+                        <li><strong>요청번호:</strong> {$request['request_no']}</li>
+                        <li><strong>프로젝트명:</strong> {$request['project_name']}</li>
+                        <li><strong>제출기한:</strong> " . date('Y년 m월 d일', strtotime($request['due_date'])) . "</li>
+                    </ul>
+                    
+                    <p>아래 링크를 클릭하여 필요한 서류를 업로드해 주시기 바랍니다:</p>
+                    
+                    <p style='text-align: center;'>
+                        <a href='{$upload_link}' class='button'>서류 업로드하기</a>
+                    </p>
+                    
+                    <p><small>또는 다음 링크를 복사하여 브라우저에 붙여넣으세요:<br>
+                    {$upload_link}</small></p>
+                    
+                    " . (!empty($request['additional_notes']) ? "
+                    <h3>추가 요청사항</h3>
+                    <p>" . nl2br(htmlspecialchars($request['additional_notes'])) . "</p>
+                    " : "") . "
+                    
+                    <div class='footer'>
+                        <p>문의사항이 있으시면 언제든 연락 주시기 바랍니다.</p>
+                        <p>감사합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+
+        // 이메일 헤더
+        $headers = "MIME-Version: 1.0" . "\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        $headers .= 'From: ' . $this->settings->info('company_email') . "\r\n";
+
+        // 이메일 발송
+        if(mail($to_email, $subject, $message, $headers)){
+            // 발송 시간 기록
+            $this->conn->query("UPDATE document_requests SET email_sent_at = NOW() WHERE id = '{$id}'");
+
+            $resp['status'] = 'success';
+            $resp['msg'] = "이메일이 성공적으로 발송되었습니다.";
+        } else {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "이메일 발송에 실패했습니다.";
+        }
+
+        return json_encode($resp);
+    }
 }
 
 $Master = new Master();
@@ -480,6 +673,12 @@ switch ($action) {
         break;
     case 'update_category_order':
         echo $Master->update_category_order();
+        break;
+    case 'delete_request':
+        echo $Master->delete_request();
+        break;
+    case 'send_request_email':
+        echo $Master->send_request_email();
         break;
 
 
