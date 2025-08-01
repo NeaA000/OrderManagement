@@ -200,8 +200,28 @@ $auto_request_no = "REQ-$date-$count";
 // 의뢰처 목록 조회
 $suppliers = $pdo->query("SELECT id, name FROM supplier_list WHERE status = 1 ORDER BY name")->fetchAll(PDO::FETCH_KEY_PAIR);
 
-// 서류 카테고리 조회
+// 서류 카테고리 계층 구조로 조회
+function getCategoryTree($pdo, $parent_id = null) {
+    $sql = "SELECT * FROM document_categories WHERE status = 1";
+    if ($parent_id === null) {
+        $sql .= " AND parent_id IS NULL";
+    } else {
+        $sql .= " AND parent_id = " . $parent_id;
+    }
+    $sql .= " ORDER BY display_order, name";
+
+    $stmt = $pdo->query($sql);
+    $categories = $stmt->fetchAll();
+
+    foreach ($categories as &$category) {
+        $category['children'] = getCategoryTree($pdo, $category['id']);
+    }
+
+    return $categories;
+}
+
 $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level = 1 AND status = 1 ORDER BY display_order")->fetchAll();
+$categoryTree = getCategoryTree($pdo);
 ?>
 
 <!DOCTYPE html>
@@ -449,6 +469,171 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
                 display: none;
             }
         }
+
+        /* 모달 팝업 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 3% auto;
+            padding: 0;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background-color: #f0f0f0;
+            border-top: 1px solid #ddd;
+            text-align: right;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+
+        /* 트리 구조 스타일 */
+        .tree-view {
+            font-family: 'Malgun Gothic', sans-serif;
+            user-select: none;
+        }
+
+        .tree-item {
+            margin: 2px 0;
+        }
+
+        .tree-folder {
+            font-weight: bold;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            margin: 3px 0;
+        }
+
+        .tree-folder:hover {
+            background-color: #e8e8e8;
+        }
+
+        .tree-folder::before {
+            content: "📁 ";
+            margin-right: 5px;
+        }
+
+        .folder-icon {
+            display: inline-block;
+            width: 20px;
+            transition: transform 0.2s;
+        }
+
+        .folder-icon.open {
+            transform: rotate(90deg);
+        }
+
+        .tree-document {
+            padding: 6px 6px 6px 35px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .tree-document:hover {
+            background-color: #e3f2fd;
+        }
+
+        .tree-document::before {
+            content: "📄 ";
+            margin-right: 5px;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            border-left: 1px dotted #ccc;
+            padding-left: 10px;
+            display: none;
+        }
+
+        .tree-children.show {
+            display: block;
+        }
+
+        .selected-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1976d2;
+        }
+
+        .btn-modal {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        .btn-modal-primary {
+            background-color: #d32f2f;
+            color: white;
+        }
+
+        .btn-modal-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        /* 숨겨진 체크박스들 */
+        .hidden-documents {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -482,10 +667,31 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
         <div class="document-types">
             <?php foreach ($categories as $category): ?>
                 <label>
-                    <input type="checkbox" name="document_types[]" value="<?php echo $category['id']; ?>">
+                    <input type="checkbox" name="document_types[]" value="<?php echo $category['id']; ?>" data-category-id="<?php echo $category['id']; ?>" class="main-category-checkbox">
                     <?php echo htmlspecialchars($category['name']); ?>
                 </label>
             <?php endforeach; ?>
+        </div>
+
+        <!-- 숨겨진 문서 체크박스들 (실제 폼 제출용) -->
+        <div class="hidden-documents" id="hidden-documents">
+            <?php
+            function renderHiddenDocuments($categories, $parentPath = '') {
+                foreach ($categories as $category) {
+                    $currentPath = $parentPath . '/' . $category['name'];
+                    if (empty($category['children'])) {
+                        // 최하위 노드(문서)만 체크박스 생성
+                        echo '<input type="checkbox" name="selected_documents[]" value="' . $category['id'] . '" id="doc-' . $category['id'] . '" data-path="' . htmlspecialchars($currentPath) . '">';
+                    } else {
+                        renderHiddenDocuments($category['children'], $currentPath);
+                    }
+                }
+            }
+
+            foreach ($categoryTree as $topCategory) {
+                renderHiddenDocuments($topCategory['children'], $topCategory['name']);
+            }
+            ?>
         </div>
 
         <!-- 관리번호 -->
@@ -499,7 +705,7 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
         <table>
             <tr>
                 <th width="15%">공사명</th>
-                <td colspan="2"><input type="text" name="project_name" placeholder="전천 지방하천 정비사업" required></td>
+                <td colspan="2"><input type="text" name="project_name" required></td>
                 <th width="15%">시공방법</th>
                 <td width="25%">
                     <select name="construction_method" required>
@@ -589,10 +795,6 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
                         <option value="기본">기본</option>
                         <option value="설계">설계</option>
                         <option value="공사">공사</option>
-                        <option value="기본,설계">기본+설계</option>
-                        <option value="기본,공사">기본+공사</option>
-                        <option value="설계,공사">설계+공사</option>
-                        <option value="기본,설계,공사">전체</option>
                     </select>
                 </td>
                 <th>적정성평가</th>
@@ -658,9 +860,11 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
                 <td colspan="3">
                     <input type="text" name="total_cost" id="total_cost" placeholder="700만원" style="width: 200px; display: inline;" required>
                     <label style="margin-left: 20px;">
-                        <input type="checkbox" name="vat_included" value="1">VAT 포함
+                        <input type="radio" name="vat_included" value="1"> VAT 포함
                     </label>
-                    <button type="button" onclick="calculateTotal()" style="margin-left: 20px; padding: 5px 15px;">자동 계산</button>
+                    <label style="margin-left: 20px;">
+                        <input type="radio" name="vat_included" value="0" checked> VAT 별도
+                    </label>
                 </td>
             </tr>
         </table>
@@ -766,7 +970,249 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
     </form>
 </div>
 
+<!-- 서류 선택 모달 -->
+<div id="documentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">서류 선택</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 15px;">
+                <button type="button" onclick="expandAll()" style="padding: 5px 10px; margin-right: 10px;">모두 펼치기</button>
+                <button type="button" onclick="collapseAll()" style="padding: 5px 10px; margin-right: 10px;">모두 접기</button>
+                <button type="button" onclick="selectAllDocuments()" style="padding: 5px 10px; margin-right: 10px;">모든 문서 선택</button>
+                <button type="button" onclick="deselectAllDocuments()" style="padding: 5px 10px;">모든 문서 해제</button>
+            </div>
+            <div id="tree-container" class="tree-view">
+                <!-- 트리 구조가 여기에 동적으로 생성됨 -->
+            </div>
+            <div class="selected-info">
+                <strong>선택된 문서:</strong> <span id="selected-count">0</span>개
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-modal btn-modal-primary" onclick="applySelection()">선택 완료</button>
+            <button type="button" class="btn-modal btn-modal-secondary" onclick="closeModal()">취소</button>
+        </div>
+    </div>
+</div>
+
 <script>
+    // 전역 변수
+    let currentParentCheckbox = null;
+    let categoryData = <?php echo json_encode($categoryTree); ?>;
+    let selectedDocuments = new Set();
+    let tempSelectedDocuments = new Set();
+
+    // 페이지 로드 시 체크박스에 이벤트 추가
+    document.addEventListener('DOMContentLoaded', function() {
+        // 기존 체크박스에 클릭 이벤트 추가
+        document.querySelectorAll('.main-category-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', function(e) {
+                e.preventDefault(); // 기본 체크 동작 방지
+                openCategoryModal(this);
+            });
+        });
+    });
+
+    // 카테고리 모달 열기
+    function openCategoryModal(checkbox) {
+        currentParentCheckbox = checkbox;
+        const categoryId = checkbox.getAttribute('data-category-id');
+        const categoryName = checkbox.parentElement.textContent.trim();
+
+        // 모달 제목 설정
+        document.getElementById('modal-title').textContent = categoryName + ' - 상세 문서 선택';
+
+        // 해당 카테고리 찾기
+        const category = findCategoryById(categoryData, categoryId);
+        if (category) {
+            // 현재 선택된 문서들을 임시 Set에 복사
+            tempSelectedDocuments = new Set(selectedDocuments);
+
+            renderTree(category);
+            updateSelectedCount();
+            document.getElementById('documentModal').style.display = 'block';
+        }
+    }
+
+    // 트리 구조 렌더링
+    function renderTree(category) {
+        const container = document.getElementById('tree-container');
+        container.innerHTML = '';
+
+        if (category.children && category.children.length > 0) {
+            const treeHtml = buildTreeHtml(category.children, 0);
+            container.innerHTML = treeHtml;
+        } else {
+            container.innerHTML = '<p style="color: #999;">하위 문서가 없습니다.</p>';
+        }
+    }
+
+    // 트리 HTML 생성
+    function buildTreeHtml(items, level) {
+        let html = '';
+
+        items.forEach(item => {
+            const hasChildren = item.children && item.children.length > 0;
+            const isDocument = !hasChildren; // 자식이 없으면 문서
+
+            html += '<div class="tree-item">';
+
+            if (isDocument) {
+                // 문서인 경우 - 체크박스 표시
+                const isChecked = tempSelectedDocuments.has(item.id.toString());
+                html += '<div class="tree-document">';
+                html += '<label>';
+                html += '<input type="checkbox" class="doc-checkbox" value="' + item.id + '" ' +
+                    (isChecked ? 'checked' : '') + ' onchange="toggleDocument(this)">';
+                html += htmlspecialchars(item.name);
+                html += '</label>';
+                html += '</div>';
+            } else {
+                // 폴더인 경우
+                html += '<div class="tree-folder" onclick="toggleFolder(this)">';
+                html += '<span class="folder-icon">▶</span> ';
+                html += htmlspecialchars(item.name);
+                html += '</div>';
+                html += '<div class="tree-children">';
+                html += buildTreeHtml(item.children, level + 1);
+                html += '</div>';
+            }
+
+            html += '</div>';
+        });
+
+        return html;
+    }
+
+    // 폴더 토글
+    function toggleFolder(folderElement) {
+        const childrenDiv = folderElement.nextElementSibling;
+        const icon = folderElement.querySelector('.folder-icon');
+
+        if (childrenDiv.classList.contains('show')) {
+            childrenDiv.classList.remove('show');
+            icon.classList.remove('open');
+        } else {
+            childrenDiv.classList.add('show');
+            icon.classList.add('open');
+        }
+    }
+
+    // 문서 선택/해제
+    function toggleDocument(checkbox) {
+        if (checkbox.checked) {
+            tempSelectedDocuments.add(checkbox.value);
+        } else {
+            tempSelectedDocuments.delete(checkbox.value);
+        }
+        updateSelectedCount();
+    }
+
+    // 선택된 문서 수 업데이트
+    function updateSelectedCount() {
+        document.getElementById('selected-count').textContent = tempSelectedDocuments.size;
+    }
+
+    // 모두 펼치기
+    function expandAll() {
+        document.querySelectorAll('.tree-children').forEach(div => {
+            div.classList.add('show');
+        });
+        document.querySelectorAll('.folder-icon').forEach(icon => {
+            icon.classList.add('open');
+        });
+    }
+
+    // 모두 접기
+    function collapseAll() {
+        document.querySelectorAll('.tree-children').forEach(div => {
+            div.classList.remove('show');
+        });
+        document.querySelectorAll('.folder-icon').forEach(icon => {
+            icon.classList.remove('open');
+        });
+    }
+
+    // 모든 문서 선택
+    function selectAllDocuments() {
+        document.querySelectorAll('.doc-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+            tempSelectedDocuments.add(checkbox.value);
+        });
+        updateSelectedCount();
+    }
+
+    // 모든 문서 해제
+    function deselectAllDocuments() {
+        document.querySelectorAll('.doc-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+            tempSelectedDocuments.delete(checkbox.value);
+        });
+        updateSelectedCount();
+    }
+
+    // 선택 적용
+    function applySelection() {
+        // 임시 선택을 실제 선택으로 적용
+        selectedDocuments = new Set(tempSelectedDocuments);
+
+        // 부모 체크박스 상태 결정
+        currentParentCheckbox.checked = selectedDocuments.size > 0;
+
+        // 숨겨진 체크박스들 업데이트
+        document.querySelectorAll('#hidden-documents input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = selectedDocuments.has(checkbox.value);
+        });
+
+        updateSelectedDocuments();
+        closeModal();
+    }
+
+    // 모달 닫기
+    function closeModal() {
+        document.getElementById('documentModal').style.display = 'none';
+        currentParentCheckbox = null;
+    }
+
+    // 카테고리 ID로 찾기
+    function findCategoryById(categories, id) {
+        for (let category of categories) {
+            if (category.id == id) {
+                return category;
+            }
+            if (category.children) {
+                const found = findCategoryById(category.children, id);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    // HTML 특수문자 이스케이프
+    function htmlspecialchars(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>"']/g, function(match) {
+            const escape = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return escape[match];
+        });
+    }
+
+    // 모달 외부 클릭 시 닫기
+    window.onclick = function(event) {
+        const modal = document.getElementById('documentModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
 
     // 뒤로가기 함수
     function goBack() {
@@ -776,18 +1222,16 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
         // window.history.back();
     }
 
-    // 서류 타입 체크박스 이벤트
-    document.querySelectorAll('input[name="document_types[]"]').forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedDocuments);
-    });
-
+    // 선택된 서류 목록 업데이트
     function updateSelectedDocuments() {
         const selectedDocs = [];
-        const checkedBoxes = document.querySelectorAll('input[name="document_types[]"]:checked');
 
-        checkedBoxes.forEach(checkbox => {
-            const label = checkbox.parentElement.textContent.trim();
-            selectedDocs.push(label);
+        // 선택된 문서들의 경로 수집
+        document.querySelectorAll('#hidden-documents input[type="checkbox"]:checked').forEach(checkbox => {
+            const path = checkbox.getAttribute('data-path');
+            if (path) {
+                selectedDocs.push(path);
+            }
         });
 
         const container = document.getElementById('selected-docs-container');
@@ -801,20 +1245,6 @@ $categories = $pdo->query("SELECT id, name FROM document_categories WHERE level 
         }
     }
 
-    // 비용 자동 계산
-    function calculateTotal() {
-        const costInputs = document.querySelectorAll('.cost-input');
-        let total = 0;
-
-        costInputs.forEach(input => {
-            const value = input.value.replace(/[^0-9]/g, '');
-            if (value) {
-                total += parseInt(value);
-            }
-        });
-
-        document.getElementById('total_cost').value = total.toLocaleString() + '만원';
-    }
 
     // 숫자 입력 시 자동 포맷팅
     document.querySelectorAll('.cost-input').forEach(input => {
