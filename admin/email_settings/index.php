@@ -551,6 +551,10 @@ echo $template['content'] ?? $default_content;
         $('#email-template-form').submit(function(e) {
             e.preventDefault();
 
+            // Summernote 내용을 명시적으로 textarea에 업데이트
+            var content = $('.summernote').summernote('code');
+            $('#email-content').val(content);  // textarea 값 업데이트
+
             start_loader();
 
             $.ajax({
