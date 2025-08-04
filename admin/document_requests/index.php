@@ -67,7 +67,8 @@
                             break;
                     }
                     ?>
-                    <tr>
+                    <!-- 🔔 data-request-id 추가 (실시간 업데이트용) -->
+                    <tr data-request-id="<?php echo $row['id'] ?>">
                         <td class="text-center"><?php echo $i++; ?></td>
                         <td><?php echo $row['request_no'] ?></td>
                         <td><?php echo $row['supplier_name'] ?></td>
@@ -156,6 +157,9 @@
                 }
             }
         });
+
+        // 🔔 실시간 업데이트 지원 - NotificationSystem이 테이블을 업데이트할 수 있도록 함
+        // notifications.js의 updateRequestsTable() 메서드가 이 테이블을 업데이트합니다
 
         // 이메일 발송
         $('.send-email').click(function(){
