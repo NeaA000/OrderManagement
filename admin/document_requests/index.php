@@ -166,12 +166,35 @@
 </div>
 
 <style>
-    /* 행 hover 효과 */
-    .clickable-row:hover {
+    /* 드롭다운 메뉴 z-index 수정 - 최상단에 표시 */
+    .dropdown-menu {
+        z-index: 1050 !important;
+    }
+    
+    /* DataTable 컨테이너 overflow 해결 */
+    .dataTables_wrapper {
+        overflow: visible !important;
+    }
+    
+    /* 행 hover 효과 - 작업 셀 제외 */
+    .clickable-row:hover td:not(.action-cell) {
         background-color: #f5f5f5;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.2s ease;
+        transition: background-color 0.2s ease;
+    }
+    
+    /* 행 hover 시 shadow 효과 */
+    .clickable-row:hover {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s ease;
+    }
+    
+    /* 드롭다운이 열려있을 때 hover 효과 비활성화 */
+    .clickable-row.dropdown-active:hover td {
+        background-color: transparent;
+    }
+    
+    .clickable-row.dropdown-active:hover {
+        box-shadow: none;
     }
 
     /* 상태 뱃지 스타일 개선 */
@@ -187,7 +210,7 @@
 
     /* 액션 버튼이 있는 셀은 클릭 방지 */
     .action-cell {
-        position: relative;
+        position: static !important;
     }
 
     /* 로딩 오버레이 */
@@ -221,6 +244,24 @@
 
 <script>
     $(document).ready(function(){
+        // 드롭다운 열림/닫힘 이벤트 처리
+        $(document).on('show.bs.dropdown', '.clickable-row .dropdown', function() {
+            $(this).closest('.clickable-row').addClass('dropdown-active');
+        });
+        
+        $(document).on('hide.bs.dropdown', '.clickable-row .dropdown', function() {
+            $(this).closest('.clickable-row').removeClass('dropdown-active');
+        });
+        
+        // 드롭다운 버튼 클릭 시 이벤트 전파 중단
+        $(document).on('click', '.dropdown-toggle', function(e) {
+            e.stopPropagation();
+        });
+        
+        $(document).on('click', '.dropdown-menu', function(e) {
+            e.stopPropagation();
+        });
+        
         // 행 클릭 이벤트
         $('.clickable-row').click(function(e) {
             // 드롭다운 버튼이나 메뉴를 클릭한 경우는 제외
@@ -230,11 +271,6 @@
 
             var id = $(this).data('id');
             window.location.href = './?page=document_requests/view_request&id=' + id;
-        });
-
-        // 드롭다운 메뉴 클릭 시 이벤트 전파 중단
-        $('.dropdown-menu').click(function(e) {
-            e.stopPropagation();
         });
 
         $('.delete_data').click(function(e){

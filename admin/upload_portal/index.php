@@ -228,15 +228,35 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         }
 
         .progress {
-            height: 10px;
+            height: 20px;
             border-radius: 5px;
             background-color: #e9ecef;
             overflow: hidden;
+            position: relative;
         }
 
         .progress-bar {
+            height: 100%;
             background: linear-gradient(90deg, var(--primary-color) 0%, #667eea 100%);
-            transition: width 0.6s ease;
+            transition: width 1s ease-out;
+            position: relative;
+        }
+
+        .progress-bar::after {
+            content: attr(data-progress) '%';
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .progress-bar.show-percentage::after {
+            opacity: 1;
         }
 
         /* Documents Table */
@@ -747,8 +767,10 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                         <span><?php echo $submitted_docs ?></span> / <span><?php echo $total_docs ?></span> 완료
                     </div>
                 </div>
+                <!-- 진행률 표시 확인을 위한 디버그 -->
+                <!-- <?php echo "Progress: " . $progress . "%"; ?> -->
                 <div class="progress">
-                    <div class="progress-bar" role="progressbar" style="width: <?php echo $progress ?>%"></div>
+                    <div class="progress-bar" role="progressbar" style="width: 0%" data-progress="<?php echo $progress ?>"></div>
                 </div>
             </div>
         </div>
@@ -903,6 +925,22 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 <script>
     // Dropzone 자동 초기화 방지
     Dropzone.autoDiscover = false;
+
+    // 페이지 로드 시 진행률 바 애니메이션
+    $(document).ready(function() {
+        // 진행률 바 애니메이션
+        setTimeout(function() {
+            $('.progress-bar').each(function() {
+                var progress = $(this).data('progress');
+                $(this).css('width', progress + '%');
+                
+                // 진행률이 20% 이상일 때만 숫자 표시
+                if(progress >= 20) {
+                    $(this).addClass('show-percentage');
+                }
+            });
+        }, 100);
+    });
 
     // 활성화된 Dropzone 인스턴스들을 저장
     const dropzoneInstances = {};
