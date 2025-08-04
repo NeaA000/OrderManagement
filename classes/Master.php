@@ -566,6 +566,15 @@ Class Master extends DBConnection {
             "://$_SERVER[HTTP_HOST]" . dirname(dirname($_SERVER['REQUEST_URI'])) .
             "/upload_portal/?token=" . $request['upload_token'];
 
+        // 업로드 링크를 버튼 HTML로 생성
+        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
+            '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; ' .
+            'background-color: #007bff; color: white !important; text-decoration: none !important; ' .
+            'border-radius: 5px; font-weight: 500; font-size: 16px; ' .
+            'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
+            '서류 업로드하기' .
+            '</a></div>';
+
         // 요청된 서류 목록 조회
         $docs_qry = $this->conn->query("
         SELECT document_name, is_required 
@@ -573,22 +582,47 @@ Class Master extends DBConnection {
         WHERE request_id = '{$id}'
         ORDER BY is_required DESC, document_name ASC");
 
-        $required_docs = "";
-        $optional_docs = "";
+        $required_docs = array();
+        $optional_docs = array();
+        $all_docs = array();
 
         while($doc = $docs_qry->fetch_assoc()){
             if($doc['is_required'] == 1){
-                $required_docs .= "<li>" . $doc['document_name'] . "</li>";
+                $required_docs[] = $doc['document_name'];
+                $all_docs[] = $doc['document_name'] . ' (필수)';
             } else {
-                $optional_docs .= "<li>" . $doc['document_name'] . "</li>";
+                $optional_docs[] = $doc['document_name'];
+                $all_docs[] = $doc['document_name'] . ' (선택)';
             }
         }
 
+        // 서류 목록을 HTML 리스트로 변환
+        $required_docs_html = "";
+        $optional_docs_html = "";
+        $all_docs_html = "";
+
         if(!empty($required_docs)){
-            $required_docs = "<ul>" . $required_docs . "</ul>";
+            $required_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            foreach($required_docs as $doc) {
+                $required_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+            }
+            $required_docs_html .= "</ul>";
         }
+        
         if(!empty($optional_docs)){
-            $optional_docs = "<ul>" . $optional_docs . "</ul>";
+            $optional_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            foreach($optional_docs as $doc) {
+                $optional_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+            }
+            $optional_docs_html .= "</ul>";
+        }
+
+        if(!empty($all_docs)){
+            $all_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            foreach($all_docs as $doc) {
+                $all_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+            }
+            $all_docs_html .= "</ul>";
         }
 
         // 변수 치환 데이터
@@ -598,10 +632,13 @@ Class Master extends DBConnection {
             '{{supplier_name}}' => $request['supplier_name'],
             '{{project_name}}' => $request['project_name'],
             '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
-            '{{upload_link}}' => '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px; font-weight: 500;">서류 업로드하기</a>',
-            '{{required_documents}}' => $required_docs,
-            '{{optional_documents}}' => $optional_docs,
-            '{{additional_notes}}' => nl2br(htmlspecialchars($request['additional_notes']))
+            '{{upload_link}}' => $upload_button,
+            '{{document_list}}' => $all_docs_html,
+            '{{required_documents}}' => $required_docs_html ?: '<span style="color: #6c757d;">없음</span>',
+            '{{optional_documents}}' => $optional_docs_html ?: '<span style="color: #6c757d;">없음</span>',
+            '{{additional_notes}}' => !empty($request['additional_notes']) ?
+                nl2br(htmlspecialchars($request['additional_notes'])) :
+                '<span style="color: #6c757d;">없음</span>'
         );
 
         // 템플릿 내용에서 변수 치환
@@ -794,7 +831,12 @@ Class Master extends DBConnection {
             '{{supplier_name}}' => '테스트 의뢰처',
             '{{project_name}}' => '테스트 프로젝트',
             '{{due_date}}' => date('Y년 m월 d일', strtotime('+7 days')),
-            '{{upload_link}}' => '<a href="' . base_url . 'upload_portal/?token=test123" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px; font-weight: 500;">서류 업로드하기</a>',
+            '{{upload_link}}' => '<div style="text-align: center; margin: 30px 0;">' .
+                '<a href="' . base_url . 'upload_portal/?token=test123" style="display: inline-block; ' .
+                'padding: 12px 30px; background-color: #007bff; color: white !important; ' .
+                'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
+                'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
+                '서류 업로드하기</a></div>',
             '{{required_documents}}' => '<ul><li>안전관리계획서</li><li>유해위험방지계획서</li><li>사업자등록증</li></ul>',
             '{{optional_documents}}' => '<ul><li>건설업면허증</li></ul>',
             '{{additional_notes}}' => '서류는 PDF 형식으로 제출해주시기 바랍니다.',

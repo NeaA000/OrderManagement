@@ -125,25 +125,37 @@ class EmailSender extends DBConnection {
             $email_body = $this->getDefaultEmailTemplate();
         }
 
+        // 업로드 링크를 버튼 HTML로 생성
+        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
+            '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; ' .
+            'background-color: #007bff; color: white !important; text-decoration: none !important; ' .
+            'border-radius: 5px; font-weight: 500; font-size: 16px; ' .
+            'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
+            '서류 업로드하기' .
+            '</a></div>';
+
+        // 전체 서류 목록 생성 (document_list용)
+        $all_docs = array();
+        foreach($required_docs as $doc) {
+            $all_docs[] = $doc . ' (필수)';
+        }
+        foreach($optional_docs as $doc) {
+            $all_docs[] = $doc . ' (선택)';
+        }
+
         // 변수 치환
         $variables = [
-            '{supplier_name}' => $request['supplier_name'],
-            '{contact_person}' => $request['contact_person'],
-            '{company_name}' => $this->settings->info('name'),
-            '{project_name}' => $request['project_name'],
-            '{due_date}' => date('Y년 m월 d일', strtotime($request['due_date'])),
-            '{upload_link}' => $upload_link,
-            '{required_documents}' => $this->formatDocumentList($required_docs),
-            '{optional_documents}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentList($optional_docs),
-            '{additional_notes}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>',
-            // 이메일 설정 페이지에서 사용하는 변수명도 지원
+            // 중괄호 두 개 형태 (우선 처리)
             '{{supplier_name}}' => $request['supplier_name'],
             '{{contact_person}}' => $request['contact_person'],
             '{{company_name}}' => $this->settings->info('name'),
             '{{project_name}}' => $request['project_name'],
             '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
-            '{{upload_link}}' => '<a href="'.$upload_link.'" style="color: #007bff;">'.$upload_link.'</a>',
-            '{{document_list}}' => $this->formatDocumentList(array_merge($required_docs, $optional_docs))
+            '{{upload_link}}' => $upload_button,
+            '{{document_list}}' => $this->formatDocumentList($all_docs),
+            '{{required_documents}}' => $this->formatDocumentList($required_docs),
+            '{{optional_documents}}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentList($optional_docs),
+            '{{additional_notes}}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>'
         ];
 
         // 템플릿의 변수를 실제 값으로 치환
@@ -179,9 +191,9 @@ class EmailSender extends DBConnection {
             return '<span style="color: #6c757d;">없음</span>';
         }
 
-        $html = '<ul style="margin: 10px 0; padding-left: 20px;">';
+        $html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
         foreach($docs as $doc) {
-            $html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
+            $html .= '<li style="margin: 5px 0; line-height: 1.6;">' . htmlspecialchars($doc) . '</li>';
         }
         $html .= '</ul>';
 
