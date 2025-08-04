@@ -1,7 +1,8 @@
+
 <?php
-// admin/upload_porta/upload_handler.php
-require_once('../initialize.php');
-require_once('../classes/UploadHandler.php');
+// admin/upload_portal/upload_handler.php
+require_once('upload_init.php');  // 전용 초기화 파일 사용
+require_once(base_app . 'classes/UploadHandler.php');
 
 // 에러 리포팅 설정
 error_reporting(E_ALL);
@@ -15,9 +16,6 @@ header('Content-Type: application/json; charset=utf-8');
 $response = ['status' => 'error', 'msg' => '알 수 없는 오류가 발생했습니다.'];
 
 try {
-    // 세션 확인 (필요한 경우)
-    // session_start();
-
     // POST 데이터 확인
     if(!isset($_POST['request_id']) || !isset($_POST['document_id'])) {
         $response = ['status' => 'error', 'msg' => '필수 정보가 누락되었습니다. (요청 ID 또는 문서 ID)'];

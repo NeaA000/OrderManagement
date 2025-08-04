@@ -1,45 +1,109 @@
 <?php
-// admin/upload_porta/index.php
-require_once('../initialize.php');
+// admin/upload_portal/index.php
+require_once('upload_init.php');  // 전용 초기화 파일 사용
 
 // 토큰 검증
 if(!isset($_GET['token']) || empty($_GET['token'])) {
-    die('잘못된 접근입니다.');
+    die('<html>
+    <head>
+        <meta charset="utf-8">
+        <title>오류</title>
+        <style>
+            body { font-family: "Noto Sans KR", sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+            .error-icon { font-size: 48px; color: #dc3545; margin-bottom: 20px; }
+            h2 { color: #333; margin-bottom: 10px; }
+            p { color: #666; }
+        </style>
+    </head>
+    <body>
+        <div class="error-box">
+            <div class="error-icon">⚠️</div>
+            <h2>잘못된 접근입니다</h2>
+            <p>유효한 업로드 링크를 통해 접근해주세요.</p>
+        </div>
+    </body>
+    </html>');
 }
 
 $token = $conn->real_escape_string($_GET['token']);
 
-// 요청 정보 조회
+// 요청 정보 조회 (project_list 테이블 없이 직접 project_name 사용)
 $qry = $conn->query("
-    SELECT dr.*, p.name as project_name, s.name as supplier_name, 
+    SELECT dr.*, dr.project_name, s.name as supplier_name, 
            s.email as supplier_email, dr.created_by
     FROM `document_requests` dr 
-    LEFT JOIN `project_list` p ON dr.project_id = p.id 
     LEFT JOIN `supplier_list` s ON dr.supplier_id = s.id 
     WHERE dr.upload_token = '{$token}' AND dr.status = 1
 ");
 
 if($qry->num_rows <= 0) {
-    die('유효하지 않은 링크이거나 만료된 링크입니다.');
+    die('<html>
+    <head>
+        <meta charset="utf-8">
+        <title>오류</title>
+        <style>
+            body { font-family: "Noto Sans KR", sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+            .error-icon { font-size: 48px; color: #dc3545; margin-bottom: 20px; }
+            h2 { color: #333; margin-bottom: 10px; }
+            p { color: #666; margin-bottom: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="error-box">
+            <div class="error-icon">❌</div>
+            <h2>유효하지 않은 링크입니다</h2>
+            <p>링크가 만료되었거나 잘못된 링크입니다.<br>요청하신 업체에 문의해주세요.</p>
+        </div>
+    </body>
+    </html>');
 }
 
 $request = $qry->fetch_assoc();
 
-// 요청된 문서 목록 조회
+// 마감일 체크 (마감일이 설정된 경우만)
+if(!empty($request['due_date']) && $request['due_date'] != '0000-00-00' && strtotime($request['due_date']) < strtotime('today')) {
+    die('<html>
+    <head>
+        <meta charset="utf-8">
+        <title>기한 만료</title>
+        <style>
+            body { font-family: "Noto Sans KR", sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+            .error-icon { font-size: 48px; color: #ffc107; margin-bottom: 20px; }
+            h2 { color: #333; margin-bottom: 10px; }
+            p { color: #666; }
+        </style>
+    </head>
+    <body>
+        <div class="error-box">
+            <div class="error-icon">⏰</div>
+            <h2>제출 기한이 만료되었습니다</h2>
+            <p>마감일: ' . date('Y년 m월 d일', strtotime($request['due_date'])) . '<br>요청하신 업체에 문의해주세요.</p>
+        </div>
+    </body>
+    </html>');
+}
+
+// 요청된 문서 목록 조회 (is_webform, form_template 필드 제거)
 $documents = $conn->query("
-    SELECT rd.*, dc.name as doc_name, dc.description, dc.is_webform, dc.form_template 
+    SELECT rd.*, dc.name as doc_name, dc.description
     FROM `request_documents` rd 
-    LEFT JOIN `document_categories` dc ON rd.document_id = dc.id 
+    LEFT JOIN `document_categories` dc ON rd.category_id = dc.id 
     WHERE rd.request_id = '{$request['id']}' 
-    ORDER BY dc.`order_by` ASC
+    ORDER BY rd.is_required DESC, rd.id ASC
 ");
 
 // 제출 완료 여부 확인
 $all_submitted = true;
+$required_submitted = true;
 while($doc = $documents->fetch_array()) {
     if($doc['status'] == 0) {
         $all_submitted = false;
-        break;
+        if($doc['is_required'] == 1) {
+            $required_submitted = false;
+        }
     }
 }
 $documents->data_seek(0); // 결과셋 리셋
@@ -55,22 +119,29 @@ $documents->data_seek(0); // 결과셋 리셋
     <link rel="stylesheet" href="<?php echo base_url ?>plugins/fontawesome-free/css/all.min.css">
     <link rel="stylesheet" href="<?php echo base_url ?>plugins/dropzone/min/dropzone.min.css">
     <link rel="stylesheet" href="<?php echo base_url ?>dist/css/adminlte.min.css">
-    <link rel="stylesheet" href="<?php echo base_url ?>assets/css/custom.css">
 
     <style>
         body {
-            background-color: #f4f6f9;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
         }
         .upload-container {
             max-width: 1200px;
-            margin: 50px auto;
+            margin: 0 auto;
         }
         .company-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: white;
+            color: #333;
             padding: 30px;
             border-radius: 10px 10px 0 0;
             text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .company-header h2 {
+            margin: 0;
+            color: #667eea;
+            font-weight: bold;
         }
         .document-card {
             background: white;
@@ -123,6 +194,12 @@ $documents->data_seek(0); // 결과셋 리셋
             margin-bottom: 10px;
             display: block;
         }
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -144,11 +221,13 @@ $documents->data_seek(0); // 결과셋 리셋
                 </div>
                 <div class="col-md-6">
                     <p class="mb-1"><strong>요청일:</strong> <?php echo date('Y-m-d', strtotime($request['date_created'])) ?></p>
-                    <p class="mb-1"><strong>마감일:</strong>
-                        <span class="text-danger font-weight-bold">
-                                <?php echo date('Y-m-d', strtotime($request['due_date'])) ?>
-                            </span>
-                    </p>
+                    <?php if(!empty($request['due_date']) && $request['due_date'] != '0000-00-00'): ?>
+                        <p class="mb-1"><strong>마감일:</strong>
+                            <span class="text-danger font-weight-bold">
+                            <?php echo date('Y-m-d', strtotime($request['due_date'])) ?>
+                        </span>
+                        </p>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php if(!empty($request['remarks'])): ?>
@@ -169,6 +248,8 @@ $documents->data_seek(0); // 결과셋 리셋
                 <i class="fas fa-file-alt"></i> 제출 서류 목록
                 <?php if($all_submitted): ?>
                     <span class="badge badge-success float-right">제출 완료</span>
+                <?php elseif($required_submitted): ?>
+                    <span class="badge badge-info float-right">필수 서류 제출 완료</span>
                 <?php else: ?>
                     <span class="badge badge-warning float-right">제출 진행중</span>
                 <?php endif; ?>
@@ -181,6 +262,11 @@ $documents->data_seek(0); // 결과셋 리셋
                         <div class="col-md-8">
                             <h6 class="mb-1">
                                 <?php echo $doc['doc_name'] ?>
+                                <?php if($doc['is_required'] == 1): ?>
+                                    <span class="badge badge-danger ml-2">필수</span>
+                                <?php else: ?>
+                                    <span class="badge badge-secondary ml-2">선택</span>
+                                <?php endif; ?>
                                 <?php if($doc['status'] == 1): ?>
                                     <span class="status-badge status-completed ml-2">
                                         <i class="fas fa-check-circle"></i> 제출완료
@@ -205,18 +291,10 @@ $documents->data_seek(0); // 결과셋 리셋
                         </div>
                         <div class="col-md-4 text-right">
                             <?php if($doc['status'] == 0): ?>
-                                <?php if($doc['is_webform'] == 1): ?>
-                                    <button type="button" class="btn btn-primary webform-btn"
-                                            data-doc-id="<?php echo $doc['id'] ?>"
-                                            data-template="<?php echo htmlspecialchars($doc['form_template']) ?>">
-                                        <i class="fas fa-edit"></i> 웹 양식 작성
-                                    </button>
-                                <?php else: ?>
-                                    <button type="button" class="btn btn-primary upload-btn"
-                                            data-doc-id="<?php echo $doc['id'] ?>">
-                                        <i class="fas fa-upload"></i> 파일 업로드
-                                    </button>
-                                <?php endif; ?>
+                                <button type="button" class="btn btn-primary upload-btn"
+                                        data-doc-id="<?php echo $doc['id'] ?>">
+                                    <i class="fas fa-upload"></i> 파일 업로드
+                                </button>
                             <?php else: ?>
                                 <button type="button" class="btn btn-sm btn-info view-file"
                                         data-doc-id="<?php echo $doc['id'] ?>">
@@ -245,8 +323,11 @@ $documents->data_seek(0); // 결과셋 리셋
         <?php else: ?>
             <h5 class="mb-3">서류 제출을 완료하시려면 모든 필수 서류를 업로드해 주세요.</h5>
             <div class="text-muted">
-                <i class="fas fa-info-circle"></i>
-                파일 형식: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX (최대 10MB)
+                <ul>
+                    <li>파일 형식: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX</li>
+                    <li>최대 파일 크기: 10MB</li>
+                    <li>파일명은 한글/영문 모두 가능합니다</li>
+                </ul>
             </div>
         <?php endif; ?>
     </div>
@@ -391,14 +472,6 @@ $documents->data_seek(0); // 결과셋 리셋
                 }
             });
         });
-
-        // 자동 새로고침 (30초마다)
-        setInterval(function() {
-            // 업로드 중이 아닐 때만 새로고침
-            if(!$('#uploadModal').hasClass('show')) {
-                location.reload();
-            }
-        }, 30000);
     });
 </script>
 </body>

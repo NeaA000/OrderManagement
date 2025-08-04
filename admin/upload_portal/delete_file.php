@@ -1,7 +1,10 @@
+================================================================
+==== 5. delete_file.php ====
+================================================================
 <?php
-// upload_portal/delete_file.php
-require_once('../initialize.php');
-require_once('../classes/UploadHandler.php');
+// admin/upload_portal/delete_file.php
+require_once('upload_init.php');  // 전용 초기화 파일 사용
+require_once(base_app . 'classes/UploadHandler.php');
 
 header('Content-Type: application/json');
 

@@ -1,6 +1,7 @@
+
 <?php
-// upload_portal/view_file.php
-require_once('../initialize.php');
+// admin/upload_portal/view_file.php
+require_once('upload_init.php');  // 전용 초기화 파일 사용
 
 if(!isset($_GET['id'])) {
     die('파일을 찾을 수 없습니다.');
