@@ -96,17 +96,28 @@ $documents = $conn->query("
 ");
 
 // 제출 완료 여부 확인
-$all_submitted = true;
-$required_submitted = true;
-while($doc = $documents->fetch_array()) {
-    if($doc['status'] == 0) {
-        $all_submitted = false;
-        if($doc['is_required'] == 1) {
-            $required_submitted = false;
+$total_documents = $documents->num_rows;
+$all_submitted = false;
+$required_submitted = false;
+
+if($total_documents > 0) {
+    $all_submitted = true;
+    $required_submitted = true;
+
+    while($doc = $documents->fetch_array()) {
+        if($doc['status'] == 0) {
+            $all_submitted = false;
+            if($doc['is_required'] == 1) {
+                $required_submitted = false;
+            }
         }
     }
+    $documents->data_seek(0); // 결과셋 리셋
+} else {
+    // 서류가 없는 경우
+    $all_submitted = false;
+    $required_submitted = false;
 }
-$documents->data_seek(0); // 결과셋 리셋
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -256,59 +267,67 @@ $documents->data_seek(0); // 결과셋 리셋
             </h5>
         </div>
         <div class="card-body">
-            <?php while($doc = $documents->fetch_assoc()): ?>
-                <div class="document-card">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="mb-1">
-                                <?php echo $doc['doc_name'] ?>
-                                <?php if($doc['is_required'] == 1): ?>
-                                    <span class="badge badge-danger ml-2">필수</span>
-                                <?php else: ?>
-                                    <span class="badge badge-secondary ml-2">선택</span>
+            <?php if($total_documents > 0): ?>
+                <?php while($doc = $documents->fetch_assoc()): ?>
+                    <div class="document-card">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">
+                                    <?php echo $doc['doc_name'] ?? $doc['document_name'] ?>
+                                    <?php if($doc['is_required'] == 1): ?>
+                                        <span class="badge badge-danger ml-2">필수</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-secondary ml-2">선택</span>
+                                    <?php endif; ?>
+                                    <?php if($doc['status'] == 1): ?>
+                                        <span class="status-badge status-completed ml-2">
+                                            <i class="fas fa-check-circle"></i> 제출완료
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-pending ml-2">
+                                            <i class="fas fa-clock"></i> 미제출
+                                        </span>
+                                    <?php endif; ?>
+                                </h6>
+                                <?php if(!empty($doc['description'])): ?>
+                                    <small class="text-muted"><?php echo $doc['description'] ?></small>
                                 <?php endif; ?>
                                 <?php if($doc['status'] == 1): ?>
-                                    <span class="status-badge status-completed ml-2">
-                                        <i class="fas fa-check-circle"></i> 제출완료
-                                    </span>
-                                <?php else: ?>
-                                    <span class="status-badge status-pending ml-2">
-                                        <i class="fas fa-clock"></i> 미제출
-                                    </span>
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="fas fa-file"></i> <?php echo $doc['file_name'] ?>
+                                            (<?php echo date('Y-m-d H:i', strtotime($doc['uploaded_at'])) ?>)
+                                        </small>
+                                    </div>
                                 <?php endif; ?>
-                            </h6>
-                            <?php if(!empty($doc['description'])): ?>
-                                <small class="text-muted"><?php echo $doc['description'] ?></small>
-                            <?php endif; ?>
-                            <?php if($doc['status'] == 1): ?>
-                                <div class="mt-2">
-                                    <small class="text-success">
-                                        <i class="fas fa-file"></i> <?php echo $doc['file_name'] ?>
-                                        (<?php echo date('Y-m-d H:i', strtotime($doc['uploaded_at'])) ?>)
-                                    </small>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="col-md-4 text-right">
-                            <?php if($doc['status'] == 0): ?>
-                                <button type="button" class="btn btn-primary upload-btn"
-                                        data-doc-id="<?php echo $doc['id'] ?>">
-                                    <i class="fas fa-upload"></i> 파일 업로드
-                                </button>
-                            <?php else: ?>
-                                <button type="button" class="btn btn-sm btn-info view-file"
-                                        data-doc-id="<?php echo $doc['id'] ?>">
-                                    <i class="fas fa-eye"></i> 보기
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger delete-file"
-                                        data-doc-id="<?php echo $doc['id'] ?>">
-                                    <i class="fas fa-trash"></i> 삭제
-                                </button>
-                            <?php endif; ?>
+                            </div>
+                            <div class="col-md-4 text-right">
+                                <?php if($doc['status'] == 0): ?>
+                                    <button type="button" class="btn btn-primary upload-btn"
+                                            data-doc-id="<?php echo $doc['id'] ?>">
+                                        <i class="fas fa-upload"></i> 파일 업로드
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-info view-file"
+                                            data-doc-id="<?php echo $doc['id'] ?>">
+                                        <i class="fas fa-eye"></i> 보기
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger delete-file"
+                                            data-doc-id="<?php echo $doc['id'] ?>">
+                                        <i class="fas fa-trash"></i> 삭제
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <h5>요청된 서류가 없습니다</h5>
+                    <p>담당자에게 문의해주세요.</p>
                 </div>
-            <?php endwhile; ?>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -317,7 +336,10 @@ $documents->data_seek(0); // 결과셋 리셋
         <h5 class="alert-heading">
             <i class="fas fa-info-circle"></i> 안내사항
         </h5>
-        <?php if($all_submitted): ?>
+        <?php if($total_documents == 0): ?>
+            <h5 class="text-warning">⚠️ 아직 요청된 서류가 등록되지 않았습니다.</h5>
+            <p>담당자가 서류를 등록하면 이곳에 표시됩니다. 잠시 후 다시 확인해주세요.</p>
+        <?php elseif($all_submitted): ?>
             <h4>✅ 모든 서류가 제출되었습니다.</h4>
             <p>제출해 주셔서 감사합니다. 검토 후 연락드리겠습니다.</p>
         <?php else: ?>

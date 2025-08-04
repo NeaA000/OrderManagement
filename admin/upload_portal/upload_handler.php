@@ -1,4 +1,3 @@
-
 <?php
 // admin/upload_portal/upload_handler.php
 require_once('upload_init.php');  // 전용 초기화 파일 사용

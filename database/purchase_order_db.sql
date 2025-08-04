@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- 생성 시간: 25-08-04 03:23
+-- 생성 시간: 25-08-04 06:23
 -- 서버 버전: 10.4.32-MariaDB
 -- PHP 버전: 8.2.12
 
@@ -471,7 +471,7 @@ CREATE TABLE `request_documents` (
                                      `category_id` int(30) NOT NULL COMMENT '서류 분류 ID',
                                      `document_name` varchar(255) NOT NULL COMMENT '서류명',
                                      `is_required` tinyint(1) DEFAULT 0 COMMENT '필수 여부',
-                                     `status` varchar(20) DEFAULT 'pending' COMMENT '제출 상태 (pending=미제출, completed=제출완료)',
+                                     `status` tinyint(1) DEFAULT 0 COMMENT '제출 상태 (0=미제출, 1=제출완료)',
                                      `file_name` varchar(255) DEFAULT NULL COMMENT '업로드된 파일명',
                                      `file_path` varchar(500) DEFAULT NULL COMMENT '파일 경로',
                                      `file_size` int(11) DEFAULT NULL COMMENT '파일 크기',
@@ -486,9 +486,9 @@ CREATE TABLE `request_documents` (
 --
 
 INSERT INTO `request_documents` (`id`, `request_id`, `category_id`, `document_name`, `is_required`, `status`, `file_name`, `file_path`, `file_size`, `upload_method`, `form_data`, `uploaded_at`, `date_created`) VALUES
-                                                                                                                                                                                                                      (5, 3, 37, 'A', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
-                                                                                                                                                                                                                      (6, 3, 38, 'B', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
-                                                                                                                                                                                                                      (7, 4, 39, 'C', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 15:40:40');
+                                                                                                                                                                                                                      (5, 3, 37, 'A', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
+                                                                                                                                                                                                                      (6, 3, 38, 'B', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
+                                                                                                                                                                                                                      (7, 4, 39, 'C', 1, 1, 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', 'uploads/documents/2025/08/REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', 27935, 'file_upload', NULL, '2025-08-04 13:22:36', '2025-08-01 15:40:40');
 
 -- --------------------------------------------------------
 
@@ -588,7 +588,7 @@ CREATE TABLE `system_info` (
 INSERT INTO `system_info` (`id`, `meta_field`, `meta_value`, `smtp_host`, `smtp_username`, `smtp_password`, `smtp_port`, `smtp_secure`, `smtp_from_email`, `smtp_from_name`) VALUES
                                                                                                                                                                                  (1, 'name', '건설업 서류 관리 시스템', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
                                                                                                                                                                                  (6, 'short_name', 'CDMS', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
-                                                                                                                                                                                 (11, 'logo', 'uploads/1631064180_sample_compaby_logo.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (11, 'logo', 'uploads/1754271720_pnkdih_32id-0_logo.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
                                                                                                                                                                                  (13, 'user_avatar', 'uploads/user_avatar.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
                                                                                                                                                                                  (14, 'cover', 'uploads/1631064360_sample_bg.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
                                                                                                                                                                                  (15, 'company_name', '중부재해예방관리원', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
@@ -621,6 +621,15 @@ CREATE TABLE `upload_logs` (
                                `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- 테이블의 덤프 데이터 `upload_logs`
+--
+
+INSERT INTO `upload_logs` (`id`, `request_id`, `document_id`, `action`, `file_name`, `file_size`, `ip_address`, `user_agent`, `details`, `created_at`) VALUES
+                                                                                                                                                           (1, 4, 7, 'upload', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:27'),
+                                                                                                                                                           (2, 4, 7, 'delete', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:31'),
+                                                                                                                                                           (3, 4, 7, 'upload', 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:36');
+
 -- --------------------------------------------------------
 
 --
@@ -640,6 +649,14 @@ CREATE TABLE `upload_notifications` (
                                         `read_by` int(11) DEFAULT NULL COMMENT '읽은 사용자 ID',
                                         `read_at` datetime DEFAULT NULL COMMENT '읽은 시간'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- 테이블의 덤프 데이터 `upload_notifications`
+--
+
+INSERT INTO `upload_notifications` (`id`, `request_id`, `document_id`, `supplier_id`, `supplier_name`, `document_name`, `file_name`, `uploaded_at`, `is_read`, `read_by`, `read_at`) VALUES
+                                                                                                                                                                                         (1, 4, 7, 3, '강동명', 'C', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', '2025-08-04 13:22:27', 0, NULL, NULL),
+                                                                                                                                                                                         (2, 4, 7, 3, '강동명', 'C', 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', '2025-08-04 13:22:36', 0, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -1025,13 +1042,13 @@ ALTER TABLE `system_info`
 -- 테이블의 AUTO_INCREMENT `upload_logs`
 --
 ALTER TABLE `upload_logs`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- 테이블의 AUTO_INCREMENT `upload_notifications`
 --
 ALTER TABLE `upload_notifications`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- 테이블의 AUTO_INCREMENT `users`
