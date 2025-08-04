@@ -1195,7 +1195,7 @@ $categoryTree = getCategoryTree($conn);
         <div class="button-group">
             <button type="submit" class="btn-primary"><?php echo $is_edit ? '수정하기' : '저장하기' ?></button>
             <button type="reset" class="btn-secondary">초기화</button>
-            <button type="button" class="btn-secondary" onclick="window.print()">인쇄하기</button>
+            <button type="button" class="btn-secondary" onclick="printRequest()">인쇄하기</button>
         </div>
     </form>
 </div>
@@ -1787,6 +1787,26 @@ $categoryTree = getCategoryTree($conn);
             updateSelectedDocumentsList();
         });
     });
+
+    // 인쇄 요청 함수
+    function printRequest() {
+        <?php if ($is_edit): ?>
+            // 새 창에서 인쇄 페이지 열기
+            const printWindow = window.open(
+                './?page=document_requests/print_request&id=<?php echo $request_id; ?>',
+                'print_window',
+                'width=900,height=700,scrollbars=yes'
+            );
+
+            // 팝업 차단 확인
+            if (!printWindow) {
+                alert('팝업이 차단되었습니다. 팝업을 허용해주세요.');
+            }
+        <?php else: ?>
+            alert('저장 후 인쇄가 가능합니다.');
+        <?php endif; ?>
+    }
+
 </script>
 </body>
 </html>
