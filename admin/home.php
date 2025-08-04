@@ -77,6 +77,68 @@
     </div>
     <!-- /.col -->
 </div>
+
+<!-- 최근 업로드 알림 추가 -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bell"></i> 최근 업로드 알림
+                </h3>
+            </div>
+            <div class="card-body">
+                <div id="recent-uploads-list">
+                    <p class="text-center text-muted">최근 업로드 내역을 불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="container">
 
 </div>
+
+<script>
+    // 최근 업로드 표시
+    $(document).ready(function() {
+        loadRecentUploads();
+
+        // 30초마다 자동 갱신
+        setInterval(loadRecentUploads, 30000);
+    });
+
+    function loadRecentUploads() {
+        $.ajax({
+            url: 'ajax/get_notifications.php',
+            type: 'GET',
+            data: { action: 'get', limit: 5 },
+            dataType: 'json',
+            success: function(response) {
+                if(response.status === 'success' && response.notifications.length > 0) {
+                    let html = '<div class="list-group">';
+                    response.notifications.forEach(function(notif) {
+                        html += `
+                        <a href="./?page=document_requests/view_request&id=${notif.request_id}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${notif.supplier_name || '알 수 없는 업체'}</h6>
+                                <small>${notif.time_text}</small>
+                            </div>
+                            <p class="mb-1">${notif.document_name} 업로드</p>
+                            <small class="text-muted">${notif.file_name || ''}</small>
+                        </a>
+                    `;
+                    });
+                    html += '</div>';
+                    $('#recent-uploads-list').html(html);
+                } else {
+                    $('#recent-uploads-list').html('<p class="text-center text-muted">최근 업로드 내역이 없습니다.</p>');
+                }
+            },
+            error: function() {
+                $('#recent-uploads-list').html('<p class="text-center text-danger">데이터를 불러올 수 없습니다.</p>');
+            }
+        });
+    }
+</script>

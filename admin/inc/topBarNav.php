@@ -10,6 +10,32 @@
     .btn-rounded{
         border-radius: 50px;
     }
+
+    /* 알림음 토글 버튼 스타일 */
+    .sound-toggle-btn {
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 2px 8px;
+        transition: all 0.2s;
+        margin-right: 5px;
+    }
+
+    .sound-toggle-btn:hover {
+        color: #495057;
+        background: rgba(0,0,0,0.05);
+        border-radius: 3px;
+    }
+
+    .sound-toggle-btn.muted {
+        color: #dc3545;
+    }
+
+    .sound-toggle-btn.muted:hover {
+        background: rgba(220,53,69,0.1);
+    }
 </style>
 <!-- Navbar -->
 <nav class="main-header navbar navbar-expand navbar-light border border-light shadow  border-top-0  border-left-0 border-right-0 navbar-light text-sm">
@@ -45,6 +71,37 @@
             </form>
           </div>
         </li> -->
+
+        <!-- 알림 드롭다운 -->
+        <li class="nav-item dropdown notification-bell-wrapper">
+            <a class="nav-link notification-bell" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-bell"></i>
+                <span class="notification-badge badge badge-danger" style="display: none;">0</span>
+            </a>
+            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right notification-dropdown">
+                <div class="notification-header">
+                    <h6 class="mb-0">알림</h6>
+                    <div>
+                        <button class="sound-toggle-btn" onclick="toggleNotificationSound(); return false;" title="알림음 켜기/끄기">
+                            <i class="fas fa-volume-up" id="sound-toggle-icon"></i>
+                        </button>
+                        <a href="#" class="btn btn-sm btn-link" onclick="NotificationSystem.markAllRead(); return false;">모두 읽음</a>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="notification-list">
+                    <div class="notification-empty text-center py-3">
+                        <i class="fas fa-bell-slash fa-2x text-muted"></i>
+                        <p class="text-muted">새로운 알림이 없습니다</p>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="notification-footer text-center">
+                    <a href="./?page=document_requests">전체 알림 보기</a>
+                </div>
+            </div>
+        </li>
+
         <!-- Messages Dropdown Menu -->
         <li class="nav-item">
             <div class="btn-group nav-link">
@@ -71,3 +128,37 @@
     </ul>
 </nav>
 <!-- /.navbar -->
+
+<script>
+    // 알림음 토글 함수
+    function toggleNotificationSound() {
+        const isEnabled = NotificationSystem.toggleSound();
+        const icon = document.getElementById('sound-toggle-icon');
+        const btn = icon.parentElement;
+
+        if (isEnabled) {
+            icon.className = 'fas fa-volume-up';
+            btn.classList.remove('muted');
+            btn.title = '알림음 끄기';
+        } else {
+            icon.className = 'fas fa-volume-mute';
+            btn.classList.add('muted');
+            btn.title = '알림음 켜기';
+        }
+    }
+
+    // 페이지 로드 시 알림음 상태 확인
+    $(document).ready(function() {
+        // NotificationSystem이 초기화된 후 상태 확인
+        setTimeout(function() {
+            if (typeof NotificationSystem !== 'undefined' && !NotificationSystem.soundEnabled) {
+                const icon = document.getElementById('sound-toggle-icon');
+                if (icon) {
+                    icon.className = 'fas fa-volume-mute';
+                    icon.parentElement.classList.add('muted');
+                    icon.parentElement.title = '알림음 켜기';
+                }
+            }
+        }, 500);
+    });
+</script>
