@@ -656,42 +656,26 @@ Class Master extends DBConnection {
             $content = str_replace($key, $value, $content);
         }
 
-        // HTML 이메일 완전한 구조로 래핑
-        $full_html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style type="text/css">
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        a.email-button {
-            display: inline-block !important;
-            padding: 12px 30px !important;
-            background-color: #007bff !important;
-            color: white !important;
-            text-decoration: none !important;
-            border-radius: 5px !important;
-            font-weight: 500 !important;
-        }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        ' . $content . '
-    </div>
-</body>
-</html>';
+           // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
+        if(strpos($content, '<!DOCTYPE') === false) {
+               // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
+                $full_html = '<!DOCTYPE html>
+   <html>
+   <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   </head>
+   <body>
+       ' . $content . '
+   </body>
+   </html>';
+        } else {
+            // 이미 완전한 HTML 구조가 있으면 그대로 사용
+               $full_html = $content;
+           }
+
+
+
 
         // EmailSender 클래스 사용
         require_once('EmailSender.php');
