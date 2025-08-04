@@ -55,14 +55,6 @@ $type = $_settings->userdata('type');
                         </a>
                     </li>
 
-                    <!-- 진행 현황 -->
-                    <li class="nav-item dropdown">
-                        <a href="<?php echo base_url ?>admin/?page=document_status" class="nav-link nav-document_status">
-                            <i class="nav-icon fas fa-chart-bar"></i>
-                            <p>진행 현황</p>
-                        </a>
-                    </li>
-
                     <!-- 이메일 설정 - 모든 사용자가 볼 수 있도록 이동 -->
                     <li class="nav-item dropdown">
                         <a href="<?php echo base_url ?>admin/?page=email_settings" class="nav-link nav-email_settings">
