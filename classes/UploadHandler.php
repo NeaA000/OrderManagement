@@ -2,12 +2,15 @@
 // classes/UploadHandler.php
 
 require_once(__DIR__ . '/../initialize.php');
+require_once(__DIR__ . '/../vendor/autoload.php');
 
 class UploadHandler extends DBConnection {
     private $settings;
     private $upload_dir;
     private $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'hwp', 'hwpx'];
     private $max_size = 10485760; // 10MB
+    private $s3Client = null;
+    private $wasabi_config = null;
 
     function __construct() {
         global $_settings;
@@ -17,9 +20,41 @@ class UploadHandler extends DBConnection {
         // 업로드 디렉토리 설정 - 절대 경로 사용
         $this->upload_dir = __DIR__ . '/../uploads/documents/';
 
-        // 디렉토리 생성
-        if(!$this->createUploadDirectories()) {
-            throw new Exception('업로드 디렉토리를 생성할 수 없습니다.');
+        // Wasabi 설정 로드
+        $this->wasabi_config = $this->settings->get_wasabi_config();
+
+        // Wasabi 사용 시 S3 클라이언트 초기화
+        if($this->wasabi_config['use_wasabi']) {
+            $this->initializeS3Client();
+        } else {
+            // 로컬 저장 시 디렉토리 생성
+            if(!$this->createUploadDirectories()) {
+                throw new Exception('업로드 디렉토리를 생성할 수 없습니다.');
+            }
+        }
+    }
+
+    // S3 클라이언트 초기화
+    private function initializeS3Client() {
+        if($this->wasabi_config['use_wasabi'] && !$this->s3Client) {
+            try {
+                $this->s3Client = new \Aws\S3\S3Client([
+                    'version' => 'latest',
+                    'region' => $this->wasabi_config['region'],
+                    'endpoint' => $this->wasabi_config['endpoint'],
+                    'credentials' => [
+                        'key' => $this->wasabi_config['key'],
+                        'secret' => $this->wasabi_config['secret']
+                    ],
+                    'use_path_style_endpoint' => true,
+                    'http' => [
+                        'verify' => false // 개발 환경에서만 사용
+                    ]
+                ]);
+            } catch(Exception $e) {
+                error_log("S3 Client initialization failed: " . $e->getMessage());
+                throw new Exception('Wasabi 연결에 실패했습니다.');
+            }
         }
     }
 
@@ -77,56 +112,176 @@ class UploadHandler extends DBConnection {
             // 파일 정보 추출
             $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $file_name = $this->generateFileName($file['name'], $request_id, $document_id);
-            $upload_path = $this->getUploadPath() . $file_name;
 
-            // 디렉토리 존재 확인
-            $upload_dir = dirname($upload_path);
-            if(!is_dir($upload_dir)) {
-                if(!mkdir($upload_dir, 0755, true)) {
-                    return ['status' => 'error', 'msg' => '업로드 디렉토리를 생성할 수 없습니다.'];
-                }
+            if($this->wasabi_config['use_wasabi']) {
+                // Wasabi로 업로드
+                return $this->uploadToWasabi($file, $file_name, $request_id, $document_id);
+            } else {
+                // 로컬로 업로드
+                return $this->uploadToLocal($file, $file_name, $request_id, $document_id);
             }
-
-            // 파일 이동
-            if(!move_uploaded_file($file['tmp_name'], $upload_path)) {
-                $error = error_get_last();
-                error_log("File upload failed: " . print_r($error, true));
-                return ['status' => 'error', 'msg' => '파일 저장 중 오류가 발생했습니다.'];
-            }
-
-            // 파일 권한 설정
-            chmod($upload_path, 0644);
-
-            // 상대 경로로 변환 (DB 저장용)
-            $relative_path = str_replace(__DIR__ . '/../', '', $upload_path);
-
-            // DB 업데이트
-            if(!$this->updateDocumentStatus($document_id, $file_name, $relative_path, $file['size'])) {
-                // DB 업데이트 실패 시 업로드된 파일 삭제
-                unlink($upload_path);
-                return ['status' => 'error', 'msg' => '문서 정보 업데이트 중 오류가 발생했습니다.'];
-            }
-
-            // 업로드 로그 생성
-            $this->createUploadLog($request_id, $document_id, 'upload', $file_name);
-
-            // 실시간 알림 생성
-            $this->createUploadNotification($request_id, $document_id, $file_name);
-
-            // 전체 상태 확인 및 업데이트
-            $this->checkRequestCompletion($request_id);
-
-            return [
-                'status' => 'success',
-                'msg' => '파일이 성공적으로 업로드되었습니다.',
-                'file_name' => $file_name,
-                'file_path' => $relative_path
-            ];
 
         } catch(Exception $e) {
             error_log("Upload exception: " . $e->getMessage());
             return ['status' => 'error', 'msg' => '파일 업로드 중 오류가 발생했습니다.'];
         }
+    }
+
+    // Wasabi로 파일 업로드
+    private function uploadToWasabi($file, $file_name, $request_id, $document_id) {
+        try {
+            // S3 키 생성 (경로 포함)
+            $key = 'documents/' . date('Y') . '/' . date('m') . '/' . $file_name;
+
+            // 파일 MIME 타입 결정
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            // S3에 업로드
+            $result = $this->s3Client->putObject([
+                'Bucket' => $this->wasabi_config['bucket'],
+                'Key' => $key,
+                'SourceFile' => $file['tmp_name'],
+                'ContentType' => $mime_type,
+                'ACL' => 'private',
+                'Metadata' => [
+                    'request_id' => (string)$request_id,
+                    'document_id' => (string)$document_id,
+                    'original_name' => $file['name'],
+                    'uploaded_at' => date('Y-m-d H:i:s')
+                ]
+            ]);
+
+            // 업로드 성공 확인
+            if($result['@metadata']['statusCode'] !== 200) {
+                throw new Exception('Wasabi 업로드 실패');
+            }
+
+            // 공개 URL 생성 (필요한 경우)
+            $wasabi_url = $result['ObjectURL'];
+
+            // DB 업데이트 - uploaded_files 테이블에도 저장
+            $this->conn->begin_transaction();
+
+            try {
+                // request_documents 테이블 업데이트
+                if(!$this->updateDocumentStatus($document_id, $file_name, $key, $file['size'])) {
+                    throw new Exception('문서 상태 업데이트 실패');
+                }
+
+                // uploaded_files 테이블에 저장
+                $stmt = $this->conn->prepare("
+                    INSERT INTO uploaded_files (
+                        request_id, document_id, original_name, stored_name, 
+                        wasabi_key, wasabi_bucket, wasabi_region, wasabi_url, 
+                        file_size, mime_type, uploaded_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+
+                $uploaded_by = $this->settings->userdata('username') ?: 'system';
+
+                $stmt->bind_param("iissssssiss",
+                    $request_id,
+                    $document_id,
+                    $file['name'],
+                    $file_name,
+                    $key,
+                    $this->wasabi_config['bucket'],
+                    $this->wasabi_config['region'],
+                    $wasabi_url,
+                    $file['size'],
+                    $mime_type,
+                    $uploaded_by
+                );
+
+                if(!$stmt->execute()) {
+                    throw new Exception('uploaded_files 테이블 저장 실패');
+                }
+
+                $this->conn->commit();
+
+                // 업로드 로그 생성
+                $this->createUploadLog($request_id, $document_id, 'upload', $file_name);
+
+                // 실시간 알림 생성
+                $this->createUploadNotification($request_id, $document_id, $file_name);
+
+                // 전체 상태 확인 및 업데이트
+                $this->checkRequestCompletion($request_id);
+
+                return [
+                    'status' => 'success',
+                    'msg' => '파일이 Wasabi에 성공적으로 업로드되었습니다.',
+                    'file_name' => $file_name,
+                    'file_path' => $key,
+                    'storage' => 'wasabi'
+                ];
+
+            } catch(Exception $e) {
+                $this->conn->rollback();
+                // Wasabi에서 파일 삭제
+                $this->s3Client->deleteObject([
+                    'Bucket' => $this->wasabi_config['bucket'],
+                    'Key' => $key
+                ]);
+                throw $e;
+            }
+
+        } catch(Exception $e) {
+            error_log("Wasabi upload error: " . $e->getMessage());
+            return ['status' => 'error', 'msg' => 'Wasabi 업로드 중 오류가 발생했습니다: ' . $e->getMessage()];
+        }
+    }
+
+    // 로컬로 파일 업로드 (기존 코드)
+    private function uploadToLocal($file, $file_name, $request_id, $document_id) {
+        $upload_path = $this->getUploadPath() . $file_name;
+
+        // 디렉토리 존재 확인
+        $upload_dir = dirname($upload_path);
+        if(!is_dir($upload_dir)) {
+            if(!mkdir($upload_dir, 0755, true)) {
+                return ['status' => 'error', 'msg' => '업로드 디렉토리를 생성할 수 없습니다.'];
+            }
+        }
+
+        // 파일 이동
+        if(!move_uploaded_file($file['tmp_name'], $upload_path)) {
+            $error = error_get_last();
+            error_log("File upload failed: " . print_r($error, true));
+            return ['status' => 'error', 'msg' => '파일 저장 중 오류가 발생했습니다.'];
+        }
+
+        // 파일 권한 설정
+        chmod($upload_path, 0644);
+
+        // 상대 경로로 변환 (DB 저장용)
+        $relative_path = str_replace(__DIR__ . '/../', '', $upload_path);
+
+        // DB 업데이트
+        if(!$this->updateDocumentStatus($document_id, $file_name, $relative_path, $file['size'])) {
+            // DB 업데이트 실패 시 업로드된 파일 삭제
+            unlink($upload_path);
+            return ['status' => 'error', 'msg' => '문서 정보 업데이트 중 오류가 발생했습니다.'];
+        }
+
+        // 업로드 로그 생성
+        $this->createUploadLog($request_id, $document_id, 'upload', $file_name);
+
+        // 실시간 알림 생성
+        $this->createUploadNotification($request_id, $document_id, $file_name);
+
+        // 전체 상태 확인 및 업데이트
+        $this->checkRequestCompletion($request_id);
+
+        return [
+            'status' => 'success',
+            'msg' => '파일이 성공적으로 업로드되었습니다.',
+            'file_name' => $file_name,
+            'file_path' => $relative_path,
+            'storage' => 'local'
+        ];
     }
 
     // 파일 유효성 검사
@@ -385,13 +540,15 @@ class UploadHandler extends DBConnection {
         // EmailHandler 클래스를 사용하여 관리자에게 알림
     }
 
-    // 파일 삭제 처리 - status를 1로 체크하고 0으로 변경
+    // 파일 삭제 처리 - Wasabi 지원 추가
     public function deleteDocument($document_id) {
         try {
             // 문서 정보 조회
             $stmt = $this->conn->prepare("
-                SELECT * FROM `request_documents` 
-                WHERE id = ? AND status = 1
+                SELECT rd.*, uf.wasabi_key, uf.wasabi_bucket
+                FROM `request_documents` rd
+                LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
+                WHERE rd.id = ? AND rd.status = 1
             ");
 
             if(!$stmt) {
@@ -409,37 +566,67 @@ class UploadHandler extends DBConnection {
             $doc = $result->fetch_assoc();
             $stmt->close();
 
-            // 파일 삭제
-            $file_path = __DIR__ . '/../' . $doc['file_path'];
-            if(file_exists($file_path)) {
-                if(!unlink($file_path)) {
-                    return ['status' => 'error', 'msg' => '파일 삭제 중 오류가 발생했습니다.'];
+            // Wasabi에서 파일 삭제
+            if(!empty($doc['wasabi_key']) && $this->wasabi_config['use_wasabi']) {
+                try {
+                    $this->s3Client->deleteObject([
+                        'Bucket' => $doc['wasabi_bucket'] ?: $this->wasabi_config['bucket'],
+                        'Key' => $doc['wasabi_key']
+                    ]);
+                } catch(Exception $e) {
+                    error_log("Wasabi delete error: " . $e->getMessage());
+                }
+            } else {
+                // 로컬 파일 삭제
+                $file_path = __DIR__ . '/../' . $doc['file_path'];
+                if(file_exists($file_path)) {
+                    if(!unlink($file_path)) {
+                        return ['status' => 'error', 'msg' => '파일 삭제 중 오류가 발생했습니다.'];
+                    }
                 }
             }
 
-            // DB 업데이트 - status를 0으로 변경 (미제출)
-            $update_stmt = $this->conn->prepare("
-                UPDATE `request_documents` 
-                SET status = 0, file_name = NULL, file_path = NULL, 
-                    file_size = NULL, uploaded_at = NULL 
-                WHERE id = ?
-            ");
+            // DB 트랜잭션 시작
+            $this->conn->begin_transaction();
 
-            if(!$update_stmt) {
+            try {
+                // uploaded_files 테이블에서 삭제
+                $del_upload = $this->conn->prepare("DELETE FROM `uploaded_files` WHERE document_id = ?");
+                $del_upload->bind_param("i", $document_id);
+                $del_upload->execute();
+                $del_upload->close();
+
+                // request_documents 테이블 업데이트
+                $update_stmt = $this->conn->prepare("
+                    UPDATE `request_documents` 
+                    SET status = 0, file_name = NULL, file_path = NULL, 
+                        file_size = NULL, uploaded_at = NULL 
+                    WHERE id = ?
+                ");
+
+                if(!$update_stmt) {
+                    throw new Exception('데이터베이스 업데이트 실패');
+                }
+
+                $update_stmt->bind_param("i", $document_id);
+                $update_stmt->execute();
+                $update_stmt->close();
+
+                $this->conn->commit();
+
+                // 삭제 로그
+                $this->createUploadLog($doc['request_id'], $document_id, 'delete', $doc['file_name']);
+
+                // 요청 상태 재확인
+                $this->updateRequestStatus($doc['request_id']);
+
+                return ['status' => 'success', 'msg' => '파일이 삭제되었습니다.'];
+
+            } catch(Exception $e) {
+                $this->conn->rollback();
+                error_log("Delete transaction error: " . $e->getMessage());
                 return ['status' => 'error', 'msg' => '데이터베이스 업데이트 중 오류가 발생했습니다.'];
             }
-
-            $update_stmt->bind_param("i", $document_id);
-            $update_stmt->execute();
-            $update_stmt->close();
-
-            // 삭제 로그
-            $this->createUploadLog($doc['request_id'], $document_id, 'delete', $doc['file_name']);
-
-            // 요청 상태 재확인
-            $this->updateRequestStatus($doc['request_id']);
-
-            return ['status' => 'success', 'msg' => '파일이 삭제되었습니다.'];
 
         } catch(Exception $e) {
             error_log("Delete error: " . $e->getMessage());
@@ -464,6 +651,26 @@ class UploadHandler extends DBConnection {
             }
         } catch(Exception $e) {
             error_log("Update request status error: " . $e->getMessage());
+        }
+    }
+
+    // Wasabi에서 파일 URL 생성 (임시 URL)
+    public function getWasabiFileUrl($key, $expires = 3600) {
+        if(!$this->wasabi_config['use_wasabi'] || !$this->s3Client) {
+            return null;
+        }
+
+        try {
+            $cmd = $this->s3Client->getCommand('GetObject', [
+                'Bucket' => $this->wasabi_config['bucket'],
+                'Key' => $key
+            ]);
+
+            $request = $this->s3Client->createPresignedRequest($cmd, '+' . $expires . ' seconds');
+            return (string) $request->getUri();
+        } catch(Exception $e) {
+            error_log("Wasabi URL generation error: " . $e->getMessage());
+            return null;
         }
     }
 }

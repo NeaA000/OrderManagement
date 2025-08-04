@@ -562,9 +562,8 @@ Class Master extends DBConnection {
         }
 
         // 업로드 링크 생성
-        $upload_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") .
-            "://$_SERVER[HTTP_HOST]" . dirname(dirname($_SERVER['REQUEST_URI'])) .
-            "/upload_portal/?token=" . $request['upload_token'];
+        // base_url 상수를 사용하여 정확한 경로 생성
+        $upload_link = base_url . "admin/upload_portal/?token=" . $request['upload_token'];
 
         // 업로드 링크를 버튼 HTML로 생성 (인라인 스타일 완전 적용)
         $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
@@ -929,6 +928,79 @@ Class Master extends DBConnection {
 
         return json_encode($result);
     }
+
+    // Wasabi 연결 테스트
+    public function test_wasabi() {
+        extract($_POST);
+        
+        // 입력값 검증
+        if(empty($key) || empty($secret) || empty($bucket)) {
+            return json_encode([
+                'status' => 'failed',
+                'msg' => 'Access Key, Secret Key, Bucket 이름은 필수입니다.'
+            ]);
+        }
+        
+        // Composer autoload 포함
+        require_once('../vendor/autoload.php');
+        
+        try {
+            // S3 클라이언트 설정
+            $s3Client = new \Aws\S3\S3Client([
+                'version' => 'latest',
+                'region' => $region ?: 'ap-northeast-1',
+                'endpoint' => $endpoint ?: 'https://s3.ap-northeast-1.wasabisys.com',
+                'credentials' => [
+                    'key' => $key,
+                    'secret' => $secret
+                ],
+                'use_path_style_endpoint' => true,
+                'http' => [
+                    'verify' => false // 개발 환경에서 SSL 검증 비활성화
+                ]
+            ]);
+            
+            // 버킷 존재 확인
+            $result = $s3Client->headBucket([
+                'Bucket' => $bucket
+            ]);
+            
+            // 테스트 파일 업로드 시도
+            $testKey = 'test/connection-test-' . time() . '.txt';
+            $s3Client->putObject([
+                'Bucket' => $bucket,
+                'Key' => $testKey,
+                'Body' => 'Connection test successful at ' . date('Y-m-d H:i:s'),
+                'ContentType' => 'text/plain'
+            ]);
+            
+            // 테스트 파일 삭제
+            $s3Client->deleteObject([
+                'Bucket' => $bucket,
+                'Key' => $testKey
+            ]);
+            
+            return json_encode([
+                'status' => 'success',
+                'msg' => '연결 성공! 버킷에 접근 가능합니다.'
+            ]);
+            
+        } catch (\Aws\S3\Exception\S3Exception $e) {
+            $errorCode = $e->getAwsErrorCode();
+            $errorMsg = match($errorCode) {
+                'InvalidAccessKeyId' => 'Access Key가 올바르지 않습니다.',
+                'SignatureDoesNotMatch' => 'Secret Key가 올바르지 않습니다.',
+                'NoSuchBucket' => '버킷을 찾을 수 없습니다.',
+                'AccessDenied' => '접근 권한이 없습니다.',
+                default => '연결 실패: ' . $e->getMessage()
+            };
+            
+            return json_encode([
+                'status' => 'failed',
+                'msg' => $errorMsg
+            ]);
+        }
+    }
 }
 
 $Master = new Master();
@@ -991,6 +1063,9 @@ switch ($action) {
         break;
     case 'send_test_email':
         echo $Master->send_test_email();
+        break;
+    case 'test_wasabi':
+        echo $Master->test_wasabi();
         break;
     default:
         // echo $sysset->index();

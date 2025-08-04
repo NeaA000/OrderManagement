@@ -1,0 +1,22 @@
+{
+  "name": "cdms/document-management",
+  "description": "Construction Document Management System",
+  "type": "project",
+  "require": {
+    "php": ">=7.4",
+    "aws/aws-sdk-php": "^3.300",
+    "phpmailer/phpmailer": "^6.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "classes/"
+    }
+  },
+  "config": {
+    "platform": {
+      "php": "7.4"
+    },
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

@@ -33,6 +33,11 @@ class SystemSettings extends DBConnection{
         foreach ($_POST as $key => $value) {
             // about_us와 privacy_policy를 제외한 모든 필드 처리
             if(!in_array($key,array("about_us","privacy_policy"))){
+                // Wasabi Secret Key는 암호화하여 저장
+                if($key == 'wasabi_secret' && !empty($value)){
+                    $value = $this->encrypt_data($value);
+                }
+
                 if(isset($_SESSION['system_info'][$key])){
                     $value = str_replace("'", "&apos;", $value);
                     $qry = $this->conn->query("UPDATE system_info set meta_value = '{$value}' where meta_field = '{$key}' ");
@@ -79,6 +84,58 @@ class SystemSettings extends DBConnection{
         }
         return 0; // 실패 시 0 반환
     }
+
+    // 데이터 암호화
+    function encrypt_data($data) {
+        $key = $this->get_encryption_key();
+        $cipher = "AES-256-CBC";
+        $ivlen = openssl_cipher_iv_length($cipher);
+        $iv = openssl_random_pseudo_bytes($ivlen);
+        $ciphertext = openssl_encrypt($data, $cipher, $key, 0, $iv);
+        return base64_encode($iv . $ciphertext);
+    }
+
+    // 데이터 복호화
+    function decrypt_data($data) {
+        if(empty($data)) return '';
+
+        $key = $this->get_encryption_key();
+        $cipher = "AES-256-CBC";
+        $data = base64_decode($data);
+        $ivlen = openssl_cipher_iv_length($cipher);
+        $iv = substr($data, 0, $ivlen);
+        $ciphertext = substr($data, $ivlen);
+        return openssl_decrypt($ciphertext, $cipher, $key, 0, $iv);
+    }
+
+    // 암호화 키 가져오기
+    private function get_encryption_key() {
+        // DB에서 암호화 키 가져오기
+        $key = $this->info('encryption_key');
+
+        // 키가 없으면 기본 키 사용 (보안상 권장하지 않음)
+        if(empty($key)) {
+            $key = 'cdms-default-encryption-key-2025';
+        }
+
+        // 32자로 맞추기
+        return substr(hash('sha256', $key), 0, 32);
+    }
+
+    // Wasabi 설정 가져오기 (복호화 포함)
+    function get_wasabi_config() {
+        $config = [
+            'use_wasabi' => $this->info('use_wasabi') === 'true',
+            'key' => $this->info('wasabi_key'),
+            'secret' => $this->decrypt_data($this->info('wasabi_secret')),
+            'bucket' => $this->info('wasabi_bucket'),
+            'region' => $this->info('wasabi_region') ?: 'ap-northeast-1',
+            'endpoint' => $this->info('wasabi_endpoint') ?: 'https://s3.ap-northeast-1.wasabisys.com'
+        ];
+
+        return $config;
+    }
+
     function set_userdata($field='',$value=''){
         if(!empty($field) && !empty($value)){
             $_SESSION['userdata'][$field]= $value;

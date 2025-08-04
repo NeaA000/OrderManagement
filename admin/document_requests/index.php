@@ -124,8 +124,10 @@
             _conf("정말로 이 요청을 삭제하시겠습니까?","delete_request",[$(this).attr('data-id')])
         })
 
+        // 이메일 전송 수정
         $('.send_email').click(function(){
-            uni_modal("이메일 전송","document_requests/send_email.php?id="+$(this).attr('data-id'),"mid-large")
+            var id = $(this).attr('data-id');
+            _conf("이메일을 전송하시겠습니까?", "send_email", [id]);
         })
 
         $('.copy_link').click(function(){
@@ -165,6 +167,33 @@
                     location.reload();
                 }else{
                     alert_toast("An error occured.",'error');
+                    end_loader();
+                }
+            }
+        })
+    }
+
+    // 이메일 전송 함수 추가
+    function send_email(id){
+        start_loader();
+        $.ajax({
+            url:_base_url_+"classes/Master.php?f=send_request_email",
+            method:"POST",
+            data:{id: id},
+            dataType:"json",
+            error:err=>{
+                console.log(err)
+                alert_toast("이메일 전송 중 오류가 발생했습니다.",'error');
+                end_loader();
+            },
+            success:function(resp){
+                if(typeof resp== 'object' && resp.status == 'success'){
+                    alert_toast("이메일이 성공적으로 전송되었습니다.",'success');
+                    setTimeout(function(){
+                        location.reload();
+                    }, 1500);
+                }else{
+                    alert_toast(resp.msg || "이메일 전송에 실패했습니다.",'error');
                     end_loader();
                 }
             }

@@ -1,0 +1,44 @@
+# PHP Composer dependencies
+/vendor/
+composer.lock
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+
+# Log files
+*.log
+error_log
+/logs/
+
+# Upload directories (optional - 로컬 업로드 파일 제외)
+/uploads/documents/
+/uploads/temp/
+
+# Cache files
+/cache/
+*.cache
+
+# Config files with sensitive data (if any)
+config/database.local.php
+config/wasabi.local.php
+
+# Backup files
+*.bak
+*.backup
+*.sql
+
+# Temporary files
+*.tmp
+*.temp
+~*

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- 생성 시간: 25-08-04 06:23
+-- 생성 시간: 25-08-04 07:53
 -- 서버 버전: 10.4.32-MariaDB
 -- PHP 버전: 8.2.12
 
@@ -143,8 +143,7 @@ CREATE TABLE `document_cost_details` (
 --
 
 INSERT INTO `document_cost_details` (`id`, `request_id`, `safety_plan_cost`, `hazard_prevention_cost`, `structure_review_cost`, `structure_review_agency`, `plan_review_cost`, `plan_review_agency`, `safety_health_cost`, `education_facility_cost`, `railway_protection_cost`, `evaluation_cost`) VALUES
-                                                                                                                                                                                                                                                                                                        (3, 3, NULL, NULL, '111', '', '111', '111', NULL, NULL, NULL, ''),
-                                                                                                                                                                                                                                                                                                        (4, 4, NULL, NULL, '123', '', '122', '', NULL, NULL, NULL, '');
+    (5, 5, '111', NULL, NULL, '', '122', '', NULL, NULL, NULL, '');
 
 -- --------------------------------------------------------
 
@@ -172,8 +171,7 @@ CREATE TABLE `document_requests` (
 --
 
 INSERT INTO `document_requests` (`id`, `request_no`, `supplier_id`, `project_name`, `due_date`, `additional_notes`, `upload_token`, `status`, `email_sent_at`, `created_by`, `date_created`, `date_updated`) VALUES
-                                                                                                                                                                                                                 (3, 'REQ-20250801-001', 3, '전천 지방하천 정비사업', '0000-00-00', '', '65cae70c0c495cad580601a043366f7e7f724c9b38cff7ab5297e73b66eb90bd', 0, NULL, 5, '2025-08-01 14:28:17', NULL),
-                                                                                                                                                                                                                 (4, 'REQ-20250801-002', 3, 'ㅁㅁㅁㅁㅁㅁ', '0000-00-00', '', '5ed3d214523f00e53a06f7913575b4a6e712904529f8eb238aceae40460b38f3', 1, '2025-08-04 10:06:53', 1, '2025-08-01 15:40:40', '2025-08-04 10:06:53');
+    (5, 'REQ-20250804-001', 3, '전천 지방하천 정비사업', '9999-12-31', '', '9dc1b959a918af7cc28b24b6462fd55b5e447dde39956a12bf8ccc20d7a70c23', 1, '2025-08-04 13:28:03', 1, '2025-08-04 13:26:59', '2025-08-04 13:28:03');
 
 -- --------------------------------------------------------
 
@@ -200,8 +198,7 @@ CREATE TABLE `document_request_details` (
 --
 
 INSERT INTO `document_request_details` (`id`, `request_id`, `construction_method`, `manager_name`, `manager_contact`, `manager_email`, `director_name`, `director_contact`, `order_date`, `total_cost`, `vat_included`) VALUES
-                                                                                                                                                                                                                            (3, 3, '', '', '', '', '', '', '2025-08-11', '244', 1),
-                                                                                                                                                                                                                            (4, 4, '단독', '', '', '', '', '', '2025-08-14', '245', 0);
+    (5, 5, '단독', '', '', '', '', '', '2025-08-04', '256', 1);
 
 -- --------------------------------------------------------
 
@@ -229,8 +226,7 @@ CREATE TABLE `document_targets` (
 --
 
 INSERT INTO `document_targets` (`id`, `request_id`, `safety_plan_type`, `review_agency`, `hazard_prevention_type`, `safety_health_agency`, `safety_health_ledger_type`, `evaluation_type`, `education_facility`, `education_office`, `railway_protection`, `railway_manager`) VALUES
-                                                                                                                                                                                                                                                                                  (3, 3, '2종', '국토안전관리원', '교량', '', '', '공사', '', '', '', ''),
-                                                                                                                                                                                                                                                                                  (4, 4, '1종', '국토안전관리원', '', '', '설계', '설계', '', '', '', '');
+    (5, 5, '1종', '국토안전관리원', '굴착10m이상', '', '설계', '설계', '', '', '', '');
 
 -- --------------------------------------------------------
 
@@ -268,8 +264,7 @@ CREATE TABLE `document_writers` (
 --
 
 INSERT INTO `document_writers` (`id`, `request_id`, `main_writer`, `revenue_manager`, `field_writers`) VALUES
-                                                                                                           (3, 3, '', '', ''),
-                                                                                                           (4, 4, '', '', '');
+    (5, 5, '', '', '');
 
 -- --------------------------------------------------------
 
@@ -425,13 +420,6 @@ CREATE TABLE `order_items` (
                                `quantity` float NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- 테이블의 덤프 데이터 `order_items`
---
-
-INSERT INTO `order_items` (`po_id`, `item_id`, `unit`, `unit_price`, `quantity`) VALUES
-    (2, 1, 'pcs', 3788.99, 10);
-
 -- --------------------------------------------------------
 
 --
@@ -452,13 +440,6 @@ CREATE TABLE `po_list` (
                            `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- 테이블의 덤프 데이터 `po_list`
---
-
-INSERT INTO `po_list` (`id`, `po_no`, `supplier_id`, `discount_percentage`, `discount_amount`, `tax_percentage`, `tax_amount`, `notes`, `status`, `date_created`, `date_updated`) VALUES
-    (2, 'PO-92093417806', 2, 1, 378.899, 12, 4546.79, 'Sample', 1, '2021-09-08 15:49:55', '2025-07-31 17:01:31');
-
 -- --------------------------------------------------------
 
 --
@@ -478,17 +459,17 @@ CREATE TABLE `request_documents` (
                                      `upload_method` enum('file_upload','web_form') DEFAULT 'file_upload' COMMENT '제출 방식',
                                      `form_data` longtext DEFAULT NULL COMMENT '웹폼 작성 데이터 (JSON)',
                                      `uploaded_at` datetime DEFAULT NULL COMMENT '업로드 시간',
-                                     `date_created` datetime DEFAULT current_timestamp()
+                                     `date_created` datetime DEFAULT current_timestamp(),
+                                     `file_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- 테이블의 덤프 데이터 `request_documents`
 --
 
-INSERT INTO `request_documents` (`id`, `request_id`, `category_id`, `document_name`, `is_required`, `status`, `file_name`, `file_path`, `file_size`, `upload_method`, `form_data`, `uploaded_at`, `date_created`) VALUES
-                                                                                                                                                                                                                      (5, 3, 37, 'A', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
-                                                                                                                                                                                                                      (6, 3, 38, 'B', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
-                                                                                                                                                                                                                      (7, 4, 39, 'C', 1, 1, 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', 'uploads/documents/2025/08/REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', 27935, 'file_upload', NULL, '2025-08-04 13:22:36', '2025-08-01 15:40:40');
+INSERT INTO `request_documents` (`id`, `request_id`, `category_id`, `document_name`, `is_required`, `status`, `file_name`, `file_path`, `file_size`, `upload_method`, `form_data`, `uploaded_at`, `date_created`, `file_id`) VALUES
+                                                                                                                                                                                                                                 (8, 5, 37, 'A', 1, 1, 'REQ5_DOC8_보안_체크리스트_문서_1754283787.docx', 'uploads/documents/2025/08/REQ5_DOC8_보안_체크리스트_문서_1754283787.docx', 27935, 'file_upload', NULL, '2025-08-04 14:03:07', '2025-08-04 13:26:59', NULL),
+                                                                                                                                                                                                                                 (9, 5, 38, 'B', 1, 1, 'REQ5_DOC9_에시화면_1754286483.docx', 'uploads/documents/2025/08/REQ5_DOC9_에시화면_1754286483.docx', 769699, 'file_upload', NULL, '2025-08-04 14:48:03', '2025-08-04 13:26:59', NULL);
 
 -- --------------------------------------------------------
 
@@ -559,8 +540,7 @@ CREATE TABLE `supplier_list` (
 --
 
 INSERT INTO `supplier_list` (`id`, `name`, `address`, `contact_person`, `contact`, `email`, `status`, `date_created`) VALUES
-                                                                                                                          (2, 'Supplier 102', 'Supplier 102 Address, 23rd St, Sample City, Test Province, ####', 'Samantha Lou', '09332145889', 'sLou@supplier102.com', 1, '2021-09-08 10:25:12'),
-                                                                                                                          (3, '강동명', '용인시 처인구 이원로 601번길 84', '강동명', '01025304351', 'gangdongmyung@gmail.com', 1, '2025-08-01 09:55:18');
+    (3, '(주)한국', '용인시 처인구 이원로 601번길 84', 'ABC', '01025304351', 'gangdongmyung@gmail.com', 1, '2025-08-01 09:55:18');
 
 -- --------------------------------------------------------
 
@@ -605,6 +585,32 @@ INSERT INTO `system_info` (`id`, `meta_field`, `meta_value`, `smtp_host`, `smtp_
 -- --------------------------------------------------------
 
 --
+-- 테이블 구조 `uploaded_files`
+--
+
+CREATE TABLE `uploaded_files` (
+                                  `id` int(11) NOT NULL,
+                                  `request_id` int(11) NOT NULL,
+                                  `document_id` int(11) NOT NULL,
+                                  `project_id` int(11) DEFAULT NULL,
+                                  `original_name` varchar(255) NOT NULL,
+                                  `stored_name` varchar(255) NOT NULL,
+                                  `wasabi_key` text NOT NULL,
+                                  `wasabi_bucket` varchar(100) DEFAULT NULL,
+                                  `wasabi_region` varchar(50) DEFAULT 'ap-northeast-1',
+                                  `wasabi_url` text DEFAULT NULL,
+                                  `file_size` bigint(20) NOT NULL,
+                                  `mime_type` varchar(100) DEFAULT NULL,
+                                  `checksum` varchar(64) DEFAULT NULL,
+                                  `uploaded_by` varchar(100) DEFAULT NULL,
+                                  `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                                  `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+                                  `metadata` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`metadata`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- 테이블 구조 `upload_logs`
 --
 
@@ -628,7 +634,13 @@ CREATE TABLE `upload_logs` (
 INSERT INTO `upload_logs` (`id`, `request_id`, `document_id`, `action`, `file_name`, `file_size`, `ip_address`, `user_agent`, `details`, `created_at`) VALUES
                                                                                                                                                            (1, 4, 7, 'upload', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:27'),
                                                                                                                                                            (2, 4, 7, 'delete', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:31'),
-                                                                                                                                                           (3, 4, 7, 'upload', 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:36');
+                                                                                                                                                           (3, 4, 7, 'upload', 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:22:36'),
+                                                                                                                                                           (4, 5, 8, 'upload', 'REQ5_DOC8_보안_체크리스트_문서_1754281698.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:28:18'),
+                                                                                                                                                           (5, 5, 9, 'upload', 'REQ5_DOC9_에시화면_1754281702.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:28:22'),
+                                                                                                                                                           (6, 5, 8, 'delete', 'REQ5_DOC8_보안_체크리스트_문서_1754281698.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:55:09'),
+                                                                                                                                                           (7, 5, 9, 'delete', 'REQ5_DOC9_에시화면_1754281702.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 13:55:12'),
+                                                                                                                                                           (8, 5, 8, 'upload', 'REQ5_DOC8_보안_체크리스트_문서_1754283787.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 14:03:07'),
+                                                                                                                                                           (9, 5, 9, 'upload', 'REQ5_DOC9_에시화면_1754286483.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-04 14:48:03');
 
 -- --------------------------------------------------------
 
@@ -655,8 +667,10 @@ CREATE TABLE `upload_notifications` (
 --
 
 INSERT INTO `upload_notifications` (`id`, `request_id`, `document_id`, `supplier_id`, `supplier_name`, `document_name`, `file_name`, `uploaded_at`, `is_read`, `read_by`, `read_at`) VALUES
-                                                                                                                                                                                         (1, 4, 7, 3, '강동명', 'C', 'REQ4_DOC7_보안_체크리스트_문서_1754281347.docx', '2025-08-04 13:22:27', 0, NULL, NULL),
-                                                                                                                                                                                         (2, 4, 7, 3, '강동명', 'C', 'REQ4_DOC7_보안_체크리스트_문서_1754281356.docx', '2025-08-04 13:22:36', 0, NULL, NULL);
+                                                                                                                                                                                         (3, 5, 8, 3, '(주)한국', 'A', 'REQ5_DOC8_보안_체크리스트_문서_1754281698.docx', '2025-08-04 13:28:18', 0, NULL, NULL),
+                                                                                                                                                                                         (4, 5, 9, 3, '(주)한국', 'B', 'REQ5_DOC9_에시화면_1754281702.docx', '2025-08-04 13:28:22', 0, NULL, NULL),
+                                                                                                                                                                                         (5, 5, 8, 3, '(주)한국', 'A', 'REQ5_DOC8_보안_체크리스트_문서_1754283787.docx', '2025-08-04 14:03:07', 0, NULL, NULL),
+                                                                                                                                                                                         (6, 5, 9, 3, '(주)한국', 'B', 'REQ5_DOC9_에시화면_1754286483.docx', '2025-08-04 14:48:03', 0, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -711,8 +725,7 @@ CREATE TABLE `workflow_status` (
 --
 
 INSERT INTO `workflow_status` (`id`, `request_id`, `current_step`, `step_name`, `step_description`, `started_at`, `completed_at`, `assigned_to`, `notes`, `is_current`, `created_at`) VALUES
-                                                                                                                                                                                          (3, 3, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-01 14:28:17', NULL, 5, NULL, 1, '2025-08-01 14:28:17'),
-                                                                                                                                                                                          (4, 4, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-01 15:40:40', NULL, 1, NULL, 1, '2025-08-01 15:40:40');
+    (5, 5, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-04 13:26:59', NULL, 1, NULL, 1, '2025-08-04 13:26:59');
 
 --
 -- 덤프된 테이블의 인덱스
@@ -847,7 +860,8 @@ ALTER TABLE `po_list`
 ALTER TABLE `request_documents`
     ADD PRIMARY KEY (`id`),
   ADD KEY `request_id` (`request_id`),
-  ADD KEY `category_id` (`category_id`);
+  ADD KEY `category_id` (`category_id`),
+  ADD KEY `fk_document_file` (`file_id`);
 
 --
 -- 테이블의 인덱스 `review_credentials`
@@ -874,6 +888,17 @@ ALTER TABLE `supplier_list`
 --
 ALTER TABLE `system_info`
     ADD PRIMARY KEY (`id`);
+
+--
+-- 테이블의 인덱스 `uploaded_files`
+--
+ALTER TABLE `uploaded_files`
+    ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_request` (`request_id`),
+  ADD KEY `idx_project` (`project_id`),
+  ADD KEY `idx_wasabi_key` (`wasabi_key`(255)),
+  ADD KEY `idx_uploaded_at` (`uploaded_at`),
+  ADD KEY `fk_uploaded_document` (`document_id`);
 
 --
 -- 테이블의 인덱스 `upload_logs`
@@ -934,25 +959,25 @@ ALTER TABLE `document_costs`
 -- 테이블의 AUTO_INCREMENT `document_cost_details`
 --
 ALTER TABLE `document_cost_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_requests`
 --
 ALTER TABLE `document_requests`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_request_details`
 --
 ALTER TABLE `document_request_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_targets`
 --
 ALTER TABLE `document_targets`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_uploads`
@@ -964,7 +989,7 @@ ALTER TABLE `document_uploads`
 -- 테이블의 AUTO_INCREMENT `document_writers`
 --
 ALTER TABLE `document_writers`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `email_logs`
@@ -1012,7 +1037,7 @@ ALTER TABLE `po_list`
 -- 테이블의 AUTO_INCREMENT `request_documents`
 --
 ALTER TABLE `request_documents`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- 테이블의 AUTO_INCREMENT `review_credentials`
@@ -1039,16 +1064,22 @@ ALTER TABLE `system_info`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
+-- 테이블의 AUTO_INCREMENT `uploaded_files`
+--
+ALTER TABLE `uploaded_files`
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- 테이블의 AUTO_INCREMENT `upload_logs`
 --
 ALTER TABLE `upload_logs`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- 테이블의 AUTO_INCREMENT `upload_notifications`
 --
 ALTER TABLE `upload_notifications`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- 테이블의 AUTO_INCREMENT `users`
@@ -1060,7 +1091,7 @@ ALTER TABLE `users`
 -- 테이블의 AUTO_INCREMENT `workflow_status`
 --
 ALTER TABLE `workflow_status`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 덤프된 테이블의 제약사항
@@ -1151,7 +1182,8 @@ ALTER TABLE `po_list`
 -- 테이블의 제약사항 `request_documents`
 --
 ALTER TABLE `request_documents`
-    ADD CONSTRAINT `request_documents_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    ADD CONSTRAINT `fk_document_file` FOREIGN KEY (`file_id`) REFERENCES `uploaded_files` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `request_documents_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
   ADD CONSTRAINT `request_documents_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `document_categories` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 --
@@ -1159,6 +1191,13 @@ ALTER TABLE `request_documents`
 --
 ALTER TABLE `review_credentials`
     ADD CONSTRAINT `review_credentials_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
+
+--
+-- 테이블의 제약사항 `uploaded_files`
+--
+ALTER TABLE `uploaded_files`
+    ADD CONSTRAINT `fk_uploaded_document` FOREIGN KEY (`document_id`) REFERENCES `request_documents` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_uploaded_request` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
 
 --
 -- 테이블의 제약사항 `upload_notifications`

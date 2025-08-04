@@ -28,13 +28,13 @@ if(!isset($_GET['token']) || empty($_GET['token'])) {
 
 $token = $conn->real_escape_string($_GET['token']);
 
-// 요청 정보 조회 (project_list 테이블 없이 직접 project_name 사용)
+// 요청 정보 조회 - status 조건 제거 (0, 1 모두 허용)
 $qry = $conn->query("
     SELECT dr.*, dr.project_name, s.name as supplier_name, 
            s.email as supplier_email, dr.created_by
     FROM `document_requests` dr 
     LEFT JOIN `supplier_list` s ON dr.supplier_id = s.id 
-    WHERE dr.upload_token = '{$token}' AND dr.status = 1
+    WHERE dr.upload_token = '{$token}' AND dr.status IN (0, 1)
 ");
 
 if($qry->num_rows <= 0) {
@@ -61,6 +61,30 @@ if($qry->num_rows <= 0) {
 }
 
 $request = $qry->fetch_assoc();
+
+// 요청이 완료 상태(2)인 경우 업로드 차단
+if($request['status'] == 2) {
+    die('<html>
+    <head>
+        <meta charset="utf-8">
+        <title>완료된 요청</title>
+        <style>
+            body { font-family: "Noto Sans KR", sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+            .error-icon { font-size: 48px; color: #28a745; margin-bottom: 20px; }
+            h2 { color: #333; margin-bottom: 10px; }
+            p { color: #666; }
+        </style>
+    </head>
+    <body>
+        <div class="error-box">
+            <div class="error-icon">✅</div>
+            <h2>이미 완료된 요청입니다</h2>
+            <p>모든 서류가 제출되어 요청이 완료되었습니다.</p>
+        </div>
+    </body>
+    </html>');
+}
 
 // 마감일 체크 (마감일이 설정된 경우만)
 if(!empty($request['due_date']) && $request['due_date'] != '0000-00-00' && strtotime($request['due_date']) < strtotime('today')) {
@@ -241,11 +265,11 @@ if($total_documents > 0) {
                     <?php endif; ?>
                 </div>
             </div>
-            <?php if(!empty($request['remarks'])): ?>
+            <?php if(!empty($request['additional_notes'])): ?>
                 <div class="mt-3">
                     <strong>요청 사항:</strong>
                     <div class="alert alert-info mt-2 mb-0">
-                        <?php echo nl2br($request['remarks']) ?>
+                        <?php echo nl2br($request['additional_notes']) ?>
                     </div>
                 </div>
             <?php endif; ?>

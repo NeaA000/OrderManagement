@@ -132,6 +132,89 @@
                     <small class="text-muted ml-2">설정을 저장한 후 테스트하세요</small>
                 </div>
 
+                <!-- Wasabi 클라우드 스토리지 설정 추가 -->
+                <br>
+                <h5 class="text-primary">클라우드 스토리지 설정 (Wasabi)</h5>
+                <hr>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Wasabi는 AWS S3 호환 클라우드 스토리지 서비스입니다.
+                    파일을 클라우드에 저장하면 서버 용량을 절약하고 안정적인 파일 관리가 가능합니다.
+                </div>
+
+                <div class="form-group">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="use_wasabi" name="use_wasabi" value="true" <?php echo $_settings->info('use_wasabi') === 'true' ? 'checked' : '' ?>>
+                        <label class="custom-control-label" for="use_wasabi">Wasabi 클라우드 스토리지 사용</label>
+                    </div>
+                    <small class="text-muted">체크하면 파일을 Wasabi에 저장합니다. 체크 해제 시 로컬 서버에 저장됩니다.</small>
+                </div>
+
+                <div id="wasabi-settings" style="<?php echo $_settings->info('use_wasabi') === 'true' ? '' : 'display: none;' ?>">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="wasabi_key" class="control-label">Access Key <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="wasabi_key" name="wasabi_key"
+                                       value="<?php echo $_settings->info('wasabi_key') ?>"
+                                       placeholder="Wasabi Access Key">
+                                <small class="text-muted">Wasabi 콘솔에서 발급받은 Access Key</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="wasabi_secret" class="control-label">Secret Key <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control form-control-sm" id="wasabi_secret" name="wasabi_secret"
+                                       placeholder="변경하려면 새 키를 입력하세요">
+                                <small class="text-muted">Secret Key는 암호화되어 저장됩니다</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="wasabi_bucket" class="control-label">Bucket 이름 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="wasabi_bucket" name="wasabi_bucket"
+                                       value="<?php echo $_settings->info('wasabi_bucket') ?>"
+                                       placeholder="my-bucket-name">
+                                <small class="text-muted">파일을 저장할 Wasabi Bucket 이름</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="wasabi_region" class="control-label">Region</label>
+                                <select class="form-control form-control-sm" id="wasabi_region" name="wasabi_region">
+                                    <option value="us-east-1" <?php echo $_settings->info('wasabi_region') == 'us-east-1' ? 'selected' : '' ?>>US East 1 (N. Virginia)</option>
+                                    <option value="us-east-2" <?php echo $_settings->info('wasabi_region') == 'us-east-2' ? 'selected' : '' ?>>US East 2 (N. Virginia)</option>
+                                    <option value="us-central-1" <?php echo $_settings->info('wasabi_region') == 'us-central-1' ? 'selected' : '' ?>>US Central 1 (Texas)</option>
+                                    <option value="us-west-1" <?php echo $_settings->info('wasabi_region') == 'us-west-1' ? 'selected' : '' ?>>US West 1 (Oregon)</option>
+                                    <option value="eu-central-1" <?php echo $_settings->info('wasabi_region') == 'eu-central-1' ? 'selected' : '' ?>>EU Central 1 (Amsterdam)</option>
+                                    <option value="eu-central-2" <?php echo $_settings->info('wasabi_region') == 'eu-central-2' ? 'selected' : '' ?>>EU Central 2 (Frankfurt)</option>
+                                    <option value="ap-northeast-1" <?php echo $_settings->info('wasabi_region') == 'ap-northeast-1' ? 'selected' : '' ?>>AP Northeast 1 (Tokyo)</option>
+                                    <option value="ap-northeast-2" <?php echo $_settings->info('wasabi_region') == 'ap-northeast-2' ? 'selected' : '' ?>>AP Northeast 2 (Osaka)</option>
+                                    <option value="ap-southeast-1" <?php echo $_settings->info('wasabi_region') == 'ap-southeast-1' ? 'selected' : '' ?>>AP Southeast 1 (Singapore)</option>
+                                    <option value="ap-southeast-2" <?php echo $_settings->info('wasabi_region') == 'ap-southeast-2' ? 'selected' : '' ?>>AP Southeast 2 (Sydney)</option>
+                                </select>
+                                <small class="text-muted">Bucket이 생성된 Region을 선택하세요</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wasabi_endpoint" class="control-label">Endpoint URL</label>
+                        <input type="text" class="form-control form-control-sm" id="wasabi_endpoint" name="wasabi_endpoint"
+                               value="<?php echo $_settings->info('wasabi_endpoint') ?>" readonly>
+                        <small class="text-muted">Region 선택에 따라 자동으로 설정됩니다</small>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" class="btn btn-sm btn-warning" id="test-wasabi">
+                            <i class="fas fa-check-circle"></i> Wasabi 연결 테스트
+                        </button>
+                        <span id="wasabi-test-result" class="ml-2"></span>
+                    </div>
+                </div>
+
                 <!-- 로고 설정 -->
                 <br>
                 <h5 class="text-primary">시스템 로고</h5>
@@ -199,6 +282,59 @@
             ]
         })
 
+        // Wasabi 사용 토글
+        $('#use_wasabi').change(function() {
+            if($(this).is(':checked')) {
+                $('#wasabi-settings').slideDown();
+            } else {
+                $('#wasabi-settings').slideUp();
+            }
+        });
+
+        // Region 변경 시 Endpoint 자동 설정
+        $('#wasabi_region').change(function() {
+            var region = $(this).val();
+            var endpoint = 'https://s3.' + region + '.wasabisys.com';
+            $('#wasabi_endpoint').val(endpoint);
+        });
+
+        // 초기 로드 시 endpoint 설정
+        if($('#wasabi_region').val() && !$('#wasabi_endpoint').val()) {
+            $('#wasabi_region').trigger('change');
+        }
+
+        // Wasabi 연결 테스트
+        $('#test-wasabi').click(function() {
+            var btn = $(this);
+            btn.prop('disabled', true);
+            $('#wasabi-test-result').html('<span class="text-info"><i class="fas fa-spinner fa-spin"></i> 테스트 중...</span>');
+
+            $.ajax({
+                url: _base_url_ + 'classes/Master.php?f=test_wasabi',
+                method: 'POST',
+                data: {
+                    key: $('#wasabi_key').val(),
+                    secret: $('#wasabi_secret').val(),
+                    bucket: $('#wasabi_bucket').val(),
+                    region: $('#wasabi_region').val(),
+                    endpoint: $('#wasabi_endpoint').val()
+                },
+                dataType: 'json',
+                success: function(resp) {
+                    btn.prop('disabled', false);
+                    if(resp.status == 'success') {
+                        $('#wasabi-test-result').html('<span class="text-success"><i class="fas fa-check"></i> ' + resp.msg + '</span>');
+                    } else {
+                        $('#wasabi-test-result').html('<span class="text-danger"><i class="fas fa-times"></i> ' + resp.msg + '</span>');
+                    }
+                },
+                error: function(err) {
+                    btn.prop('disabled', false);
+                    $('#wasabi-test-result').html('<span class="text-danger"><i class="fas fa-times"></i> 연결 실패</span>');
+                }
+            });
+        });
+
         // 테스트 이메일 발송
         $('#test-email').click(function(){
             var test_email = prompt("테스트 이메일을 받을 주소를 입력하세요:", "");
@@ -227,6 +363,12 @@
     $('#system-frm').submit(function(e){
         e.preventDefault()
         start_loader()
+
+        // use_wasabi가 체크 해제된 경우 값을 false로 설정
+        if(!$('#use_wasabi').is(':checked')) {
+            $(this).append('<input type="hidden" name="use_wasabi" value="false">');
+        }
+
         if($('.err-msg').length > 0)
             $('.err-msg').remove()
         $.ajax({
