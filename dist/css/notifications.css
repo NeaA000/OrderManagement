@@ -1,0 +1,534 @@
+/* ============================================
+   실시간 업로드 알림 시스템 스타일
+   ============================================ */
+
+/* 알림 벨 아이콘 */
+.notification-bell {
+    position: relative;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+.notification-bell i {
+    font-size: 18px;
+    color: rgba(255,255,255,0.8);
+    transition: color 0.3s ease;
+}
+
+.notification-bell:hover i {
+    color: #fff;
+}
+
+/* 알림 배지 (숫자) */
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: 3px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    text-align: center;
+    line-height: 14px;
+    animation: pulse 2s infinite;
+    box-shadow: 0 2px 4px rgba(220,53,69,0.4);
+}
+
+/* 펄스 애니메이션 */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+/* 알림 드롭다운 */
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 380px;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.15);
+    z-index: 1050;
+    display: none;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.notification-dropdown.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+/* 슬라이드 다운 애니메이션 */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 드롭다운 화살표 */
+.notification-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    border-left: 1px solid rgba(0,0,0,0.1);
+    transform: rotate(45deg);
+}
+
+/* 알림 헤더 */
+.notification-header {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notification-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #343a40;
+}
+
+.notification-header .btn-link {
+    color: #007bff;
+    font-size: 13px;
+    padding: 0;
+    text-decoration: none;
+}
+
+.notification-header .btn-link:hover {
+    text-decoration: underline;
+}
+
+/* 알림 리스트 */
+.notification-list {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.notification-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* 알림 아이템 */
+.notification-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid #f4f4f4;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.notification-item:hover {
+    background: #f8f9fa;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+/* 읽지 않은 알림 */
+.notification-item.unread {
+    background: #e8f4fd;
+    border-left: 3px solid #007bff;
+}
+
+.notification-item.unread::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    width: 8px;
+    height: 8px;
+    background: #007bff;
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+/* 알림 내용 */
+.notification-content {
+    display: flex;
+    align-items: flex-start;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.notification-icon i {
+    font-size: 16px;
+}
+
+.notification-text {
+    flex: 1;
+    padding-right: 20px;
+}
+
+.notification-title {
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notification-desc {
+    color: #6c757d;
+    font-size: 13px;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.notification-time {
+    color: #adb5bd;
+    font-size: 12px;
+}
+
+/* 알림 푸터 */
+.notification-footer {
+    padding: 12px 20px;
+    text-align: center;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+.notification-footer a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.notification-footer a:hover {
+    text-decoration: underline;
+}
+
+/* 빈 알림 */
+.notification-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #adb5bd;
+}
+
+.notification-empty i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.3;
+}
+
+.notification-empty p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 토스트 컨테이너 */
+.toast-container {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1060;
+    pointer-events: none;
+}
+
+.toast-container > * {
+    pointer-events: auto;
+}
+
+/* 업로드 토스트 */
+.upload-toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.15);
+    padding: 16px 20px;
+    margin-bottom: 15px;
+    min-width: 350px;
+    max-width: 400px;
+    animation: slideInRight 0.3s ease;
+    border-left: 4px solid #28a745;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 토스트 진행바 */
+.upload-toast::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: #28a745;
+    animation: progressBar 5s linear;
+}
+
+@keyframes progressBar {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+/* 토스트 애니메이션 */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.upload-toast.removing {
+    animation: slideOutRight 0.3s ease;
+}
+
+@keyframes slideOutRight {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 토스트 헤더 */
+.upload-toast-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.upload-toast-title {
+    font-weight: 600;
+    color: #28a745;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+}
+
+.upload-toast-title i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.upload-toast-close {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.upload-toast-close:hover {
+    color: #495057;
+}
+
+/* 토스트 바디 */
+.upload-toast-body {
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.upload-toast-body strong {
+    color: #343a40;
+}
+
+.upload-toast-time {
+    color: #adb5bd;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+/* 테이블 하이라이트 효과 */
+.table-row-highlight {
+    animation: highlightRow 2s ease;
+}
+
+@keyframes highlightRow {
+    0% {
+        background-color: #fff3cd;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* 새 업로드 인디케이터 */
+.new-upload-indicator {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 10px;
+    animation: fadeIn 0.5s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* AdminLTE 호환성 */
+.nav-item.dropdown.notification-bell-wrapper {
+    position: relative;
+}
+
+.navbar-nav .notification-dropdown {
+    left: auto;
+    right: 0;
+}
+
+/* 다크 모드 지원 (선택사항) */
+.dark-mode .notification-dropdown {
+    background: #343a40;
+    border-color: rgba(255,255,255,0.1);
+}
+
+.dark-mode .notification-header {
+    background: #3f474e;
+    border-color: #4b545c;
+}
+
+.dark-mode .notification-header h5 {
+    color: #fff;
+}
+
+.dark-mode .notification-item {
+    border-color: #4b545c;
+}
+
+.dark-mode .notification-item:hover {
+    background: #3f474e;
+}
+
+.dark-mode .notification-item.unread {
+    background: #2c3e50;
+}
+
+.dark-mode .notification-title {
+    color: #fff;
+}
+
+.dark-mode .notification-desc {
+    color: #adb5bd;
+}
+
+.dark-mode .upload-toast {
+    background: #343a40;
+    color: #fff;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 576px) {
+    .notification-dropdown {
+        width: calc(100vw - 30px);
+        right: -10px;
+        left: auto;
+    }
+
+    .toast-container {
+        left: 15px;
+        right: 15px;
+        top: 60px;
+    }
+
+    .upload-toast {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .notification-dropdown::before {
+        right: 25px;
+    }
+}
+
+@media (max-width: 768px) {
+    .notification-dropdown {
+        width: 350px;
+    }
+}
+
+/* 로딩 스피너 */
+.notification-loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.notification-loading .spinner-border {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+}

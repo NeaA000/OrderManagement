@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- 생성 시간: 25-08-01 04:14
+-- 생성 시간: 25-08-04 03:23
 -- 서버 버전: 10.4.32-MariaDB
 -- PHP 버전: 8.2.12
 
@@ -75,7 +75,6 @@ INSERT INTO `document_categories` (`id`, `parent_id`, `name`, `level`, `type`, `
                                                                                                                                                             (9, NULL, '적정성평가', 1, 'folder', 9, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (10, NULL, '기타', 1, 'folder', 10, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (25, 1, '안전점검계획서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                            (26, 2, '굴착작업방지계획서', 2, 'folder', 1, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (27, 2, '고소작업방지계획서', 2, 'folder', 2, 1, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (28, 2, '크레인작업방지계획서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (29, 8, '안전보건대장 기본양식', 2, 'folder', 1, 1, 1, NULL, '2025-07-31 18:52:23'),
@@ -84,7 +83,9 @@ INSERT INTO `document_categories` (`id`, `parent_id`, `name`, `level`, `type`, `
                                                                                                                                                             (32, 10, '사업자등록증', 2, 'folder', 1, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (33, 10, '건설업면허증', 2, 'folder', 2, 0, 1, NULL, '2025-07-31 18:52:23'),
                                                                                                                                                             (34, 10, '보험가입증명서', 2, 'folder', 3, 0, 1, NULL, '2025-07-31 18:52:23'),
-                                                                                                                                                            (35, 25, '기본안전', 3, 'folder', 1, 0, 1, '', '2025-07-31 19:45:39');
+                                                                                                                                                            (37, 1, 'A', 2, 'document', 0, 0, 1, NULL, '2025-08-01 11:40:06'),
+                                                                                                                                                            (38, 25, 'B', 3, 'folder', 0, 0, 1, NULL, '2025-08-01 11:40:29'),
+                                                                                                                                                            (39, 2, 'C', 2, 'document', 0, 0, 1, NULL, '2025-08-01 11:40:40');
 
 -- --------------------------------------------------------
 
@@ -137,6 +138,14 @@ CREATE TABLE `document_cost_details` (
                                          `evaluation_cost` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- 테이블의 덤프 데이터 `document_cost_details`
+--
+
+INSERT INTO `document_cost_details` (`id`, `request_id`, `safety_plan_cost`, `hazard_prevention_cost`, `structure_review_cost`, `structure_review_agency`, `plan_review_cost`, `plan_review_agency`, `safety_health_cost`, `education_facility_cost`, `railway_protection_cost`, `evaluation_cost`) VALUES
+                                                                                                                                                                                                                                                                                                        (3, 3, NULL, NULL, '111', '', '111', '111', NULL, NULL, NULL, ''),
+                                                                                                                                                                                                                                                                                                        (4, 4, NULL, NULL, '123', '', '122', '', NULL, NULL, NULL, '');
+
 -- --------------------------------------------------------
 
 --
@@ -158,6 +167,14 @@ CREATE TABLE `document_requests` (
                                      `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- 테이블의 덤프 데이터 `document_requests`
+--
+
+INSERT INTO `document_requests` (`id`, `request_no`, `supplier_id`, `project_name`, `due_date`, `additional_notes`, `upload_token`, `status`, `email_sent_at`, `created_by`, `date_created`, `date_updated`) VALUES
+                                                                                                                                                                                                                 (3, 'REQ-20250801-001', 3, '전천 지방하천 정비사업', '0000-00-00', '', '65cae70c0c495cad580601a043366f7e7f724c9b38cff7ab5297e73b66eb90bd', 0, NULL, 5, '2025-08-01 14:28:17', NULL),
+                                                                                                                                                                                                                 (4, 'REQ-20250801-002', 3, 'ㅁㅁㅁㅁㅁㅁ', '0000-00-00', '', '5ed3d214523f00e53a06f7913575b4a6e712904529f8eb238aceae40460b38f3', 1, '2025-08-04 10:06:53', 1, '2025-08-01 15:40:40', '2025-08-04 10:06:53');
+
 -- --------------------------------------------------------
 
 --
@@ -177,6 +194,14 @@ CREATE TABLE `document_request_details` (
                                             `total_cost` varchar(50) DEFAULT NULL,
                                             `vat_included` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- 테이블의 덤프 데이터 `document_request_details`
+--
+
+INSERT INTO `document_request_details` (`id`, `request_id`, `construction_method`, `manager_name`, `manager_contact`, `manager_email`, `director_name`, `director_contact`, `order_date`, `total_cost`, `vat_included`) VALUES
+                                                                                                                                                                                                                            (3, 3, '', '', '', '', '', '', '2025-08-11', '244', 1),
+                                                                                                                                                                                                                            (4, 4, '단독', '', '', '', '', '', '2025-08-14', '245', 0);
 
 -- --------------------------------------------------------
 
@@ -199,6 +224,31 @@ CREATE TABLE `document_targets` (
                                     `railway_manager` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- 테이블의 덤프 데이터 `document_targets`
+--
+
+INSERT INTO `document_targets` (`id`, `request_id`, `safety_plan_type`, `review_agency`, `hazard_prevention_type`, `safety_health_agency`, `safety_health_ledger_type`, `evaluation_type`, `education_facility`, `education_office`, `railway_protection`, `railway_manager`) VALUES
+                                                                                                                                                                                                                                                                                  (3, 3, '2종', '국토안전관리원', '교량', '', '', '공사', '', '', '', ''),
+                                                                                                                                                                                                                                                                                  (4, 4, '1종', '국토안전관리원', '', '', '설계', '설계', '', '', '', '');
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `document_uploads`
+--
+
+CREATE TABLE `document_uploads` (
+                                    `id` int(30) NOT NULL,
+                                    `document_id` int(30) NOT NULL,
+                                    `file_path` varchar(500) NOT NULL,
+                                    `original_name` varchar(255) NOT NULL,
+                                    `file_size` bigint(20) NOT NULL,
+                                    `file_type` varchar(100) DEFAULT NULL,
+                                    `uploaded_at` datetime NOT NULL DEFAULT current_timestamp(),
+                                    `uploaded_by` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- --------------------------------------------------------
 
 --
@@ -212,6 +262,14 @@ CREATE TABLE `document_writers` (
                                     `revenue_manager` varchar(100) DEFAULT NULL,
                                     `field_writers` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- 테이블의 덤프 데이터 `document_writers`
+--
+
+INSERT INTO `document_writers` (`id`, `request_id`, `main_writer`, `revenue_manager`, `field_writers`) VALUES
+                                                                                                           (3, 3, '', '', ''),
+                                                                                                           (4, 4, '', '', '');
 
 -- --------------------------------------------------------
 
@@ -256,14 +314,9 @@ CREATE TABLE `email_templates` (
 --
 
 INSERT INTO `email_templates` (`id`, `template_name`, `template_type`, `subject`, `content`, `variables`, `is_html`, `is_default`, `status`, `date_created`, `date_updated`) VALUES
-                                                                                                                                                                                 (1, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n\r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n\r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n\r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:20:34', NULL),
-                                                                                                                                                                                 (2, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n\r\n{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n\r\n제출 기한: {{due_date}}\r\n업로드 링크: {{upload_link}}\r\n\r\n감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:45:00', NULL),
-                                                                                                                                                                                 (3, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n\r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n\r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n\r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:46:52', NULL),
-                                                                                                                                                                                 (4, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n     \r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n     \r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n     \r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:49:34', NULL),
-                                                                                                                                                                                 (5, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n     \r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n     \r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n     \r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:49:48', NULL),
-                                                                                                                                                                                 (6, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n     \r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n     \r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n     \r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:50:47', NULL),
-                                                                                                                                                                                 (7, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n     \r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n     \r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n     \r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:50:59', NULL),
-                                                                                                                                                                                 (8, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '안녕하세요 {{supplier_name}} 담당자님,\r\n     \r\n     {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.\r\n     \r\n     제출 기한: {{due_date}}\r\n     업로드 링크: {{upload_link}}\r\n     \r\n     감사합니다.', NULL, 1, 1, 1, '2025-07-31 18:51:30', NULL);
+                                                                                                                                                                                 (1, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">서류 제출 요청</h2><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">안녕하세요, {{contact_person}}님</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">{{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">프로젝트 정보</h3>\r\n        <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><br></p><h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; color: rgb(52, 58, 64); letter-spacing: -0.14px;\">필수서류</h3><p style=\"\"><font face=\"Noto Sans KR, sans-serif\">{{document_list}}</font></p></div><div style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; margin: 20px 0px;\"><br></div>\r\n    \r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">감사합니다.</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                        ', NULL, 1, 0, 1, '2025-08-01 17:58:44', '2025-08-01 17:59:35'),
+                                                                                                                                                                                 (2, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"font-size: 36px;\"><b>서류 제출 요청</b></span></h2><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">안녕하세요, {{contact_person}}님</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">프로젝트 정보</h3>\r\n        <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><br></p><h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; color: rgb(52, 58, 64); letter-spacing: -0.14px;\">필수서류</h3><p style=\"\"><font face=\"Noto Sans KR, sans-serif\">{{document_list}}</font></p></div><div style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; margin: 20px 0px;\"><br></div>\r\n    \r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">감사합니다.</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                        ', NULL, 1, 0, 1, '2025-08-01 17:59:35', '2025-08-01 18:00:27'),
+                                                                                                                                                                                 (3, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"font-size: 36px;\"><b>서류 제출 요청</b></span></h2><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">{{company_name}}<br></p>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">안녕하세요, {{supplier_name}} {{contact_person}}님</p>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">프로젝트 정보</h3>\r\n        <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><br></p><h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" color:=\"\" rgb(52,=\"\" 58,=\"\" 64);=\"\" letter-spacing:=\"\" -0.14px;\"=\"\">요청 서류 목록</h3><p style=\"\">{{document_list}}<font face=\"Noto Sans KR, sans-serif\"></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p></div><div style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" margin:=\"\" 20px=\"\" 0px;\"=\"\"><br></div>\r\n    \r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">감사합니다.</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><br></p><p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                                                                                                                                                                                                                        ', NULL, 1, 1, 1, '2025-08-01 18:00:27', '2025-08-04 10:06:44');
 
 -- --------------------------------------------------------
 
@@ -428,6 +481,15 @@ CREATE TABLE `request_documents` (
                                      `date_created` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- 테이블의 덤프 데이터 `request_documents`
+--
+
+INSERT INTO `request_documents` (`id`, `request_id`, `category_id`, `document_name`, `is_required`, `status`, `file_name`, `file_path`, `file_size`, `upload_method`, `form_data`, `uploaded_at`, `date_created`) VALUES
+                                                                                                                                                                                                                      (5, 3, 37, 'A', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
+                                                                                                                                                                                                                      (6, 3, 38, 'B', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 14:28:17'),
+                                                                                                                                                                                                                      (7, 4, 39, 'C', 1, 'pending', NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-01 15:40:40');
+
 -- --------------------------------------------------------
 
 --
@@ -498,7 +560,7 @@ CREATE TABLE `supplier_list` (
 
 INSERT INTO `supplier_list` (`id`, `name`, `address`, `contact_person`, `contact`, `email`, `status`, `date_created`) VALUES
                                                                                                                           (2, 'Supplier 102', 'Supplier 102 Address, 23rd St, Sample City, Test Province, ####', 'Samantha Lou', '09332145889', 'sLou@supplier102.com', 1, '2021-09-08 10:25:12'),
-                                                                                                                          (3, '강동명', '용인시 처인구 이원로 601번길 84', '강동명', '01025304351', 'jbsafety@jbsafety.kr', 1, '2025-08-01 09:55:18');
+                                                                                                                          (3, '강동명', '용인시 처인구 이원로 601번길 84', '강동명', '01025304351', 'gangdongmyung@gmail.com', 1, '2025-08-01 09:55:18');
 
 -- --------------------------------------------------------
 
@@ -509,22 +571,36 @@ INSERT INTO `supplier_list` (`id`, `name`, `address`, `contact_person`, `contact
 CREATE TABLE `system_info` (
                                `id` int(30) NOT NULL,
                                `meta_field` text NOT NULL,
-                               `meta_value` text NOT NULL
+                               `meta_value` text NOT NULL,
+                               `smtp_host` varchar(255) DEFAULT NULL COMMENT 'SMTP 호스트',
+                               `smtp_username` varchar(255) DEFAULT NULL COMMENT 'SMTP 사용자명',
+                               `smtp_password` varchar(255) DEFAULT NULL COMMENT 'SMTP 비밀번호',
+                               `smtp_port` int(11) DEFAULT 587 COMMENT 'SMTP 포트',
+                               `smtp_secure` varchar(10) DEFAULT 'tls' COMMENT 'SMTP 보안 (tls/ssl)',
+                               `smtp_from_email` varchar(255) DEFAULT NULL COMMENT '발신 이메일',
+                               `smtp_from_name` varchar(255) DEFAULT NULL COMMENT '발신자명'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- 테이블의 덤프 데이터 `system_info`
 --
 
-INSERT INTO `system_info` (`id`, `meta_field`, `meta_value`) VALUES
-                                                                 (1, 'name', '건설업 서류 관리 시스템'),
-                                                                 (6, 'short_name', 'CDMS'),
-                                                                 (11, 'logo', 'uploads/1631064180_sample_compaby_logo.jpg'),
-                                                                 (13, 'user_avatar', 'uploads/user_avatar.jpg'),
-                                                                 (14, 'cover', 'uploads/1631064360_sample_bg.jpg'),
-                                                                 (15, 'company_name', '중부재해예방관리원'),
-                                                                 (16, 'company_email', 'info@sampleco.com'),
-                                                                 (17, 'company_address', 'Sample Address, 23rd St., Sample City, ####');
+INSERT INTO `system_info` (`id`, `meta_field`, `meta_value`, `smtp_host`, `smtp_username`, `smtp_password`, `smtp_port`, `smtp_secure`, `smtp_from_email`, `smtp_from_name`) VALUES
+                                                                                                                                                                                 (1, 'name', '건설업 서류 관리 시스템', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (6, 'short_name', 'CDMS', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (11, 'logo', 'uploads/1631064180_sample_compaby_logo.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (13, 'user_avatar', 'uploads/user_avatar.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (14, 'cover', 'uploads/1631064360_sample_bg.jpg', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (15, 'company_name', '중부재해예방관리원', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (16, 'company_email', 'info@sampleco.com', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (17, 'company_address', 'Sample Address, 23rd St., Sample City, ####', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (18, 'smtp_host', 'sandbox.smtp.mailtrap.io', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (19, 'smtp_port', '587', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (20, 'smtp_username', 'de6ab441cf73d7', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (21, 'smtp_password', '77fe1a9732a623', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (22, 'smtp_secure', 'tls', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (23, 'smtp_from_name', '(주)중부재해예방관리원', NULL, NULL, NULL, 587, 'tls', NULL, NULL),
+                                                                                                                                                                                 (24, 'smtp_from_email', 'gangdongmyung@naver.com', NULL, NULL, NULL, 587, 'tls', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -543,6 +619,26 @@ CREATE TABLE `upload_logs` (
                                `user_agent` text DEFAULT NULL COMMENT '브라우저 정보',
                                `details` text DEFAULT NULL COMMENT '상세 정보',
                                `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `upload_notifications`
+--
+
+CREATE TABLE `upload_notifications` (
+                                        `id` int(11) NOT NULL,
+                                        `request_id` int(11) NOT NULL COMMENT '문서 요청 ID',
+                                        `document_id` int(11) NOT NULL COMMENT '문서 ID (request_documents.id)',
+                                        `supplier_id` int(11) DEFAULT NULL COMMENT '공급업체 ID',
+                                        `supplier_name` varchar(255) NOT NULL COMMENT '공급업체명',
+                                        `document_name` varchar(255) NOT NULL COMMENT '문서명',
+                                        `file_name` varchar(255) DEFAULT NULL COMMENT '업로드된 파일명',
+                                        `uploaded_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT '업로드 시간',
+                                        `is_read` tinyint(1) NOT NULL DEFAULT 0 COMMENT '읽음 여부',
+                                        `read_by` int(11) DEFAULT NULL COMMENT '읽은 사용자 ID',
+                                        `read_at` datetime DEFAULT NULL COMMENT '읽은 시간'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -594,6 +690,14 @@ CREATE TABLE `workflow_status` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- 테이블의 덤프 데이터 `workflow_status`
+--
+
+INSERT INTO `workflow_status` (`id`, `request_id`, `current_step`, `step_name`, `step_description`, `started_at`, `completed_at`, `assigned_to`, `notes`, `is_current`, `created_at`) VALUES
+                                                                                                                                                                                          (3, 3, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-01 14:28:17', NULL, 5, NULL, 1, '2025-08-01 14:28:17'),
+                                                                                                                                                                                          (4, 4, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-01 15:40:40', NULL, 1, NULL, 1, '2025-08-01 15:40:40');
+
+--
 -- 덤프된 테이블의 인덱스
 --
 
@@ -634,7 +738,8 @@ ALTER TABLE `document_requests`
   ADD UNIQUE KEY `request_no` (`request_no`),
   ADD UNIQUE KEY `upload_token` (`upload_token`),
   ADD KEY `supplier_id` (`supplier_id`),
-  ADD KEY `document_requests_ibfk_2` (`created_by`);
+  ADD KEY `document_requests_ibfk_2` (`created_by`),
+  ADD KEY `idx_upload_token` (`upload_token`);
 
 --
 -- 테이블의 인덱스 `document_request_details`
@@ -649,6 +754,13 @@ ALTER TABLE `document_request_details`
 ALTER TABLE `document_targets`
     ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `request_id` (`request_id`);
+
+--
+-- 테이블의 인덱스 `document_uploads`
+--
+ALTER TABLE `document_uploads`
+    ADD PRIMARY KEY (`id`),
+  ADD KEY `document_id` (`document_id`);
 
 --
 -- 테이블의 인덱스 `document_writers`
@@ -754,6 +866,18 @@ ALTER TABLE `upload_logs`
   ADD KEY `request_id` (`request_id`);
 
 --
+-- 테이블의 인덱스 `upload_notifications`
+--
+ALTER TABLE `upload_notifications`
+    ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_upload_notif_request` (`request_id`),
+  ADD KEY `idx_upload_notif_read` (`is_read`),
+  ADD KEY `idx_upload_notif_time` (`uploaded_at`),
+  ADD KEY `idx_upload_notif_unread` (`is_read`,`uploaded_at`),
+  ADD KEY `fk_upload_notif_supplier` (`supplier_id`),
+  ADD KEY `fk_upload_notif_user` (`read_by`);
+
+--
 -- 테이블의 인덱스 `users`
 --
 ALTER TABLE `users`
@@ -781,7 +905,7 @@ ALTER TABLE `access_tokens`
 -- 테이블의 AUTO_INCREMENT `document_categories`
 --
 ALTER TABLE `document_categories`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_costs`
@@ -793,31 +917,37 @@ ALTER TABLE `document_costs`
 -- 테이블의 AUTO_INCREMENT `document_cost_details`
 --
 ALTER TABLE `document_cost_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_requests`
 --
 ALTER TABLE `document_requests`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_request_details`
 --
 ALTER TABLE `document_request_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_targets`
 --
 ALTER TABLE `document_targets`
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- 테이블의 AUTO_INCREMENT `document_uploads`
+--
+ALTER TABLE `document_uploads`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_writers`
 --
 ALTER TABLE `document_writers`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- 테이블의 AUTO_INCREMENT `email_logs`
@@ -829,7 +959,7 @@ ALTER TABLE `email_logs`
 -- 테이블의 AUTO_INCREMENT `email_templates`
 --
 ALTER TABLE `email_templates`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- 테이블의 AUTO_INCREMENT `form_fields`
@@ -865,7 +995,7 @@ ALTER TABLE `po_list`
 -- 테이블의 AUTO_INCREMENT `request_documents`
 --
 ALTER TABLE `request_documents`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- 테이블의 AUTO_INCREMENT `review_credentials`
@@ -889,13 +1019,19 @@ ALTER TABLE `supplier_list`
 -- 테이블의 AUTO_INCREMENT `system_info`
 --
 ALTER TABLE `system_info`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- 테이블의 AUTO_INCREMENT `upload_logs`
 --
 ALTER TABLE `upload_logs`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+
+--
+-- 테이블의 AUTO_INCREMENT `upload_notifications`
+--
+ALTER TABLE `upload_notifications`
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- 테이블의 AUTO_INCREMENT `users`
@@ -907,7 +1043,7 @@ ALTER TABLE `users`
 -- 테이블의 AUTO_INCREMENT `workflow_status`
 --
 ALTER TABLE `workflow_status`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- 덤프된 테이블의 제약사항
@@ -957,6 +1093,12 @@ ALTER TABLE `document_targets`
     ADD CONSTRAINT `document_targets_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
 
 --
+-- 테이블의 제약사항 `document_uploads`
+--
+ALTER TABLE `document_uploads`
+    ADD CONSTRAINT `document_uploads_ibfk_1` FOREIGN KEY (`document_id`) REFERENCES `request_documents` (`id`) ON DELETE CASCADE;
+
+--
 -- 테이블의 제약사항 `document_writers`
 --
 ALTER TABLE `document_writers`
@@ -1000,6 +1142,14 @@ ALTER TABLE `request_documents`
 --
 ALTER TABLE `review_credentials`
     ADD CONSTRAINT `review_credentials_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE;
+
+--
+-- 테이블의 제약사항 `upload_notifications`
+--
+ALTER TABLE `upload_notifications`
+    ADD CONSTRAINT `fk_upload_notif_request` FOREIGN KEY (`request_id`) REFERENCES `document_requests` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_upload_notif_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `supplier_list` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_upload_notif_user` FOREIGN KEY (`read_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- 테이블의 제약사항 `workflow_status`

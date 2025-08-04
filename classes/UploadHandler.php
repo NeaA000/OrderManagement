@@ -110,6 +110,9 @@ class UploadHandler extends DBConnection {
             // 업로드 로그 생성
             $this->createUploadLog($request_id, $document_id, 'upload', $file_name);
 
+            // 🔔 실시간 알림 생성 (새로 추가)
+            $this->createUploadNotification($request_id, $document_id, $file_name);
+
             // 전체 상태 확인 및 업데이트
             $this->checkRequestCompletion($request_id);
 
@@ -270,6 +273,72 @@ class UploadHandler extends DBConnection {
             error_log("Upload log error: " . $e->getMessage());
             // 로그 실패는 업로드 실패로 처리하지 않음
         }
+    }
+
+    // 🔔 업로드 알림 생성 (새로 추가된 메서드)
+    private function createUploadNotification($request_id, $document_id, $file_name) {
+        try {
+            // 요청 및 문서 정보 조회
+            $info_query = $this->conn->prepare("
+                SELECT dr.supplier_id, s.name as supplier_name, 
+                       rd.document_name
+                FROM document_requests dr
+                LEFT JOIN supplier_list s ON dr.supplier_id = s.id
+                LEFT JOIN request_documents rd ON rd.id = ?
+                WHERE dr.id = ?
+            ");
+
+            if(!$info_query) {
+                error_log("Prepare failed for notification info: " . $this->conn->error);
+                return false;
+            }
+
+            $info_query->bind_param("ii", $document_id, $request_id);
+            $info_query->execute();
+            $result = $info_query->get_result();
+
+            if($result && $result->num_rows > 0) {
+                $info = $result->fetch_assoc();
+
+                // 알림 삽입
+                $notif_stmt = $this->conn->prepare("
+                    INSERT INTO upload_notifications 
+                    (request_id, document_id, supplier_id, supplier_name, document_name, file_name, uploaded_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ");
+
+                if(!$notif_stmt) {
+                    error_log("Prepare failed for notification insert: " . $this->conn->error);
+                    return false;
+                }
+
+                $notif_stmt->bind_param("iiisss",
+                    $request_id,
+                    $document_id,
+                    $info['supplier_id'],
+                    $info['supplier_name'],
+                    $info['document_name'],
+                    $file_name
+                );
+
+                $success = $notif_stmt->execute();
+
+                if(!$success) {
+                    error_log("Notification insert failed: " . $notif_stmt->error);
+                }
+
+                $notif_stmt->close();
+            }
+
+            $info_query->close();
+
+        } catch(Exception $e) {
+            error_log("Notification creation failed: " . $e->getMessage());
+            // 알림 생성 실패는 업로드 실패로 처리하지 않음
+            return false;
+        }
+
+        return true;
     }
 
     // 요청 완료 상태 확인
