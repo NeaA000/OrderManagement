@@ -10,12 +10,12 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 
 $request_id = $_GET['id'];
 
-// 요청 기본 정보 조회
+// 요청 기본 정보 조회 - status = 1로 수정 (숫자)
 $stmt = $conn->prepare("
     SELECT r.*, s.name as supplier_name, s.contact_person, s.contact, s.email,
            u.firstname, u.lastname,
            (SELECT COUNT(*) FROM request_documents WHERE request_id = r.id) as total_docs,
-           (SELECT COUNT(*) FROM request_documents WHERE request_id = r.id AND status = 'completed') as completed_docs
+           (SELECT COUNT(*) FROM request_documents WHERE request_id = r.id AND status = 1) as completed_docs
     FROM document_requests r
     LEFT JOIN supplier_list s ON r.supplier_id = s.id
     LEFT JOIN users u ON r.created_by = u.id
@@ -164,6 +164,30 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                     </div>
                 </div>
             </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="info-box">
+                    <?php
+                    $status_icon = 'fa-hourglass-half';
+                    $status_color = 'bg-secondary';
+                    $status_text = '대기';
+
+                    if($request['status'] == 1) {
+                        $status_icon = 'fa-spinner';
+                        $status_color = 'bg-primary';
+                        $status_text = '진행중';
+                    } elseif($request['status'] == 2) {
+                        $status_icon = 'fa-check-double';
+                        $status_color = 'bg-success';
+                        $status_text = '완료';
+                    }
+                    ?>
+                    <span class="info-box-icon <?php echo $status_color ?>"><i class="fas <?php echo $status_icon ?>"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">상태</span>
+                        <span class="info-box-number"><?php echo $status_text ?></span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 탭 메뉴 -->
@@ -193,7 +217,7 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                                 <td><?php echo $request['request_no'] ?></td>
                             </tr>
                             <tr>
-                                <td class="detail-label">공사명</td>
+                                <td class="detail-label">프로젝트명</td>
                                 <td><?php echo $request['project_name'] ?></td>
                             </tr>
                             <tr>
@@ -249,7 +273,7 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
             <!-- 요청 서류 탭 -->
             <div class="tab-pane fade" id="tab-documents">
                 <div class="mb-3">
-                    <a href="./document_requests/upload.php?token=<?php echo $request['upload_token'] ?>"
+                    <a href="<?php echo base_url ?>admin/upload_portal/?token=<?php echo $request['upload_token'] ?>"
                        target="_blank" class="btn btn-info btn-sm">
                         <i class="fas fa-external-link-alt"></i> 업로드 페이지 열기
                     </a>
@@ -259,28 +283,51 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                 </div>
 
                 <?php while($doc = $documents->fetch_assoc()): ?>
-                    <div class="document-item <?php echo $doc['status'] == 'completed' ? 'completed' : '' ?>">
+                    <div class="document-item <?php echo $doc['status'] == 1 ? 'completed' : '' ?>">
                         <div class="row align-items-center">
                             <div class="col-md-6">
-                                <h6 class="mb-1"><?php echo $doc['document_name'] ?></h6>
+                                <h6 class="mb-1">
+                                    <?php echo $doc['document_name'] ?>
+                                    <?php if($doc['is_required'] == 1): ?>
+                                        <span class="badge badge-danger ml-2">필수</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-secondary ml-2">선택</span>
+                                    <?php endif; ?>
+                                </h6>
                                 <small class="text-muted">카테고리: <?php echo $doc['category_name'] ?></small>
                             </div>
                             <div class="col-md-3">
-                                <?php if ($doc['status'] == 'completed'): ?>
-                                    <span class="badge badge-success">완료</span>
-                                <?php elseif ($doc['status'] == 'uploaded'): ?>
-                                    <span class="badge badge-warning">검토중</span>
+                                <?php if ($doc['status'] == 1): ?>
+                                    <span class="badge badge-success">
+                                        <i class="fas fa-check-circle"></i> 제출완료
+                                    </span>
+                                    <?php if($doc['uploaded_at']): ?>
+                                        <br><small class="text-muted"><?php echo date("Y-m-d H:i", strtotime($doc['uploaded_at'])) ?></small>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="badge badge-secondary">대기중</span>
+                                    <span class="badge badge-warning">
+                                        <i class="fas fa-clock"></i> 미제출
+                                    </span>
                                 <?php endif; ?>
                             </div>
                             <div class="col-md-3 text-right">
-                                <?php if ($doc['upload_count'] > 0): ?>
+                                <?php if ($doc['status'] == 1 && $doc['file_path']): ?>
+                                    <a href="<?php echo base_url . $doc['file_path'] ?>"
+                                       target="_blank"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-download"></i> 다운로드
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-sm btn-info"
+                                            onclick="previewFile('<?php echo base_url . $doc['file_path'] ?>')">
+                                        <i class="fas fa-eye"></i> 미리보기
+                                    </button>
+                                <?php elseif ($doc['upload_count'] > 0): ?>
                                     <button type="button" class="btn btn-sm btn-primary" onclick="viewUploads(<?php echo $doc['id'] ?>)">
                                         <i class="fas fa-file"></i> 파일 보기 (<?php echo $doc['upload_count'] ?>)
                                     </button>
                                 <?php else: ?>
-                                    <span class="text-muted">업로드된 파일 없음</span>
+                                    <span class="text-muted">업로드 대기중</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -313,14 +360,20 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                         <td class="detail-label">철도보호</td>
                         <td><?php echo $costs['railway_protection_cost'] ? number_format($costs['railway_protection_cost']) . '만원' : '-' ?></td>
                         <td class="detail-label">적정성평가</td>
-                        <td><?php echo $costs['evaluation_cost'] ? number_format($costs['evaluation_cost'])  : '-' ?></td>
+                        <td><?php echo $costs['evaluation_cost'] ?? '-' ?></td>
                     </tr>
                     <tr class="bg-light">
                         <td class="detail-label">종합계</td>
                         <td colspan="3">
                             <strong>
-                                <?php echo number_format($details['total_cost']) ?>만원
-                                <?php echo $details['vat_included'] ? '(VAT 포함)' : '(VAT 별도)' ?>
+                                <?php
+                                if($details['total_cost']) {
+                                    echo number_format($details['total_cost']) . '만원';
+                                    echo $details['vat_included'] ? ' (VAT 포함)' : ' (VAT 별도)';
+                                } else {
+                                    echo '-';
+                                }
+                                ?>
                             </strong>
                         </td>
                     </tr>
@@ -341,9 +394,17 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                                 <div class="col-md-6">
                                     <strong><?php echo $workflow['step_name'] ?></strong><br>
                                     <?php echo $workflow['step_description'] ?>
+                                    <?php if($workflow['notes']): ?>
+                                        <br><small class="text-muted"><?php echo $workflow['notes'] ?></small>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="col-md-3 text-right">
-                                    <small>담당자: <?php echo $workflow['firstname'] . ' ' . $workflow['lastname'] ?></small>
+                                    <?php if($workflow['firstname'] && $workflow['lastname']): ?>
+                                        <small>담당자: <?php echo $workflow['firstname'] . ' ' . $workflow['lastname'] ?></small>
+                                    <?php endif; ?>
+                                    <?php if($workflow['is_current'] == 1): ?>
+                                        <br><span class="badge badge-primary">현재 단계</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -371,7 +432,7 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
 
 <script>
     function copyUploadLink() {
-        const link = '<?php echo $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) ?>/upload.php?token=<?php echo $request['upload_token'] ?>';
+        const link = '<?php echo base_url ?>admin/upload_portal/?token=<?php echo $request['upload_token'] ?>';
 
         // 임시 텍스트 영역 생성
         const textarea = document.createElement('textarea');
@@ -412,7 +473,10 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
             window.open(filePath, '_blank');
         } else {
             // 기타 파일은 다운로드
-            window.location.href = filePath;
+            const link = document.createElement('a');
+            link.href = filePath;
+            link.download = filePath.split('/').pop();
+            link.click();
         }
     }
 </script>

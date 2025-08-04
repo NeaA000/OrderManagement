@@ -110,7 +110,7 @@ class UploadHandler extends DBConnection {
             // 업로드 로그 생성
             $this->createUploadLog($request_id, $document_id, 'upload', $file_name);
 
-            // 🔔 실시간 알림 생성 (새로 추가)
+            // 실시간 알림 생성
             $this->createUploadNotification($request_id, $document_id, $file_name);
 
             // 전체 상태 확인 및 업데이트
@@ -187,7 +187,6 @@ class UploadHandler extends DBConnection {
             if(!in_array($mime_type, $allowed_mimes)) {
                 error_log("Invalid MIME type: " . $mime_type . " for file: " . $file['name']);
                 // MIME 타입 검증 실패시 경고만 로그에 기록하고 계속 진행
-                // 일부 서버에서 MIME 타입 검증이 제대로 작동하지 않을 수 있음
             }
         }
 
@@ -218,7 +217,7 @@ class UploadHandler extends DBConnection {
         return $this->upload_dir . date('Y') . '/' . date('m') . '/';
     }
 
-    // 문서 상태 업데이트
+    // 문서 상태 업데이트 - status를 1로 설정 (제출완료)
     private function updateDocumentStatus($document_id, $file_name, $file_path, $file_size) {
         try {
             $stmt = $this->conn->prepare("
@@ -271,11 +270,10 @@ class UploadHandler extends DBConnection {
             }
         } catch(Exception $e) {
             error_log("Upload log error: " . $e->getMessage());
-            // 로그 실패는 업로드 실패로 처리하지 않음
         }
     }
 
-    // 🔔 업로드 알림 생성 (새로 추가된 메서드)
+    // 업로드 알림 생성
     private function createUploadNotification($request_id, $document_id, $file_name) {
         try {
             // 요청 및 문서 정보 조회
@@ -334,14 +332,13 @@ class UploadHandler extends DBConnection {
 
         } catch(Exception $e) {
             error_log("Notification creation failed: " . $e->getMessage());
-            // 알림 생성 실패는 업로드 실패로 처리하지 않음
             return false;
         }
 
         return true;
     }
 
-    // 요청 완료 상태 확인
+    // 요청 완료 상태 확인 - status를 1로 체크 (제출완료)
     private function checkRequestCompletion($request_id) {
         try {
             // 모든 문서가 업로드되었는지 확인
@@ -388,7 +385,7 @@ class UploadHandler extends DBConnection {
         // EmailHandler 클래스를 사용하여 관리자에게 알림
     }
 
-    // 파일 삭제 처리
+    // 파일 삭제 처리 - status를 1로 체크하고 0으로 변경
     public function deleteDocument($document_id) {
         try {
             // 문서 정보 조회
@@ -420,7 +417,7 @@ class UploadHandler extends DBConnection {
                 }
             }
 
-            // DB 업데이트
+            // DB 업데이트 - status를 0으로 변경 (미제출)
             $update_stmt = $this->conn->prepare("
                 UPDATE `request_documents` 
                 SET status = 0, file_name = NULL, file_path = NULL, 
