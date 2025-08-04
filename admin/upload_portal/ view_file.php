@@ -9,18 +9,18 @@ if(!isset($_GET['id'])) {
 
 $doc_id = $conn->real_escape_string($_GET['id']);
 
-// 문서 정보 및 Wasabi 정보 조회
+// 문서 정보 및 Wasabi 정보 조회 - document_id로도 조인하도록 수정
 $doc = $conn->query("
     SELECT rd.*, dr.upload_token, 
            uf.wasabi_key, uf.wasabi_bucket, uf.wasabi_url,
-           uf.original_name, uf.mime_type
+           uf.original_name, uf.mime_type, uf.id as uploaded_file_id
     FROM `request_documents` rd 
     LEFT JOIN `document_requests` dr ON rd.request_id = dr.id 
     LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
     WHERE rd.id = '{$doc_id}'
 ")->fetch_assoc();
 
-if(!$doc || (empty($doc['file_path']) && empty($doc['wasabi_key']))) {
+if(!$doc) {
     die('파일을 찾을 수 없습니다.');
 }
 
@@ -73,7 +73,7 @@ if($use_wasabi && !empty($doc['wasabi_key'])) {
     }
 }
 // 로컬 파일인 경우 (기존 코드)
-else {
+else if(!empty($doc['file_path'])) {
     $file_path = base_app . $doc['file_path'];
 
     if(!file_exists($file_path)) {
@@ -120,5 +120,7 @@ else {
         readfile($file_path);
         exit;
     }
+} else {
+    die('파일 정보를 찾을 수 없습니다.');
 }
 ?>

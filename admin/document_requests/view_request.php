@@ -312,14 +312,14 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
                             </div>
                             <div class="col-md-3 text-right">
                                 <?php if ($doc['status'] == 1 && $doc['file_path']): ?>
-                                    <a href="<?php echo base_url . $doc['file_path'] ?>"
-                                       target="_blank"
-                                       class="btn btn-sm btn-primary">
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary"
+                                            onclick="downloadFile(<?php echo $doc['id'] ?>)">
                                         <i class="fas fa-download"></i> 다운로드
-                                    </a>
+                                    </button>
                                     <button type="button"
                                             class="btn btn-sm btn-info"
-                                            onclick="previewFile('<?php echo base_url . $doc['file_path'] ?>')">
+                                            onclick="previewFile('<?php echo $doc['id'] ?>')">
                                         <i class="fas fa-eye"></i> 미리보기
                                     </button>
                                 <?php elseif ($doc['upload_count'] > 0): ?>
@@ -445,6 +445,17 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
         alert('업로드 링크가 복사되었습니다.');
     }
 
+    function downloadFile(documentId) {
+        // download.php 경로를 정확하게 지정
+        const downloadUrl = '<?php echo base_url ?>admin/upload_portal/download.php?id=' + documentId;
+
+        // 새 창에서 다운로드 (현재 페이지 유지)
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.target = '_blank';
+        link.click();
+    }
+
     function viewUploads(documentId) {
         // AJAX로 업로드된 파일 목록 가져오기
         $.ajax({
@@ -461,22 +472,8 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
         });
     }
 
-    function previewFile(filePath) {
-        // 파일 확장자 확인
-        const ext = filePath.split('.').pop().toLowerCase();
-
-        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
-            // 이미지 파일인 경우
-            window.open(filePath, '_blank', 'width=800,height=600');
-        } else if (ext === 'pdf') {
-            // PDF 파일인 경우
-            window.open(filePath, '_blank');
-        } else {
-            // 기타 파일은 다운로드
-            const link = document.createElement('a');
-            link.href = filePath;
-            link.download = filePath.split('/').pop();
-            link.click();
-        }
+    function previewFile(documentId) {
+        // view_file.php를 통해 파일 보기
+        window.open('<?php echo base_url ?>admin/upload_portal/view_file.php?id=' + documentId, '_blank');
     }
 </script>

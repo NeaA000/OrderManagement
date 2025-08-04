@@ -14,11 +14,11 @@ $document_id = intval($_GET['id']);
 $token = $_GET['token'] ?? '';
 
 try {
-    // 문서 정보 조회
+    // 문서 정보 조회 - uploaded_files 테이블과 document_id로 조인
     $stmt = $conn->prepare("
         SELECT rd.*, uf.*, dr.upload_token 
         FROM `request_documents` rd
-        LEFT JOIN `uploaded_files` uf ON rd.file_id = uf.id
+        LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
         LEFT JOIN `document_requests` dr ON rd.request_id = dr.id
         WHERE rd.id = ? AND rd.status = 1
     ");
@@ -46,10 +46,12 @@ try {
     }
 
     // Wasabi 파일인 경우
-    if($file_info['file_id'] && $file_info['wasabi_key']) {
+    if($file_info['wasabi_key']) {
         // UploadHandler 인스턴스 생성
         $uploadHandler = new UploadHandler();
-        $download_url = $uploadHandler->getDownloadUrl($document_id);
+
+        // 임시 서명된 URL 생성 (1시간 유효)
+        $download_url = $uploadHandler->getWasabiFileUrl($file_info['wasabi_key'], 3600);
 
         if($download_url) {
             // Wasabi URL로 리다이렉트

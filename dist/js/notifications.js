@@ -202,6 +202,9 @@ const NotificationSystem = {
     /**
      * 새 알림 체크
      */
+    // notifications.js의 checkNewNotifications 함수 수정 부분
+// 206번째 줄 근처를 다음과 같이 수정하세요:
+
     checkNewNotifications: function() {
         $.ajax({
             url: 'ajax/get_notifications.php',
@@ -212,7 +215,7 @@ const NotificationSystem = {
             },
             dataType: 'json',
             success: function(response) {
-                if (response.status === 'success') {
+                if (response && response.status === 'success') {
                     NotificationSystem.updateNotificationUI(response);
 
                     // 새 알림 토스트 표시
@@ -236,7 +239,13 @@ const NotificationSystem = {
                 }
             },
             error: function(xhr, status, error) {
+                // 오류를 콘솔에만 기록하고 사용자에게는 표시하지 않음
                 console.error('알림 체크 실패:', error);
+
+                // 401 에러인 경우 로그인 페이지로 리다이렉트
+                if (xhr.status === 401) {
+                    window.location.href = './login.php';
+                }
             }
         });
     },
