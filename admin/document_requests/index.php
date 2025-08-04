@@ -42,7 +42,8 @@
                 // 진행률 계산 수정: status = 1 (숫자)로 비교
                 $qry = $conn->query("SELECT dr.*, sl.name as supplier_name, 
                                         (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id) as total_docs,
-                                        (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 1) as completed_docs
+                                        (SELECT COUNT(*) FROM request_documents WHERE request_id = dr.id AND status = 1) as completed_docs,
+                                        dr.email_sent_at
                                         FROM document_requests dr 
                                         LEFT JOIN supplier_list sl ON dr.supplier_id = sl.id 
                                         ORDER BY dr.date_created DESC");
@@ -96,9 +97,18 @@
                                     <span class="fa fa-edit text-info"></span> 수정
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item send_email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
-                                    <span class="fa fa-envelope text-success"></span> 이메일 전송
-                                </a>
+                                <?php if(empty($row['email_sent_at'])): ?>
+                                    <a class="dropdown-item send_email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                        <span class="fa fa-envelope text-success"></span> 이메일 전송
+                                    </a>
+                                <?php else: ?>
+                                    <a class="dropdown-item send_email" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                        <span class="fa fa-envelope text-info"></span> 이메일 재전송
+                                        <small class="text-muted d-block" style="margin-left: 25px; font-size: 11px;">
+                                            마지막: <?php echo date('m/d H:i', strtotime($row['email_sent_at'])) ?>
+                                        </small>
+                                    </a>
+                                <?php endif; ?>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item copy_link" href="javascript:void(0)"
                                    data-link="<?php echo base_url ?>admin/upload_portal/?token=<?php echo $row['upload_token'] ?>">
