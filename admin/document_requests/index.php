@@ -15,7 +15,7 @@
     </div>
     <div class="card-body">
         <div class="container-fluid">
-            <table class="table table-bordered table-stripped" id="request-table">
+            <table class="table table-hover table-striped" id="request-table">
                 <colgroup>
                     <col width="5%">
                     <col width="15%">
@@ -51,45 +51,45 @@
                 while($row = $qry->fetch_assoc()):
                     $progress = $row['total_docs'] > 0 ? round(($row['completed_docs'] / $row['total_docs']) * 100) : 0;
                     ?>
-                    <tr>
+                    <tr class="clickable-row" data-id="<?php echo $row['id'] ?>" style="cursor: pointer;">
                         <td class="text-center"><?php echo $i++; ?></td>
                         <td><?php echo $row['request_no'] ?></td>
                         <td><?php echo $row['supplier_name'] ?></td>
                         <td><?php echo $row['project_name'] ?></td>
                         <td>
-                            <div class="progress">
+                            <div class="progress" style="height: 20px;">
                                 <div class="progress-bar <?php echo $progress == 100 ? 'bg-success' : ($progress >= 50 ? 'bg-warning' : 'bg-danger') ?>"
                                      role="progressbar"
                                      style="width: <?php echo $progress ?>%">
                                     <?php echo $progress ?>%
                                 </div>
                             </div>
-                            <small><?php echo $row['completed_docs'] ?>/<?php echo $row['total_docs'] ?> 완료</small>
+                            <small class="text-muted"><?php echo $row['completed_docs'] ?>/<?php echo $row['total_docs'] ?> 완료</small>
                         </td>
                         <td class="text-center">
                             <?php
                             $status_badge = '';
                             switch($row['status']) {
                                 case 0:
-                                    $status_badge = '<span class="badge badge-secondary">대기</span>';
+                                    $status_badge = '<span class="badge badge-secondary badge-pill">대기</span>';
                                     break;
                                 case 1:
-                                    $status_badge = '<span class="badge badge-primary">진행중</span>';
+                                    $status_badge = '<span class="badge badge-primary badge-pill">진행중</span>';
                                     break;
                                 case 2:
-                                    $status_badge = '<span class="badge badge-success">완료</span>';
+                                    $status_badge = '<span class="badge badge-success badge-pill">완료</span>';
                                     break;
                             }
                             echo $status_badge;
                             ?>
                         </td>
-                        <td align="center">
+                        <td align="center" class="action-cell">
                             <button type="button" class="btn btn-flat btn-default btn-sm dropdown-toggle dropdown-icon" data-toggle="dropdown">
                                 작업
                                 <span class="sr-only">Toggle Dropdown</span>
                             </button>
                             <div class="dropdown-menu" role="menu">
-                                <a class="dropdown-item" href="./?page=document_requests/view_request&id=<?php echo $row['id'] ?>">
+                                <a class="dropdown-item view-request" href="./?page=document_requests/view_request&id=<?php echo $row['id'] ?>">
                                     <span class="fa fa-eye text-primary"></span> 보기
                                 </a>
                                 <div class="dropdown-divider"></div>
@@ -115,6 +115,10 @@
                                     <span class="fa fa-link text-warning"></span> 링크 복사
                                 </a>
                                 <div class="dropdown-divider"></div>
+                                <a class="dropdown-item update_status" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>" data-status="<?php echo $row['status'] ?>">
+                                    <span class="fa fa-tasks text-success"></span> 상태 변경
+                                </a>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item delete_data" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
                                     <span class="fa fa-trash text-danger"></span> 삭제
                                 </a>
@@ -128,19 +132,129 @@
     </div>
 </div>
 
+<!-- 상태 변경 모달 -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">상태 변경</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="status-form">
+                    <input type="hidden" name="id" id="status_request_id">
+                    <div class="form-group">
+                        <label>상태 선택</label>
+                        <select name="status" id="status_select" class="form-control" required>
+                            <option value="0">대기</option>
+                            <option value="1">진행중</option>
+                            <option value="2">완료</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>메모 (선택사항)</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="상태 변경 사유나 메모를 입력하세요"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveStatus()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 행 hover 효과 */
+    .clickable-row:hover {
+        background-color: #f5f5f5;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+
+    /* 상태 뱃지 스타일 개선 */
+    .badge-pill {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* 진행률 바 스타일 */
+    .progress {
+        background-color: #e9ecef;
+    }
+
+    /* 액션 버튼이 있는 셀은 클릭 방지 */
+    .action-cell {
+        position: relative;
+    }
+
+    /* 로딩 오버레이 */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loading-overlay.show {
+        display: flex;
+    }
+</style>
+
+<!-- 로딩 오버레이 -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+        <p class="mt-2">처리중...</p>
+    </div>
+</div>
+
 <script>
     $(document).ready(function(){
-        $('.delete_data').click(function(){
+        // 행 클릭 이벤트
+        $('.clickable-row').click(function(e) {
+            // 드롭다운 버튼이나 메뉴를 클릭한 경우는 제외
+            if($(e.target).closest('.dropdown-toggle, .dropdown-menu').length) {
+                return;
+            }
+
+            var id = $(this).data('id');
+            window.location.href = './?page=document_requests/view_request&id=' + id;
+        });
+
+        // 드롭다운 메뉴 클릭 시 이벤트 전파 중단
+        $('.dropdown-menu').click(function(e) {
+            e.stopPropagation();
+        });
+
+        $('.delete_data').click(function(e){
+            e.preventDefault();
+            e.stopPropagation();
             _conf("정말로 이 요청을 삭제하시겠습니까?","delete_request",[$(this).attr('data-id')])
         })
 
-        // 이메일 전송 수정
-        $('.send_email').click(function(){
+        // 이메일 전송
+        $('.send_email').click(function(e){
+            e.preventDefault();
+            e.stopPropagation();
             var id = $(this).attr('data-id');
             _conf("이메일을 전송하시겠습니까?", "send_email", [id]);
         })
 
-        $('.copy_link').click(function(){
+        // 링크 복사
+        $('.copy_link').click(function(e){
+            e.preventDefault();
+            e.stopPropagation();
             var link = $(this).attr('data-link');
             var $temp = $("<input>");
             $("body").append($temp);
@@ -150,11 +264,37 @@
             alert_toast("링크가 복사되었습니다!",'success');
         })
 
-        $('#request-table').dataTable({
+        // 상태 변경
+        $('.update_status').click(function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).attr('data-id');
+            var status = $(this).attr('data-status');
+            $('#status_request_id').val(id);
+            $('#status_select').val(status);
+            $('#statusModal').modal('show');
+        })
+
+        // DataTable 설정
+        var table = $('#request-table').DataTable({
             columnDefs: [
                 { orderable: false, targets: [6] }
             ],
-            order:[0,'asc']
+            order: [[0, 'asc']],
+            language: {
+                "lengthMenu": "페이지당 _MENU_ 개씩 보기",
+                "zeroRecords": "검색 결과가 없습니다",
+                "info": "전체 _TOTAL_개 중 _START_ - _END_ 표시",
+                "infoEmpty": "데이터가 없습니다",
+                "infoFiltered": "(전체 _MAX_개 중 검색)",
+                "search": "검색:",
+                "paginate": {
+                    "first": "처음",
+                    "last": "마지막",
+                    "next": "다음",
+                    "previous": "이전"
+                }
+            }
         });
 
         $('.dataTable td,.dataTable th').addClass('py-1 px-2 align-middle')
@@ -183,9 +323,9 @@
         })
     }
 
-    // 이메일 전송 함수 추가
+    // 이메일 전송 함수
     function send_email(id){
-        start_loader();
+        showLoading();
         $.ajax({
             url:_base_url_+"classes/Master.php?f=send_request_email",
             method:"POST",
@@ -194,7 +334,7 @@
             error:err=>{
                 console.log(err)
                 alert_toast("이메일 전송 중 오류가 발생했습니다.",'error');
-                end_loader();
+                hideLoading();
             },
             success:function(resp){
                 if(typeof resp== 'object' && resp.status == 'success'){
@@ -204,9 +344,48 @@
                     }, 1500);
                 }else{
                     alert_toast(resp.msg || "이메일 전송에 실패했습니다.",'error');
-                    end_loader();
+                    hideLoading();
                 }
             }
         })
+    }
+
+    // 상태 저장 함수
+    function saveStatus() {
+        var formData = $('#status-form').serialize();
+        showLoading();
+
+        $.ajax({
+            url: _base_url_+"classes/Master.php?f=update_request_status",
+            method: "POST",
+            data: formData,
+            dataType: "json",
+            error: err => {
+                console.log(err);
+                alert_toast("상태 변경 중 오류가 발생했습니다.", 'error');
+                hideLoading();
+            },
+            success: function(resp) {
+                if(typeof resp == 'object' && resp.status == 'success') {
+                    alert_toast("상태가 성공적으로 변경되었습니다.", 'success');
+                    $('#statusModal').modal('hide');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    alert_toast(resp.msg || "상태 변경에 실패했습니다.", 'error');
+                    hideLoading();
+                }
+            }
+        })
+    }
+
+    // 로딩 표시/숨기기
+    function showLoading() {
+        $('#loadingOverlay').addClass('show');
+    }
+
+    function hideLoading() {
+        $('#loadingOverlay').removeClass('show');
     }
 </script>

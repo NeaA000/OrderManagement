@@ -929,6 +929,63 @@ Class Master extends DBConnection {
         return json_encode($result);
     }
 
+    // 요청 상태 업데이트 함수 추가
+    public function update_request_status() {
+        extract($_POST);
+        
+        // ID 검증
+        if(!isset($id) || empty($id)) {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "요청 ID가 없습니다.";
+            return json_encode($resp);
+        }
+        
+        // 상태값 검증
+        if(!isset($status) || !in_array($status, ['0', '1', '2'])) {
+            $resp['status'] = 'failed';
+            $resp['msg'] = "올바른 상태값이 아닙니다.";
+            return json_encode($resp);
+        }
+        
+        // 트랜잭션 시작
+        $this->conn->begin_transaction();
+        
+        try {
+            // 상태 업데이트
+            $update = $this->conn->query("UPDATE document_requests SET status = '{$status}' WHERE id = '{$id}'");
+            
+            if($update) {
+                // 워크플로우 상태 기록
+                $step_name = $status == 0 ? '대기중' : ($status == 1 ? '진행중' : '완료');
+                $step_description = !empty($notes) ? $notes : "상태가 {$step_name}(으)로 변경되었습니다.";
+                
+                // 기존 current 상태 해제
+                $this->conn->query("UPDATE workflow_status SET is_current = 0 WHERE request_id = '{$id}'");
+                
+                // 새 상태 추가
+                $workflow_sql = "INSERT INTO workflow_status 
+                    (request_id, current_step, step_name, step_description, started_at, assigned_to, is_current) 
+                    VALUES 
+                    ('{$id}', '{$step_name}', '{$step_name}', '{$step_description}', NOW(), '{$this->settings->userdata('id')}', 1)";
+                
+                $this->conn->query($workflow_sql);
+                
+                $this->conn->commit();
+                $resp['status'] = 'success';
+                $resp['msg'] = "상태가 성공적으로 변경되었습니다.";
+            } else {
+                throw new Exception("상태 업데이트 실패");
+            }
+            
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            $resp['status'] = 'failed';
+            $resp['msg'] = "상태 변경 중 오류가 발생했습니다: " . $e->getMessage();
+        }
+        
+        return json_encode($resp);
+    }
+
     // Wasabi 연결 테스트
     public function test_wasabi() {
         extract($_POST);
@@ -1067,6 +1124,11 @@ switch ($action) {
     case 'test_wasabi':
         echo $Master->test_wasabi();
         break;
+
+    case 'update_request_status':
+        echo $Master->update_request_status();
+        break;
+
     default:
         // echo $sysset->index();
         break;
