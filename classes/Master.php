@@ -508,7 +508,7 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
-     function send_request_email(){
+    function send_request_email(){
         extract($_POST);
 
         if(!isset($id) || empty($id)){
@@ -519,13 +519,13 @@ Class Master extends DBConnection {
 
         // 요청 정보 조회
         $qry = $this->conn->query("
-        SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
-               d.manager_email, d.manager_name
-        FROM document_requests r
-        LEFT JOIN supplier_list s ON r.supplier_id = s.id
-        LEFT JOIN document_request_details d ON d.request_id = r.id
-        WHERE r.id = '{$id}'
-    ");
+            SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
+                   d.manager_email, d.manager_name
+            FROM document_requests r
+            LEFT JOIN supplier_list s ON r.supplier_id = s.id
+            LEFT JOIN document_request_details d ON d.request_id = r.id
+            WHERE r.id = '{$id}'
+        ");
 
         if($qry->num_rows == 0){
             $resp['status'] = 'failed';
@@ -537,11 +537,11 @@ Class Master extends DBConnection {
 
         // 이메일 템플릿 가져오기
         $template_qry = $this->conn->query("
-        SELECT * FROM email_templates 
-        WHERE template_type = 'request_notification' 
-        AND is_default = 1 
-        LIMIT 1
-    ");
+            SELECT * FROM email_templates 
+            WHERE template_type = 'request_notification' 
+            AND is_default = 1 
+            LIMIT 1
+        ");
 
         if($template_qry->num_rows == 0){
             $resp['status'] = 'failed';
@@ -566,21 +566,21 @@ Class Master extends DBConnection {
             "://$_SERVER[HTTP_HOST]" . dirname(dirname($_SERVER['REQUEST_URI'])) .
             "/upload_portal/?token=" . $request['upload_token'];
 
-        // 업로드 링크를 버튼 HTML로 생성
+        // 업로드 링크를 버튼 HTML로 생성 (인라인 스타일 완전 적용)
         $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
             '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; ' .
-            'background-color: #007bff; color: white !important; text-decoration: none !important; ' .
-            'border-radius: 5px; font-weight: 500; font-size: 16px; ' .
-            'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
+            'background-color: #007bff; color: white !important; ' .
+            'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
+            'box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' .
             '서류 업로드하기' .
             '</a></div>';
 
         // 요청된 서류 목록 조회
         $docs_qry = $this->conn->query("
-        SELECT document_name, is_required 
-        FROM request_documents 
-        WHERE request_id = '{$id}'
-        ORDER BY is_required DESC, document_name ASC");
+            SELECT document_name, is_required 
+            FROM request_documents 
+            WHERE request_id = '{$id}'
+            ORDER BY is_required DESC, document_name ASC");
 
         $required_docs = array();
         $optional_docs = array();
@@ -602,27 +602,33 @@ Class Master extends DBConnection {
         $all_docs_html = "";
 
         if(!empty($required_docs)){
-            $required_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            $required_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
             foreach($required_docs as $doc) {
-                $required_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+                $required_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
             }
-            $required_docs_html .= "</ul>";
+            $required_docs_html .= '</ul>';
+        } else {
+            $required_docs_html = '<span style="color: #6c757d;">없음</span>';
         }
-        
+
         if(!empty($optional_docs)){
-            $optional_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            $optional_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
             foreach($optional_docs as $doc) {
-                $optional_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+                $optional_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
             }
-            $optional_docs_html .= "</ul>";
+            $optional_docs_html .= '</ul>';
+        } else {
+            $optional_docs_html = '<span style="color: #6c757d;">없음</span>';
         }
 
         if(!empty($all_docs)){
-            $all_docs_html = "<ul style='margin: 10px 0; padding-left: 20px;'>";
+            $all_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
             foreach($all_docs as $doc) {
-                $all_docs_html .= "<li style='margin: 5px 0;'>" . htmlspecialchars($doc) . "</li>";
+                $all_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
             }
-            $all_docs_html .= "</ul>";
+            $all_docs_html .= '</ul>';
+        } else {
+            $all_docs_html = '<span style="color: #6c757d;">서류 목록이 없습니다.</span>';
         }
 
         // 변수 치환 데이터
@@ -634,8 +640,8 @@ Class Master extends DBConnection {
             '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
             '{{upload_link}}' => $upload_button,
             '{{document_list}}' => $all_docs_html,
-            '{{required_documents}}' => $required_docs_html ?: '<span style="color: #6c757d;">없음</span>',
-            '{{optional_documents}}' => $optional_docs_html ?: '<span style="color: #6c757d;">없음</span>',
+            '{{required_documents}}' => $required_docs_html,
+            '{{optional_documents}}' => $optional_docs_html,
             '{{additional_notes}}' => !empty($request['additional_notes']) ?
                 nl2br(htmlspecialchars($request['additional_notes'])) :
                 '<span style="color: #6c757d;">없음</span>'
@@ -650,12 +656,49 @@ Class Master extends DBConnection {
             $content = str_replace($key, $value, $content);
         }
 
+        // HTML 이메일 완전한 구조로 래핑
+        $full_html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        a.email-button {
+            display: inline-block !important;
+            padding: 12px 30px !important;
+            background-color: #007bff !important;
+            color: white !important;
+            text-decoration: none !important;
+            border-radius: 5px !important;
+            font-weight: 500 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        ' . $content . '
+    </div>
+</body>
+</html>';
+
         // EmailSender 클래스 사용
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
         // 이메일 발송
-        $result = $emailSender->sendEmail($to_email, $to_name, $subject, $content);
+        $result = $emailSender->sendEmail($to_email, $to_name, $subject, $full_html);
 
         if($result['status'] == 'success'){
             // 발송 시간 기록
@@ -775,18 +818,18 @@ Class Master extends DBConnection {
             if($save) {
                 // 선택적: 오래된 템플릿 삭제 (최근 5개만 유지)
                 $this->conn->query("
-                DELETE FROM email_templates 
-                WHERE template_type = 'request_notification' 
-                AND is_default = 0 
-                AND id NOT IN (
-                    SELECT id FROM (
-                        SELECT id FROM email_templates 
-                        WHERE template_type = 'request_notification' 
-                        ORDER BY date_created DESC 
-                        LIMIT 5
-                    ) AS keep_templates
-                )
-            ");
+                    DELETE FROM email_templates 
+                    WHERE template_type = 'request_notification' 
+                    AND is_default = 0 
+                    AND id NOT IN (
+                        SELECT id FROM (
+                            SELECT id FROM email_templates 
+                            WHERE template_type = 'request_notification' 
+                            ORDER BY date_created DESC 
+                            LIMIT 5
+                        ) AS keep_templates
+                    )
+                ");
 
                 $this->conn->commit();
                 $resp['status'] = 'success';
@@ -809,7 +852,7 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
-    // 테스트 이메일 발송
+    // 테스트 이메일 발송 - 수정된 버전
     public function send_test_email() {
         extract($_POST);
 
@@ -824,6 +867,34 @@ Class Master extends DBConnection {
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
+        // 업로드 버튼 HTML 생성 (인라인 스타일 완전 적용)
+        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
+            '<a href="#" style="display: inline-block; padding: 12px 30px; ' .
+            'background-color: #007bff; color: white !important; ' .
+            'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
+            'box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' .
+            '서류 업로드하기</a></div>';
+
+        // 필수 서류 HTML
+        $required_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
+            '<li style="margin: 5px 0;">안전관리계획서</li>' .
+            '<li style="margin: 5px 0;">유해위험방지계획서</li>' .
+            '<li style="margin: 5px 0;">사업자등록증</li>' .
+            '</ul>';
+
+        // 선택 서류 HTML
+        $optional_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
+            '<li style="margin: 5px 0;">건설업면허증</li>' .
+            '</ul>';
+
+        // 전체 서류 목록 HTML
+        $all_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
+            '<li style="margin: 5px 0;">안전관리계획서 (필수)</li>' .
+            '<li style="margin: 5px 0;">유해위험방지계획서 (필수)</li>' .
+            '<li style="margin: 5px 0;">사업자등록증 (필수)</li>' .
+            '<li style="margin: 5px 0;">건설업면허증 (선택)</li>' .
+            '</ul>';
+
         // 샘플 데이터로 변수 치환 - 모든 변수 포함
         $sampleData = [
             '{{contact_person}}' => '홍길동',
@@ -831,22 +902,18 @@ Class Master extends DBConnection {
             '{{supplier_name}}' => '테스트 의뢰처',
             '{{project_name}}' => '테스트 프로젝트',
             '{{due_date}}' => date('Y년 m월 d일', strtotime('+7 days')),
-            '{{upload_link}}' => '<div style="text-align: center; margin: 30px 0;">' .
-                '<a href="' . base_url . 'upload_portal/?token=test123" style="display: inline-block; ' .
-                'padding: 12px 30px; background-color: #007bff; color: white !important; ' .
-                'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
-                'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
-                '서류 업로드하기</a></div>',
-            '{{required_documents}}' => '<ul><li>안전관리계획서</li><li>유해위험방지계획서</li><li>사업자등록증</li></ul>',
-            '{{optional_documents}}' => '<ul><li>건설업면허증</li></ul>',
+            '{{upload_link}}' => $upload_button,
+            '{{required_documents}}' => $required_docs_html,
+            '{{optional_documents}}' => $optional_docs_html,
             '{{additional_notes}}' => '서류는 PDF 형식으로 제출해주시기 바랍니다.',
-            '{{document_list}}' => '<ul><li>안전관리계획서 (필수)</li><li>유해위험방지계획서 (필수)</li><li>사업자등록증 (필수)</li><li>건설업면허증 (선택)</li></ul>'
+            '{{document_list}}' => $all_docs_html
         ];
 
         // 변수 치환
         $test_subject = $subject;
         $test_content = $content;
 
+        // 모든 변수를 치환
         foreach($sampleData as $key => $value) {
             $test_subject = str_replace($key, $value, $test_subject);
             $test_content = str_replace($key, $value, $test_content);
@@ -855,8 +922,45 @@ Class Master extends DBConnection {
         // 테스트 이메일임을 표시
         $test_subject = "[테스트] " . $test_subject;
 
+        // HTML 이메일 완전한 구조로 래핑
+        $full_html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        a.email-button {
+            display: inline-block !important;
+            padding: 12px 30px !important;
+            background-color: #007bff !important;
+            color: white !important;
+            text-decoration: none !important;
+            border-radius: 5px !important;
+            font-weight: 500 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        ' . $test_content . '
+    </div>
+</body>
+</html>';
+
         // 이메일 발송
-        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $test_content);
+        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $full_html);
 
         return json_encode($result);
     }
