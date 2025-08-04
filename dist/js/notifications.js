@@ -202,9 +202,6 @@ const NotificationSystem = {
     /**
      * 새 알림 체크
      */
-    // notifications.js의 checkNewNotifications 함수 수정 부분
-// 206번째 줄 근처를 다음과 같이 수정하세요:
-
     checkNewNotifications: function() {
         $.ajax({
             url: 'ajax/get_notifications.php',

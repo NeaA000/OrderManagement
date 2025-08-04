@@ -2,7 +2,12 @@
 // admin/ajax/get_notifications.php
 require_once('../../config.php');
 
-// 오류 출력 방지
+// 세션 시작
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 오류 출력 방지 (디버깅 시에는 주석 처리)
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -10,11 +15,12 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 try {
-    // 로그인 체크 수정
-    $user_id = $_settings->userdata('id');
-    if(!$user_id) {
+    // 로그인 체크 - 세션 직접 확인
+    if(!isset($_SESSION['userdata']) || !isset($_SESSION['userdata']['id'])) {
         throw new Exception('Unauthorized');
     }
+
+    $user_id = $_SESSION['userdata']['id'];
 
     $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : 'get');
 
