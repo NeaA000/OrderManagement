@@ -279,7 +279,6 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 
         .documents-table tbody tr:hover {
             background-color: #f6f9fc;
-            transform: translateX(5px);
         }
 
         .badge-required {
@@ -365,10 +364,147 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
             box-shadow: none;
         }
 
-        /* 완료 버튼 개선 */
+        /* Inline Upload Card */
+        .inline-upload-section {
+            display: none;
+            background: white;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            padding: 0;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+                transform: translateY(0);
+            }
+        }
+
+        .inline-upload-section.show {
+            display: block;
+        }
+
+        .upload-card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upload-card-header h6 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .upload-card-header .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .upload-card-header .close-btn:hover {
+            opacity: 1;
+        }
+
+        .upload-card-body {
+            padding: 2rem;
+        }
+
+        /* Dropzone Area */
+        .dropzone-area {
+            background: linear-gradient(135deg, #f6f9fc 0%, #e9ecef 100%);
+            border: 2px dashed #dee2e6;
+            border-radius: 0.75rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropzone-area:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(94, 114, 228, 0.15);
+        }
+
+        .dz-message {
+            margin: 0;
+        }
+
+        .dz-message i {
+            font-size: 3rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .dz-message p {
+            color: #525f7f;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .dz-message small {
+            color: #8898aa;
+            font-size: 0.8125rem;
+            display: block;
+        }
+
+        /* Upload Info */
+        .upload-info {
+            background-color: #e7f1ff;
+            border-left: 4px solid var(--info-color);
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: #525f7f;
+        }
+
+        .upload-info i {
+            color: var(--info-color);
+            margin-right: 0.5rem;
+        }
+
+        /* Complete Section */
         .complete-section {
             text-align: center;
             padding: 2rem 0;
+        }
+
+        .complete-section.confirm-mode {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: var(--card-shadow);
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .complete-section.confirm-mode.show {
+            display: block;
         }
 
         .complete-btn {
@@ -406,6 +542,30 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         .complete-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 12px 35px rgba(45, 206, 137, 0.4);
+        }
+
+        .confirm-buttons {
+            margin-top: 2rem;
+        }
+
+        .confirm-buttons .btn {
+            margin: 0 0.5rem;
+        }
+
+        .btn-secondary {
+            background: #8898aa;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #525f7f;
+            transform: translateY(-2px);
         }
 
         /* Notice Card */
@@ -457,134 +617,6 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         .success-message p {
             color: #8898aa;
             font-size: 1.1rem;
-        }
-
-        /* Modal Styling */
-        .modal-dialog {
-            max-width: 500px;
-        }
-
-        .modal-content {
-            border: none;
-            border-radius: 1rem;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        .modal-header {
-            border-bottom: none;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
-            color: white;
-            border-radius: 1rem 1rem 0 0;
-        }
-
-        .modal-header .modal-title {
-            font-weight: 600;
-            font-size: 1.125rem;
-        }
-
-        .modal-header .close {
-            color: white;
-            opacity: 0.8;
-            text-shadow: none;
-            font-size: 1.5rem;
-        }
-
-        .modal-header .close:hover {
-            opacity: 1;
-        }
-
-        .modal-body {
-            padding: 2rem;
-        }
-
-        /* Upload Card */
-        .upload-card {
-            background: white;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-        }
-
-        .upload-card h6 {
-            color: #32325d;
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        /* Dropzone Area */
-        .dropzone-area {
-            background: linear-gradient(135deg, #f6f9fc 0%, #e9ecef 100%);
-            border: 2px dashed #dee2e6;
-            border-radius: 0.75rem;
-            padding: 3rem 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .dropzone-area:before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(94, 114, 228, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
-            transition: left 0.5s ease;
-        }
-
-        .dropzone-area:hover:before {
-            left: 0;
-        }
-
-        .dropzone-area:hover {
-            border-color: var(--primary-color);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(94, 114, 228, 0.15);
-        }
-
-        .dz-message {
-            margin: 0;
-        }
-
-        .dz-message i {
-            font-size: 3rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
-        .dz-message p {
-            color: #525f7f;
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-
-        .dz-message small {
-            color: #8898aa;
-            font-size: 0.8125rem;
-            display: block;
-        }
-
-        /* Upload Info */
-        .upload-info {
-            background-color: #e7f1ff;
-            border-left: 4px solid var(--info-color);
-            padding: 0.75rem 1rem;
-            border-radius: 0.25rem;
-            margin-top: 1.5rem;
-            font-size: 0.875rem;
-            color: #525f7f;
-        }
-
-        .upload-info i {
-            color: var(--info-color);
-            margin-right: 0.5rem;
         }
 
         /* Dropzone Progress */
@@ -727,7 +759,7 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                     </thead>
                     <tbody>
                     <?php foreach($documents as $doc): ?>
-                        <tr>
+                        <tr id="doc-row-<?php echo $doc['id'] ?>">
                             <td>
                                 <strong><?php echo htmlspecialchars($doc['document_name']) ?></strong>
                                 <?php if($doc['category_name']): ?>
@@ -754,7 +786,7 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                             </td>
                             <td>
                                 <?php if($doc['status'] == 0): ?>
-                                    <button class="upload-btn" onclick="openUploadModal(<?php echo $doc['id'] ?>)">
+                                    <button class="upload-btn" onclick="toggleUploadCard(<?php echo $doc['id'] ?>)">
                                         <i class="fas fa-upload"></i> 업로드
                                     </button>
                                 <?php else: ?>
@@ -764,6 +796,36 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <tr id="upload-row-<?php echo $doc['id'] ?>" style="display: none;">
+                            <td colspan="4" style="padding: 0; border: none;">
+                                <div class="inline-upload-section" id="upload-section-<?php echo $doc['id'] ?>">
+                                    <div class="upload-card-header">
+                                        <h6><?php echo htmlspecialchars($doc['document_name']) ?> 업로드</h6>
+                                        <button class="close-btn" onclick="toggleUploadCard(<?php echo $doc['id'] ?>)">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div class="upload-card-body">
+                                        <div id="dropzone-<?php echo $doc['id'] ?>" class="dropzone-area">
+                                            <div class="dz-message">
+                                                <i class="fas fa-cloud-upload-alt"></i>
+                                                <p>파일을 드래그하거나 클릭하여 업로드</p>
+                                                <small>최대 10MB · PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX</small>
+                                            </div>
+                                        </div>
+                                        <div class="upload-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>
+                                                <?php if($doc['category_name']): ?>
+                                                    <?php echo htmlspecialchars($doc['category_name']) ?> 카테고리의
+                                                <?php endif; ?>
+                                                <?php echo htmlspecialchars($doc['document_name']) ?>에 해당하는 파일을 업로드해주세요
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -771,12 +833,25 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 
             <!-- 모든 서류가 업로드되었을 때만 제출 완료 버튼 표시 -->
             <?php if($all_submitted && !$is_completed): ?>
-                <div class="complete-section">
+                <div class="complete-section" id="complete-section">
                     <h5 class="mb-3">모든 서류가 업로드되었습니다!</h5>
                     <p class="text-muted mb-4">제출을 완료하시려면 아래 버튼을 클릭해주세요.</p>
-                    <button class="complete-btn" onclick="confirmSubmission()">
+                    <button class="complete-btn" onclick="showConfirmSection()">
                         <i class="fas fa-check-circle"></i> 제출 완료
                     </button>
+                </div>
+
+                <!-- 제출 확인 섹션 (숨겨진 상태) -->
+                <div class="complete-section confirm-mode" id="confirm-section">
+                    <h5>제출 확인</h5>
+                    <p>모든 서류를 제출하시겠습니까?</p>
+                    <p class="text-muted">제출 완료 후에는 수정이 불가능합니다.</p>
+                    <div class="confirm-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="hideConfirmSection()">취소</button>
+                        <button type="button" class="btn complete-btn" onclick="submitCompletion()">
+                            <i class="fas fa-check"></i> 제출 완료
+                        </button>
+                    </div>
                 </div>
             <?php endif; ?>
         <?php endif; ?>
@@ -795,62 +870,6 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
     <?php endif; ?>
 </div>
 
-<!-- Upload Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">파일 업로드</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="upload-card">
-                    <h6 class="text-center mb-3" id="upload-doc-name">파일을 선택해주세요</h6>
-                    <div id="documentDropzone" class="dropzone-area">
-                        <div class="dz-message">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>파일을 드래그하거나 클릭하여 업로드</p>
-                            <small>최대 10MB · PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, HWP, HWPX</small>
-                        </div>
-                    </div>
-                    <div class="upload-info">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="upload-hint">선택한 서류에 해당하는 파일을 업로드해주세요</span>
-                    </div>
-                </div>
-                <input type="hidden" id="upload_request_id" value="<?php echo $request['id'] ?>">
-                <input type="hidden" id="upload_document_id">
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Confirm Submission Modal -->
-<div class="modal fade" id="confirmModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">제출 확인</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p>모든 서류를 제출하시겠습니까?</p>
-                <p class="text-muted">제출 완료 후에는 수정이 불가능합니다.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
-                <button type="button" class="btn btn-success" onclick="submitCompletion()">
-                    <i class="fas fa-check"></i> 제출 완료
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Scripts -->
 <script src="<?php echo base_url ?>plugins/jquery/jquery.min.js"></script>
 <script src="<?php echo base_url ?>plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -860,31 +879,56 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
     // Dropzone 자동 초기화 방지
     Dropzone.autoDiscover = false;
 
-    let myDropzone = null;
+    // 활성화된 Dropzone 인스턴스들을 저장
+    const dropzoneInstances = {};
 
-    function openUploadModal(docId) {
-        $('#upload_document_id').val(docId);
+    // 업로드 카드 토글
+    function toggleUploadCard(docId) {
+        const uploadRow = document.getElementById(`upload-row-${docId}`);
+        const uploadSection = document.getElementById(`upload-section-${docId}`);
 
-        // 선택한 문서명 가져오기
-        const docRow = $('button[onclick="openUploadModal(' + docId + ')"]').closest('tr');
-        const docName = docRow.find('td:first strong').text();
-        const categoryName = docRow.find('td:first small').text();
+        // 다른 열려있는 업로드 카드들을 모두 닫기
+        $('.inline-upload-section.show').each(function() {
+            if(this.id !== `upload-section-${docId}`) {
+                const otherId = this.id.replace('upload-section-', '');
+                toggleUploadCard(otherId);
+            }
+        });
 
-        // 모달에 문서명 표시
-        $('#upload-doc-name').text(docName);
-        if(categoryName) {
-            $('#upload-hint').text(categoryName + ' 카테고리의 ' + docName + '에 해당하는 파일을 업로드해주세요');
+        if(uploadSection.classList.contains('show')) {
+            // 닫기
+            uploadSection.classList.remove('show');
+            setTimeout(() => {
+                uploadRow.style.display = 'none';
+            }, 300);
+
+            // Dropzone 인스턴스 제거
+            if(dropzoneInstances[docId]) {
+                dropzoneInstances[docId].destroy();
+                delete dropzoneInstances[docId];
+            }
         } else {
-            $('#upload-hint').text(docName + '에 해당하는 파일을 업로드해주세요');
+            // 열기
+            uploadRow.style.display = 'table-row';
+            setTimeout(() => {
+                uploadSection.classList.add('show');
+            }, 10);
+
+            // Dropzone 초기화
+            initializeDropzone(docId);
+        }
+    }
+
+    // Dropzone 초기화
+    function initializeDropzone(docId) {
+        const dropzoneElement = document.getElementById(`dropzone-${docId}`);
+
+        // 이미 초기화된 경우 제거
+        if(dropzoneInstances[docId]) {
+            dropzoneInstances[docId].destroy();
         }
 
-        // 기존 Dropzone 인스턴스 제거
-        if(myDropzone) {
-            myDropzone.destroy();
-        }
-
-        // 새 Dropzone 인스턴스 생성
-        myDropzone = new Dropzone("#documentDropzone", {
+        dropzoneInstances[docId] = new Dropzone(dropzoneElement, {
             url: "upload_handler.php",
             maxFilesize: 10, // MB
             acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.hwp,.hwpx',
@@ -900,22 +944,22 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
             init: function() {
                 this.on("addedfile", function(file) {
                     // 파일 추가 시 아이콘 변경
-                    $('.dropzone-area .dz-message').html('<div class="dz-progress"><span class="dz-upload" data-dz-uploadprogress></span></div>');
+                    $(dropzoneElement).find('.dz-message').html('<div class="dz-progress"><span class="dz-upload" data-dz-uploadprogress></span></div>');
                 });
 
                 this.on("uploadprogress", function(file, progress) {
                     // 업로드 진행률 표시
-                    $('.dz-upload').css('width', progress + '%');
+                    $(dropzoneElement).find('.dz-upload').css('width', progress + '%');
                 });
 
                 this.on("success", function(file, response) {
                     // 성공 시 표시
-                    $('.dropzone-area').html('<div class="dz-success-mark"><i class="fas fa-check-circle"></i></div><p class="upload-success-msg">업로드 완료!</p>');
+                    $(dropzoneElement).html('<div class="dz-success-mark"><i class="fas fa-check-circle"></i></div><p class="upload-success-msg">업로드 완료!</p>');
                 });
             },
             sending: function(file, xhr, formData) {
-                formData.append("request_id", $('#upload_request_id').val());
-                formData.append("document_id", $('#upload_document_id').val());
+                formData.append("request_id", <?php echo $request['id'] ?>);
+                formData.append("document_id", docId);
             },
             success: function(file, response) {
                 if(typeof response === 'string') {
@@ -930,7 +974,6 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 
                 if(response.status === 'success') {
                     setTimeout(function() {
-                        $('#uploadModal').modal('hide');
                         location.reload();
                     }, 1500);
                 } else {
@@ -942,21 +985,26 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                 alert('파일 업로드 중 오류가 발생했습니다: ' + errorMessage);
             }
         });
-
-        $('#uploadModal').modal('show');
     }
 
-    // 모달 닫힐 때 Dropzone 초기화
-    $('#uploadModal').on('hidden.bs.modal', function() {
-        if(myDropzone) {
-            myDropzone.destroy();
-            myDropzone = null;
-        }
-    });
+    // 제출 확인 섹션 표시
+    function showConfirmSection() {
+        document.getElementById('complete-section').style.display = 'none';
+        const confirmSection = document.getElementById('confirm-section');
+        confirmSection.style.display = 'block';
+        setTimeout(() => {
+            confirmSection.classList.add('show');
+        }, 10);
+    }
 
-    // 제출 확인
-    function confirmSubmission() {
-        $('#confirmModal').modal('show');
+    // 제출 확인 섹션 숨기기
+    function hideConfirmSection() {
+        const confirmSection = document.getElementById('confirm-section');
+        confirmSection.classList.remove('show');
+        setTimeout(() => {
+            confirmSection.style.display = 'none';
+            document.getElementById('complete-section').style.display = 'block';
+        }, 300);
     }
 
     // 최종 제출
@@ -971,29 +1019,27 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
             dataType: 'json',
             beforeSend: function() {
                 // 버튼 비활성화
-                $('#confirmModal .btn-success').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 처리중...');
+                $('#confirm-section .complete-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 처리중...');
             },
             success: function(response) {
                 if(response.status === 'success') {
-                    $('#confirmModal').modal('hide');
-
                     // 성공 메시지 표시 후 페이지 새로고침
                     setTimeout(function() {
                         location.reload();
                     }, 1000);
                 } else {
                     alert(response.msg || '제출 처리 중 오류가 발생했습니다.');
-                    $('#confirmModal .btn-success').prop('disabled', false).html('<i class="fas fa-check"></i> 제출 완료');
+                    $('#confirm-section .complete-btn').prop('disabled', false).html('<i class="fas fa-check"></i> 제출 완료');
                 }
             },
             error: function() {
                 alert('서버 통신 중 오류가 발생했습니다.');
-                $('#confirmModal .btn-success').prop('disabled', false).html('<i class="fas fa-check"></i> 제출 완료');
+                $('#confirm-section .complete-btn').prop('disabled', false).html('<i class="fas fa-check"></i> 제출 완료');
             }
         });
     }
 
-    // 파일 삭제 - 기존 시스템의 delete_file.php 사용
+    // 파일 삭제
     function deleteFile(docId) {
         if(!confirm('정말로 이 파일을 삭제하시겠습니까?')) {
             return;
