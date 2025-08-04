@@ -167,6 +167,16 @@
     background: rgba(220,53,69,0.1);
 }
 
+/* 알림 토글 버튼 (전체 알림 끄기) */
+.notification-toggle-btn {
+    margin-right: 5px;
+}
+
+.notification-toggle-btn.muted {
+    color: #6c757d;
+    opacity: 0.7;
+}
+
 /* 알림 리스트 */
 .notification-list {
     max-height: 400px;

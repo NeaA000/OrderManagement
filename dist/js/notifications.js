@@ -9,6 +9,7 @@ const NotificationSystem = {
     maxNotifications: 20, // 최대 표시 알림 수
     toastDuration: 5000, // 토스트 표시 시간
     soundEnabled: true, // 알림음 활성화
+    notificationEnabled: true, // 알림 자체 활성화
 
     // 상태
     lastCheck: null,
@@ -55,6 +56,7 @@ const NotificationSystem = {
             try {
                 const settings = JSON.parse(saved);
                 this.soundEnabled = settings.soundEnabled !== undefined ? settings.soundEnabled : true;
+                this.notificationEnabled = settings.notificationEnabled !== undefined ? settings.notificationEnabled : true;
                 this.checkInterval = settings.checkInterval || 5000;
             } catch (e) {
                 console.error('설정 로드 실패:', e);
@@ -68,6 +70,7 @@ const NotificationSystem = {
     saveSettings: function() {
         const settings = {
             soundEnabled: this.soundEnabled,
+            notificationEnabled: this.notificationEnabled,
             checkInterval: this.checkInterval
         };
         localStorage.setItem('notificationSettings', JSON.stringify(settings));
@@ -178,6 +181,12 @@ const NotificationSystem = {
      * 정기 체크 시작
      */
     startChecking: function() {
+        // 알림이 비활성화되어 있으면 체크하지 않음
+        if (!this.notificationEnabled) {
+            console.log('알림이 비활성화되어 있습니다.');
+            return;
+        }
+
         // 기존 인터벌 제거
         if (this.checkTimer) {
             clearInterval(this.checkTimer);
@@ -185,7 +194,9 @@ const NotificationSystem = {
 
         // 새 인터벌 설정
         this.checkTimer = setInterval(() => {
-            this.checkNewNotifications();
+            if (this.notificationEnabled) {
+                this.checkNewNotifications();
+            }
         }, this.checkInterval);
     },
 
@@ -533,6 +544,31 @@ const NotificationSystem = {
         }
 
         return this.soundEnabled;
+    },
+
+    /**
+     * 알림 전체 토글
+     */
+    toggleNotification: function() {
+        this.notificationEnabled = !this.notificationEnabled;
+        this.saveSettings();
+
+        if (this.notificationEnabled) {
+            // 알림을 다시 켜면 체크 재시작
+            this.startChecking();
+            this.checkNewNotifications();
+            if (typeof toastr !== 'undefined') {
+                toastr.success('알림이 켜졌습니다.');
+            }
+        } else {
+            // 알림을 끄면 체크 중지
+            this.stopChecking();
+            if (typeof toastr !== 'undefined') {
+                toastr.warning('알림이 꺼졌습니다.');
+            }
+        }
+
+        return this.notificationEnabled;
     },
 
     /**

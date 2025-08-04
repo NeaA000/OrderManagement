@@ -36,6 +36,12 @@
     .sound-toggle-btn.muted:hover {
         background: rgba(220,53,69,0.1);
     }
+
+    /* 알림 토글 버튼 */
+    .notification-toggle-btn.muted {
+        color: #6c757d;
+        opacity: 0.7;
+    }
 </style>
 <!-- Navbar -->
 <nav class="main-header navbar navbar-expand navbar-light border border-light shadow  border-top-0  border-left-0 border-right-0 navbar-light text-sm">
@@ -82,6 +88,9 @@
                 <div class="notification-header">
                     <h6 class="mb-0">알림</h6>
                     <div>
+                        <button class="sound-toggle-btn notification-toggle-btn" onclick="toggleNotification(); return false;" title="알림 켜기/끄기">
+                            <i class="fas fa-bell" id="notification-toggle-icon"></i>
+                        </button>
                         <button class="sound-toggle-btn" onclick="toggleNotificationSound(); return false;" title="알림음 켜기/끄기">
                             <i class="fas fa-volume-up" id="sound-toggle-icon"></i>
                         </button>
@@ -132,6 +141,11 @@
 <script>
     // 알림음 토글 함수
     function toggleNotificationSound() {
+        if (typeof NotificationSystem === 'undefined') {
+            console.error('NotificationSystem이 아직 로드되지 않았습니다.');
+            return;
+        }
+
         const isEnabled = NotificationSystem.toggleSound();
         const icon = document.getElementById('sound-toggle-icon');
         const btn = icon.parentElement;
@@ -147,16 +161,51 @@
         }
     }
 
-    // 페이지 로드 시 알림음 상태 확인
+    // 알림 전체 토글 함수
+    function toggleNotification() {
+        if (typeof NotificationSystem === 'undefined') {
+            console.error('NotificationSystem이 아직 로드되지 않았습니다.');
+            return;
+        }
+
+        const isEnabled = NotificationSystem.toggleNotification();
+        const icon = document.getElementById('notification-toggle-icon');
+        const btn = icon.parentElement;
+
+        if (isEnabled) {
+            icon.className = 'fas fa-bell';
+            btn.classList.remove('muted');
+            btn.title = '알림 끄기';
+        } else {
+            icon.className = 'fas fa-bell-slash';
+            btn.classList.add('muted');
+            btn.title = '알림 켜기';
+        }
+    }
+
+    // 페이지 로드 시 알림 상태 확인
     $(document).ready(function() {
         // NotificationSystem이 초기화된 후 상태 확인
         setTimeout(function() {
-            if (typeof NotificationSystem !== 'undefined' && !NotificationSystem.soundEnabled) {
-                const icon = document.getElementById('sound-toggle-icon');
-                if (icon) {
-                    icon.className = 'fas fa-volume-mute';
-                    icon.parentElement.classList.add('muted');
-                    icon.parentElement.title = '알림음 켜기';
+            if (typeof NotificationSystem !== 'undefined') {
+                // 알림음 상태
+                if (!NotificationSystem.soundEnabled) {
+                    const soundIcon = document.getElementById('sound-toggle-icon');
+                    if (soundIcon) {
+                        soundIcon.className = 'fas fa-volume-mute';
+                        soundIcon.parentElement.classList.add('muted');
+                        soundIcon.parentElement.title = '알림음 켜기';
+                    }
+                }
+
+                // 알림 상태
+                if (!NotificationSystem.notificationEnabled) {
+                    const notifIcon = document.getElementById('notification-toggle-icon');
+                    if (notifIcon) {
+                        notifIcon.className = 'fas fa-bell-slash';
+                        notifIcon.parentElement.classList.add('muted');
+                        notifIcon.parentElement.title = '알림 켜기';
+                    }
                 }
             }
         }, 500);

@@ -66,11 +66,15 @@ $request = $qry->fetch_assoc();
 // 이미 완료된 요청인지 확인
 $is_completed = ($request['status'] == 2);
 
-// 요청된 서류 목록 조회
+// 요청된 서류 목록 조회 - 업로드된 파일 정보도 함께 조회
 $docs_qry = $conn->query("
-    SELECT rd.*, dc.name as category_name 
+    SELECT rd.*, dc.name as category_name,
+           uf.original_name as uploaded_file_name,
+           uf.file_size,
+           uf.uploaded_at
     FROM `request_documents` rd 
     LEFT JOIN `document_categories` dc ON rd.category_id = dc.id 
+    LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
     WHERE rd.request_id = '{$request['id']}' 
     ORDER BY rd.is_required DESC, rd.id ASC
 ");
@@ -307,6 +311,16 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         .status-pending {
             color: var(--warning-color);
             font-weight: 500;
+        }
+
+        /* 파일명 표시 스타일 */
+        .status-submitted + small {
+            display: block;
+            margin-top: 0.25rem;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .upload-btn {
@@ -682,6 +696,12 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                 padding: 0.375rem 1rem;
                 font-size: 0.8125rem;
             }
+
+            /* 모바일에서 파일명 표시 조정 */
+            .status-submitted + small {
+                max-width: 150px;
+                font-size: 0.7rem !important;
+            }
         }
     </style>
 </head>
@@ -753,7 +773,7 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                     <tr>
                         <th>서류명</th>
                         <th style="width: 100px;">구분</th>
-                        <th style="width: 120px;">상태</th>
+                        <th style="width: 200px;">상태</th>
                         <th style="width: 140px;">작업</th>
                     </tr>
                     </thead>
@@ -778,6 +798,11 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                                     <span class="status-submitted">
                                         <i class="fas fa-check-circle"></i> 제출완료
                                     </span>
+                                    <?php if($doc['uploaded_file_name']): ?>
+                                        <br><small class="text-muted" style="font-size: 0.75rem;">
+                                            <i class="fas fa-file"></i> <?php echo htmlspecialchars($doc['uploaded_file_name']) ?>
+                                        </small>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="status-pending">
                                         <i class="fas fa-clock"></i> 미제출
@@ -954,7 +979,8 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 
                 this.on("success", function(file, response) {
                     // 성공 시 표시
-                    $(dropzoneElement).html('<div class="dz-success-mark"><i class="fas fa-check-circle"></i></div><p class="upload-success-msg">업로드 완료!</p>');
+                    const fileName = file.name;
+                    $(dropzoneElement).html('<div class="dz-success-mark"><i class="fas fa-check-circle"></i></div><p class="upload-success-msg">업로드 완료!</p><p class="text-muted" style="font-size: 0.875rem;"><i class="fas fa-file"></i> ' + fileName + '</p>');
                 });
             },
             sending: function(file, xhr, formData) {
@@ -1041,7 +1067,14 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
 
     // 파일 삭제
     function deleteFile(docId) {
-        if(!confirm('정말로 이 파일을 삭제하시겠습니까?')) {
+        // 파일명 가져오기
+        const docRow = $('#doc-row-' + docId);
+        const fileName = docRow.find('.text-muted i.fa-file').parent().text().trim();
+        const confirmMsg = fileName ?
+            '파일 "' + fileName + '"을(를) 삭제하시겠습니까?' :
+            '정말로 이 파일을 삭제하시겠습니까?';
+
+        if(!confirm(confirmMsg)) {
             return;
         }
 
