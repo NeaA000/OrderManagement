@@ -34,7 +34,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
 <section class="content">
     <div class="container-fluid">
         <!-- 의뢰처 정보 카드 -->
-        <div class="card card-info">
+        <div class="card card-default">
             <div class="card-header">
                 <h3 class="card-title">의뢰처 정보</h3>
                 <div class="card-tools d-flex align-items-center">
@@ -104,7 +104,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
                 $current_workflow = $workflow_labels[$project['workflow_step']] ?? $workflow_labels['created'];
                 ?>
                 <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-<?php echo $project['status'] == 2 ? 'success' : ($project['status'] == 1 ? 'primary' : 'secondary') ?>">
+                    <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-hard-hat"></i> <?php echo $project['project_name'] ?>
                             <span class="badge badge-light float-right">
@@ -220,17 +220,8 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
                         </div>
 
                         <div class="mt-3">
-                            <button class="btn btn-sm btn-info" onclick="viewRequestDetail(<?php echo $project['id'] ?>)">
-                                <i class="fa fa-eye"></i> 상세보기
-                            </button>
-                            <button class="btn btn-sm btn-warning" onclick="sendReminder(<?php echo $project['id'] ?>)">
-                                <i class="fa fa-envelope"></i> 리마인더 발송
-                            </button>
                             <button class="btn btn-sm btn-success" onclick="downloadAll(<?php echo $project['id'] ?>)">
                                 <i class="fa fa-download"></i> 전체 다운로드
-                            </button>
-                            <button class="btn btn-sm btn-primary" onclick="exportExcel(<?php echo $project['id'] ?>)">
-                                <i class="fa fa-file-excel"></i> 엑셀 다운로드
                             </button>
                         </div>
                     </div>
@@ -272,50 +263,19 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
         location.href = './?page=document_requests/create_request&supplier_id=' + supplier_id;
     }
 
-    function viewRequestDetail(request_id){
-        location.href = './?page=document_requests/view_status&id=' + request_id;
-    }
-
-    function sendReminder(request_id){
-        _conf("미제출 서류에 대한 리마인더를 발송하시겠습니까?", "send_reminder", [request_id]);
-    }
-
-    function send_reminder(request_id){
-        start_loader();
-        $.ajax({
-            url: _base_url_ + "classes/DocumentManager.php?f=send_reminder",
-            method: "POST",
-            data: {request_id: request_id},
-            dataType: "json",
-            error: err => {
-                console.log(err);
-                alert_toast("오류가 발생했습니다.", 'error');
-                end_loader();
-            },
-            success: function(resp){
-                if(resp.status == 'success'){
-                    alert_toast("리마인더가 발송되었습니다.", 'success');
-                } else {
-                    alert_toast("발송 중 오류가 발생했습니다.", 'error');
-                }
-                end_loader();
-            }
-        });
-    }
-
     function downloadAll(request_id){
         start_loader();
-        window.location.href = _base_url_ + "classes/DocumentManager.php?f=download_all&request_id=" + request_id;
-        end_loader();
-    }
-
-    function exportExcel(request_id){
-        start_loader();
-        window.location.href = _base_url_ + "classes/DocumentManager.php?f=export_excel&request_id=" + request_id;
-        end_loader();
+        window.location.href = _base_url_ + "classes/Master.php?f=download_all&request_id=" + request_id;
+        setTimeout(function() {
+            end_loader();
+        }, 3000);
     }
 
     function downloadFile(filepath){
-        window.open(_base_url_ + filepath, '_blank');
+        if(filepath && filepath.trim() !== '') {
+            window.open(_base_url_ + filepath, '_blank');
+        } else {
+            alert_toast("다운로드할 파일이 없습니다.", 'warning');
+        }
     }
 </script>

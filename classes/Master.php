@@ -1034,6 +1034,126 @@ Class Master extends DBConnection {
         return json_encode($result);
     }
 
+    // 전체 파일 ZIP 다운로드
+    public function download_all(){
+        $request_id = $_GET['request_id'] ?? 0;
+
+        if(!$request_id){
+            http_response_code(400);
+            die('요청 ID가 없습니다.');
+        }
+
+        // 요청 정보 조회
+        $request = $this->conn->query("
+            SELECT dr.*, sl.name as supplier_name 
+            FROM document_requests dr 
+            LEFT JOIN supplier_list sl ON dr.supplier_id = sl.id 
+            WHERE dr.id = '{$request_id}'
+        ")->fetch_assoc();
+
+        if(!$request){
+            http_response_code(404);
+            die('요청을 찾을 수 없습니다.');
+        }
+
+        // 업로드된 파일들 조회 (해당 요청번호의 파일만)
+        $files = $this->conn->query("
+            SELECT rd.*, uf.wasabi_key, uf.wasabi_bucket 
+            FROM request_documents rd
+            LEFT JOIN uploaded_files uf ON uf.document_id = rd.id
+            WHERE rd.request_id = '{$request_id}' 
+            AND rd.status = 1 
+            AND (rd.file_path IS NOT NULL OR uf.wasabi_key IS NOT NULL)
+        ");
+
+        if($files->num_rows == 0){
+            http_response_code(404);
+            die('다운로드할 파일이 없습니다.');
+        }
+
+        // ZIP 파일 생성
+        $zip = new ZipArchive();
+
+        // ZIP 파일명: 요청번호_프로젝트명_날짜시간.zip
+        $project_name_clean = preg_replace('/[^가-힣a-zA-Z0-9]/', '_', $request['project_name']);
+        $zipFileName = $request['request_no'] . "_" . $project_name_clean . "_" . date('YmdHis') . ".zip";
+        $zipFilePath = sys_get_temp_dir() . '/' . $zipFileName;
+
+        if($zip->open($zipFilePath, ZipArchive::CREATE) !== TRUE){
+            die('ZIP 파일 생성 실패');
+        }
+
+        // 폴더명: 요청번호_프로젝트명
+        $folderName = $request['request_no'] . "_" . $project_name_clean;
+
+        // 파일 추가
+        $fileCount = 0;
+        while($file = $files->fetch_assoc()){
+            $fileAdded = false;
+
+            // Wasabi 파일 처리
+            if($this->settings->info('use_wasabi') === 'true' && !empty($file['wasabi_key'])){
+                try {
+                    // UploadHandler 클래스 사용
+                    require_once('UploadHandler.php');
+                    $uploadHandler = new UploadHandler();
+
+                    // Wasabi에서 파일 가져오기
+                    $tempFile = tempnam(sys_get_temp_dir(), 'wasabi_');
+                    $result = $uploadHandler->downloadFromWasabi($file['wasabi_key'], $tempFile);
+
+                    if($result && file_exists($tempFile)){
+                        // ZIP에 추가 (폴더 구조 포함)
+                        $fileName = $file['document_name'] . '_' . basename($file['file_name'] ?: 'file_' . $fileCount);
+                        $zip->addFile($tempFile, $folderName . '/' . $fileName);
+                        $fileAdded = true;
+
+                        // 임시 파일 삭제
+                        unlink($tempFile);
+                    }
+                } catch(Exception $e) {
+                    error_log("Wasabi download error: " . $e->getMessage());
+                }
+            }
+
+            // 로컬 파일 처리
+            if(!$fileAdded && !empty($file['file_path'])){
+                $filePath = base_app . $file['file_path'];
+                if(file_exists($filePath)){
+                    // 파일명 생성: 서류명_원본파일명
+                    $originalFileName = basename($file['file_path']);
+                    $fileName = $file['document_name'] . '_' . $originalFileName;
+
+                    // ZIP에 추가 (폴더 구조 포함)
+                    $zip->addFile($filePath, $folderName . '/' . $fileName);
+                    $fileCount++;
+                }
+            }
+        }
+
+        $zip->close();
+
+        if($fileCount == 0){
+            unlink($zipFilePath);
+            die('다운로드할 파일이 없습니다.');
+        }
+
+        // ZIP 파일 다운로드
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $zipFileName . '"');
+        header('Content-Length: ' . filesize($zipFilePath));
+        header('Cache-Control: no-cache, must-revalidate');
+        header('Pragma: no-cache');
+
+        // 파일 출력
+        readfile($zipFilePath);
+
+        // 임시 파일 삭제
+        unlink($zipFilePath);
+
+        exit;
+    }
+
     // 요청 상태 업데이트 함수 추가
     public function update_request_status() {
         extract($_POST);
@@ -1200,7 +1320,6 @@ Class Master extends DBConnection {
         }
     }
 }
-
 $Master = new Master();
 $action = !isset($_GET['f']) ? 'none' : strtolower($_GET['f']);
 $sysset = new SystemSettings();
@@ -1272,6 +1391,9 @@ switch ($action) {
 
     case 'update_request_status':
         echo $Master->update_request_status();
+        break;
+    case 'download_all':
+        echo $Master->download_all();
         break;
 
     default:

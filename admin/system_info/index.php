@@ -272,7 +272,7 @@
 
     $(document).ready(function(){
         $('.select2').select2({
-            width:'100%'
+            width:'100%', theme: 'classic'
         })
 
         $('.summernote').summernote({

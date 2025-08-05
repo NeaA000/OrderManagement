@@ -32,8 +32,35 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
     [name="tax_percentage"],[name="discount_percentage"]{
         width:5vw;
     }
+    
+    /* Select2 강제 스타일 */
+    .select2-container--default .select2-selection--single {
+        background-color: #fff !important;
+        border: 1px solid #ced4da !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #495057 !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #6c757d !important;
+    }
+    
+    .select2-dropdown {
+        background-color: #fff !important;
+    }
+    
+    .select2-results__option {
+        color: #212529 !important;
+    }
+    
+    .select2-results__option--highlighted[aria-selected] {
+        background-color: #007bff !important;
+        color: #fff !important;
+    }
 </style>
-<div class="card card-outline card-info">
+<div class="card card-default">
     <div class="card-header">
         <h3 class="card-title"><?php echo isset($id) ? "구매 주문 세부정보 수정": "새 구매 주문" ?> </h3>
     </div>
@@ -267,7 +294,26 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
         }else{
             $('#add_row').trigger('click')
         }
-        $('.select2').select2({placeholder:"여기에서 선택하세요",width:"relative"})
+        // 259번 줄부터 수정
+        $('.select2').select2({
+            placeholder:"여기에서 선택하세요",
+            width:"relative"
+        });
+
+// Select2 생성 후 스타일 강제 적용
+        setTimeout(function() {
+            $('.select2-container--default .select2-selection--single').css({
+                'background-color': '#fff',
+                'border': '1px solid #ced4da'
+            });
+            $('.select2-container--default .select2-selection--single .select2-selection__rendered').css({
+                'color': '#495057'
+            });
+            $('.select2-container--default .select2-selection--single .select2-selection__placeholder').css({
+                'color': '#6c757d'
+            });
+        }, 100);
+
         $('#po-form').submit(function(e){
             e.preventDefault();
             var _this = $(this)

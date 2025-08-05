@@ -38,7 +38,7 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
         width:5vw;
     }
 </style>
-<div class="card card-outline card-info">
+<div class="card card-default">
     <div class="card-header">
         <h3 class="card-title"><?php echo isset($id) ? "구매 주문 세부정보 수정": "새 구매 주문" ?> </h3>
         <div class="card-tools">
