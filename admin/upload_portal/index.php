@@ -97,13 +97,9 @@ $is_completed = ($request['status'] == 2);
 
 // 요청된 서류 목록 조회 - 업로드된 파일 정보도 함께 조회
 $docs_qry = $conn->query("
-    SELECT rd.*, dc.name as category_name,
-           uf.original_name as uploaded_file_name,
-           uf.file_size,
-           uf.uploaded_at
+    SELECT rd.*, dc.name as category_name
     FROM `request_documents` rd 
     LEFT JOIN `document_categories` dc ON rd.category_id = dc.id 
-    LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
     WHERE rd.request_id = '{$request['id']}' 
     ORDER BY rd.is_required DESC, rd.id ASC
 ");
@@ -849,9 +845,9 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                                     <span class="status-submitted">
                                         <i class="fas fa-check-circle"></i> 제출완료
                                     </span>
-                                    <?php if($doc['uploaded_file_name']): ?>
+                                    <?php if($doc['file_name']): ?>
                                         <br><small class="text-muted" style="font-size: 0.75rem;">
-                                            <i class="fas fa-file"></i> <?php echo htmlspecialchars($doc['uploaded_file_name']) ?>
+                                            <i class="fas fa-file"></i> <?php echo htmlspecialchars($doc['file_name']) ?>
                                         </small>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -898,6 +894,14 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
                                                 <?php echo htmlspecialchars($doc['document_name']) ?>에 해당하는 파일을 업로드해주세요
                                             </span>
                                         </div>
+                                        <?php if($doc['status'] == 1 && $doc['file_name']): ?>
+                                        <div class="uploaded-file-info" style="margin-top: 10px; padding: 10px; background-color: #e8f5e9; border-radius: 5px;">
+                                            <i class="fas fa-file-check" style="color: #4caf50;"></i>
+                                            <span style="color: #2e7d32; font-weight: 500;">업로드된 파일:</span>
+                                            <span style="color: #1b5e20;"><?php echo htmlspecialchars($doc['file_name']) ?></span>
+                                            <small style="color: #388e3c; display: block; margin-top: 5px;">업로드 시간: <?php echo date('Y-m-d H:i', strtotime($doc['uploaded_at'])) ?></small>
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </td>

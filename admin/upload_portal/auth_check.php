@@ -164,11 +164,36 @@ function checkSuspiciousActivity($conn, $ip) {
 }
 
 /**
+ * 로그인 여부 확인
+ * @return bool 로그인 여부
+ */
+function isLoggedIn() {
+    // 세션 시작 확인
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    // 세션에 userdata가 있으면 로그인 상태
+    return isset($_SESSION['userdata']) && !empty($_SESSION['userdata']['id']);
+}
+
+/**
  * 관리자 권한 확인
  * @return bool 관리자 여부
  */
 function isAdmin() {
     return isset($_SESSION['userdata']) && $_SESSION['userdata']['type'] == 1;
+}
+
+/**
+ * 현재 사용자 정보 가져오기
+ * @return array|null 사용자 정보
+ */
+function getCurrentUser() {
+    if(isLoggedIn()) {
+        return $_SESSION['userdata'];
+    }
+    return null;
 }
 
 /**

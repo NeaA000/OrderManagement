@@ -2,33 +2,87 @@
 // admin/upload_portal/view_file.php
 require_once('upload_init.php');  // 전용 초기화 파일 사용
 require_once(base_app . 'classes/UploadHandler.php');
+require_once('auth_check.php');   // 보안 인증 모듈 추가
 
 if(!isset($_GET['id'])) {
     die('파일을 찾을 수 없습니다.');
 }
 
-$doc_id = $conn->real_escape_string($_GET['id']);
+$document_id = intval($_GET['id']);
+
+// 토큰 확인
+$token = $_GET['token'] ?? '';
+
+// ★ 내부 사용자(로그인) 다운로드 파라미터 확인
+$internal_download = isset($_GET['internal_download']) && $_GET['internal_download'] == '1';
+
+// ★ 권한 확인 - 로그인한 모든 사용자 허용
+$has_access = false;
+
+// 내부 사용자(로그인) 확인
+if($internal_download && isLoggedIn()) {
+    $has_access = true;
+}
+
+// 권한이 없으면 종료
+if(!$has_access && empty($token)) {
+    die('권한이 없습니다.');
+}
 
 // 문서 정보 및 Wasabi 정보 조회 - document_id로도 조인하도록 수정
-$doc = $conn->query("
-    SELECT rd.*, dr.upload_token, 
-           uf.wasabi_key, uf.wasabi_bucket, uf.wasabi_url,
-           uf.original_name, uf.mime_type, uf.id as uploaded_file_id
+$stmt = $conn->prepare("
+    SELECT 
+        rd.*,
+        dr.upload_token,
+        uf.wasabi_key,
+        uf.wasabi_bucket,
+        uf.wasabi_url,
+        uf.original_name,
+        uf.mime_type,
+        uf.id as uploaded_file_id
     FROM `request_documents` rd 
     LEFT JOIN `document_requests` dr ON rd.request_id = dr.id 
-    LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id
-    WHERE rd.id = '{$doc_id}'
-")->fetch_assoc();
+    LEFT JOIN `uploaded_files` uf ON uf.document_id = rd.id AND uf.is_deleted = 0
+    WHERE rd.id = ?
+    ORDER BY uf.id DESC
+    LIMIT 1
+");
 
-if(!$doc) {
+$stmt->bind_param("i", $document_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if($result->num_rows == 0) {
     die('파일을 찾을 수 없습니다.');
 }
 
-// Wasabi 사용 여부 확인
-$use_wasabi = $_settings->info('use_wasabi') === 'true';
+$doc = $result->fetch_assoc();
+$stmt->close();
 
-// 파일이 Wasabi에 있는 경우
-if($use_wasabi && !empty($doc['wasabi_key'])) {
+// 토큰 검증 (로그인하지 않은 경우)
+if(!$has_access && !empty($token)) {
+    $validation = validateUploadToken($conn, $token, $doc['request_id']);
+    if($validation['valid'] || (isset($validation['allow_view']) && $validation['allow_view'])) {
+        $has_access = true;
+    }
+}
+
+if(!$has_access) {
+    die('권한이 없습니다.');
+}
+
+// 파일명 결정
+$file_name = $doc['original_name'] ?: $doc['file_name'];
+
+// Wasabi 파일인 경우
+if(!empty($doc['wasabi_key'])) {
+    // Wasabi 사용 여부 확인
+    $use_wasabi = $_settings->info('use_wasabi') === 'true';
+
+    if(!$use_wasabi) {
+        die('파일을 찾을 수 없습니다.');
+    }
+
     try {
         // UploadHandler 인스턴스 생성
         $uploadHandler = new UploadHandler();
@@ -41,7 +95,7 @@ if($use_wasabi && !empty($doc['wasabi_key'])) {
             if(isset($_GET['download'])) {
                 // 다운로드를 위한 헤더 설정
                 header('Content-Type: application/octet-stream');
-                header('Content-Disposition: attachment; filename="' . ($doc['original_name'] ?: $doc['file_name']) . '"');
+                header('Content-Disposition: attachment; filename="' . $file_name . '"');
                 header('Cache-Control: no-cache, must-revalidate');
                 header('Pragma: no-cache');
 
@@ -49,6 +103,10 @@ if($use_wasabi && !empty($doc['wasabi_key'])) {
                 $context = stream_context_create([
                     "http" => [
                         "header" => "User-Agent: CDMS/1.0\r\n"
+                    ],
+                    "ssl" => [
+                        "verify_peer" => false,
+                        "verify_peer_name" => false
                     ]
                 ]);
 
@@ -72,7 +130,7 @@ if($use_wasabi && !empty($doc['wasabi_key'])) {
         die('파일을 불러올 수 없습니다.');
     }
 }
-// 로컬 파일인 경우 (기존 코드)
+// 로컬 파일인 경우
 else if(!empty($doc['file_path'])) {
     $file_path = base_app . $doc['file_path'];
 
@@ -80,7 +138,7 @@ else if(!empty($doc['file_path'])) {
         die('파일이 존재하지 않습니다.');
     }
 
-    $file_ext = strtolower(pathinfo($doc['file_name'], PATHINFO_EXTENSION));
+    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
     $file_size = filesize($file_path);
 
     // MIME 타입 설정
@@ -106,7 +164,7 @@ else if(!empty($doc['file_path'])) {
     if(isset($_GET['download']) || !in_array($file_ext, $preview_types)) {
         // 다운로드
         header('Content-Type: ' . $mime_type);
-        header('Content-Disposition: attachment; filename="' . $doc['file_name'] . '"');
+        header('Content-Disposition: attachment; filename="' . $file_name . '"');
         header('Content-Length: ' . $file_size);
         header('Cache-Control: no-cache, must-revalidate');
         header('Pragma: no-cache');
@@ -115,7 +173,7 @@ else if(!empty($doc['file_path'])) {
     } else {
         // 미리보기
         header('Content-Type: ' . $mime_type);
-        header('Content-Disposition: inline; filename="' . $doc['file_name'] . '"');
+        header('Content-Disposition: inline; filename="' . $file_name . '"');
         header('Content-Length: ' . $file_size);
         readfile($file_path);
         exit;

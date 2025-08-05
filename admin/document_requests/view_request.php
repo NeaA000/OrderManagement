@@ -448,8 +448,8 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
     }
 
     function downloadFile(documentId) {
-        // download.php 경로를 정확하게 지정
-        const downloadUrl = '<?php echo base_url ?>admin/upload_portal/download.php?id=' + documentId;
+        // download.php 경로를 정확하게 지정 - internal_download 파라미터 추가
+        const downloadUrl = '<?php echo base_url ?>admin/upload_portal/download.php?id=' + documentId + '&internal_download=1';
 
         // 새 창에서 다운로드 (현재 페이지 유지)
         const link = document.createElement('a');
@@ -464,18 +464,59 @@ $progress = $request['total_docs'] > 0 ? round(($request['completed_docs'] / $re
             url: 'document_requests/get_uploads.php',
             method: 'GET',
             data: { document_id: documentId },
+            dataType: 'json',  // JSON 응답 기대
             success: function(response) {
-                $('#uploadModalBody').html(response);
-                $('#uploadModal').modal('show');
+                if(response.status === 'success') {
+                    // 파일 목록 HTML 생성
+                    let html = '<div class="table-responsive"><table class="table table-bordered">';
+                    html += '<thead><tr><th>파일명</th><th>크기</th><th>업로드 일시</th><th>작업</th></tr></thead><tbody>';
+
+                    if(response.data && response.data.length > 0) {
+                        response.data.forEach(function(file) {
+                            html += '<tr>';
+                            html += '<td><i class="fas fa-file"></i> ' + file.file_name + '</td>';
+                            html += '<td>' + file.file_size + '</td>';
+                            html += '<td>' + file.uploaded_at + '</td>';
+                            html += '<td>';
+                            html += '<a href="' + file.download_url + '" class="btn btn-sm btn-primary" target="_blank">';
+                            html += '<i class="fas fa-download"></i> 다운로드</a>';
+                            if(file.preview_url) {
+                                html += ' <a href="' + file.preview_url + '" class="btn btn-sm btn-info" target="_blank">';
+                                html += '<i class="fas fa-eye"></i> 미리보기</a>';
+                            }
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                    } else {
+                        html += '<tr><td colspan="4" class="text-center text-muted">업로드된 파일이 없습니다.</td></tr>';
+                    }
+
+                    html += '</tbody></table></div>';
+
+                    $('#uploadModalBody').html(html);
+                    $('#uploadModal').modal('show');
+                } else {
+                    // 에러 응답 처리
+                    alert('파일 목록을 불러오는데 실패했습니다: ' + (response.msg || '알 수 없는 오류'));
+                }
             },
-            error: function() {
-                alert('파일 목록을 불러오는데 실패했습니다.');
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error);
+                console.error('Response:', xhr.responseText);
+
+                // 응답이 HTML인 경우 (PHP 에러 등)
+                if(xhr.responseText && xhr.responseText.includes('<')) {
+                    $('#uploadModalBody').html('<div class="alert alert-danger">서버 오류가 발생했습니다.</div>');
+                    $('#uploadModal').modal('show');
+                } else {
+                    alert('파일 목록을 불러오는데 실패했습니다.');
+                }
             }
         });
     }
 
     function previewFile(documentId) {
-        // view_file.php를 통해 파일 보기
-        window.open('<?php echo base_url ?>admin/upload_portal/view_file.php?id=' + documentId, '_blank');
+        // view_file.php를 통해 파일 보기 - internal_download 파라미터 추가
+        window.open('<?php echo base_url ?>admin/upload_portal/view_file.php?id=' + documentId + '&internal_download=1', '_blank');
     }
 </script>

@@ -43,16 +43,19 @@ class UploadHandler extends DBConnection {
 
         // Wasabi 설정 가져오기
         $this->wasabi_config = [
-            'key' => $this->settings->info('wasabi_access_key'),
-            'secret' => $this->settings->info('wasabi_secret_key'),
+            'key' => $this->settings->info('wasabi_key'),
+            'secret' => $this->settings->decrypt_data($this->settings->info('wasabi_secret')),
             'region' => $this->settings->info('wasabi_region') ?? 'ap-northeast-1',
             'bucket' => $this->settings->info('wasabi_bucket'),
-            'endpoint' => $this->settings->info('wasabi_endpoint') ?? 'https://s3.ap-northeast-1.wasabisys.com'
+            'endpoint' => $this->settings->info('wasabi_endpoint') ?? 'https://s3.ap-northeast-1.wasabisys.com',
+            'use_wasabi' => true
         ];
 
         // 필수 설정 확인
         if(empty($this->wasabi_config['key']) || empty($this->wasabi_config['secret']) || empty($this->wasabi_config['bucket'])) {
-            error_log("Wasabi configuration incomplete");
+            error_log("Wasabi configuration incomplete - Key: " . (empty($this->wasabi_config['key']) ? 'empty' : 'set') . 
+                     ", Secret: " . (empty($this->wasabi_config['secret']) ? 'empty' : 'set') . 
+                     ", Bucket: " . (empty($this->wasabi_config['bucket']) ? 'empty' : 'set'));
             return;
         }
 

@@ -2,8 +2,8 @@
 // admin/document_requests/get_uploads.php
 require_once('../../config.php');
 
-// 관리자 권한 확인
-if(!isset($_SESSION['userdata']) || $_SESSION['userdata']['type'] != 1) {
+// 로그인 확인 (관리자 제한 제거)
+if(!isset($_SESSION['userdata'])) {
     echo json_encode(['status' => 'error', 'msg' => '권한이 없습니다.']);
     exit;
 }
@@ -43,8 +43,11 @@ while($row = $result->fetch_assoc()) {
     // ★ 직접 URL 노출 방지 - 다운로드 스크립트 경유
     $download_url = base_url . 'admin/upload_portal/download.php?id=' . $document_id;
 
-    // 관리자는 토큰 없이도 접근 가능
-    if(!isset($_SESSION['userdata']) || $_SESSION['userdata']['type'] != 1) {
+    // ★ 로그인한 사용자는 모두 internal_download 파라미터 사용
+    if(isset($_SESSION['userdata'])) {
+        $download_url .= '&internal_download=1';
+    } else {
+        // 외부 사용자는 토큰 필요
         $download_url .= '&token=' . $row['upload_token'];
     }
 
@@ -52,6 +55,9 @@ while($row = $result->fetch_assoc()) {
     $preview_url = null;
     if(in_array(strtolower(pathinfo($row['original_name'], PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png'])) {
         $preview_url = base_url . 'admin/upload_portal/view_file.php?id=' . $document_id;
+        if(isset($_SESSION['userdata'])) {
+            $preview_url .= '&internal_download=1';
+        }
     }
 
     $uploads[] = [
