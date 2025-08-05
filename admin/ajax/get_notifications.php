@@ -31,6 +31,21 @@ try {
 
     switch($action) {
         case 'get':
+            // 클라이언트의 알림 설정 확인
+            $notification_enabled = isset($_GET['notification_enabled']) ? $_GET['notification_enabled'] : 'true';
+
+            // 알림이 꺼져있으면 빈 배열 반환
+            if($notification_enabled === 'false') {
+                echo json_encode([
+                    'status' => 'success',
+                    'notifications' => [],
+                    'count' => 0,
+                    'total_unread' => 0,
+                    'message' => 'Notifications disabled'
+                ]);
+                exit;
+            }
+
             // 읽지 않은 알림 가져오기
             $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
             if($limit <= 0 || $limit > 100) $limit = 10;

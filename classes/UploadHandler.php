@@ -208,9 +208,6 @@ class UploadHandler extends DBConnection {
                 // 실시간 알림 생성
                 $this->createUploadNotification($request_id, $document_id, $file_name);
 
-                // 전체 상태 확인 및 업데이트
-                $this->checkRequestCompletion($request_id);
-
                 return [
                     'status' => 'success',
                     'msg' => '파일이 Wasabi에 성공적으로 업로드되었습니다.',
@@ -272,9 +269,6 @@ class UploadHandler extends DBConnection {
 
         // 실시간 알림 생성
         $this->createUploadNotification($request_id, $document_id, $file_name);
-
-        // 전체 상태 확인 및 업데이트
-        $this->checkRequestCompletion($request_id);
 
         return [
             'status' => 'success',
@@ -494,45 +488,15 @@ class UploadHandler extends DBConnection {
         return true;
     }
 
-    // 요청 완료 상태 확인 - status를 1로 체크 (제출완료)
+    // 요청 완료 상태 확인 - 자동 완료 처리 제거
     private function checkRequestCompletion($request_id) {
-        try {
-            // 모든 문서가 업로드되었는지 확인
-            $stmt = $this->conn->prepare("
-                SELECT COUNT(*) as total, 
-                       SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as completed 
-                FROM `request_documents` 
-                WHERE request_id = ?
-            ");
-
-            if(!$stmt) return;
-
-            $stmt->bind_param("i", $request_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
-            $stmt->close();
-
-            // 모든 문서가 업로드되었으면 요청 상태 업데이트
-            if($row['total'] > 0 && $row['total'] == $row['completed']) {
-                $update_stmt = $this->conn->prepare("
-                    UPDATE `document_requests` 
-                    SET status = 2, completed_at = NOW() 
-                    WHERE id = ?
-                ");
-
-                if($update_stmt) {
-                    $update_stmt->bind_param("i", $request_id);
-                    $update_stmt->execute();
-                    $update_stmt->close();
-
-                    // 완료 알림 이메일 발송 (선택사항)
-                    $this->sendCompletionNotification($request_id);
-                }
-            }
-        } catch(Exception $e) {
-            error_log("Check completion error: " . $e->getMessage());
-        }
+        // 이 메서드는 더 이상 자동으로 완료 처리하지 않음
+        // 사용자가 명시적으로 "제출 완료" 버튼을 클릭해야만 완료 처리됨
+        // 
+        // 필요한 경우 진행률 확인 로직만 남겨둘 수 있음:
+        // - 모든 서류가 업로드되었는지 확인
+        // - 로그만 남기고 상태는 변경하지 않음
+        return;
     }
 
     // 완료 알림 발송

@@ -25,9 +25,11 @@ const NotificationSystem = {
 
         console.log('NotificationSystem: 초기화 시작');
 
+        // 설정을 먼저 로드
+        this.loadSettings();
+
         // 초기 설정
         this.lastCheck = new Date().toISOString();
-        this.loadSettings();
 
         // UI 설정
         this.setupNotificationBell();
@@ -36,14 +38,18 @@ const NotificationSystem = {
         // 알림음 로드
         this.loadNotificationSound();
 
-        // 체크 시작
-        this.startChecking();
+        // 알림이 활성화된 경우에만 체크 시작
+        if (this.notificationEnabled) {
 
-        // 초기 로드
-        this.checkNewNotifications();
+            // 체크 시작
+            this.startChecking();
+
+            // 초기 로드
+            this.checkNewNotifications();
+        }
 
         this.isInitialized = true;
-        console.log('NotificationSystem: 초기화 완료');
+        console.log('NotificationSystem: 초기화 완료, 알림 상태:', this.notificationEnabled);
     },
 
     /**
@@ -58,9 +64,17 @@ const NotificationSystem = {
                 this.soundEnabled = settings.soundEnabled !== undefined ? settings.soundEnabled : true;
                 this.notificationEnabled = settings.notificationEnabled !== undefined ? settings.notificationEnabled : true;
                 this.checkInterval = settings.checkInterval || 5000;
+
+                console.log('NotificationSystem: 저장된 설정 로드됨', settings);
             } catch (e) {
                 console.error('설정 로드 실패:', e);
+                // 파싱 실패시 기본값 사용
+                this.soundEnabled = true;
+                this.notificationEnabled = true;
             }
+        } else {
+            console.log('NotificationSystem: 저장된 설정 없음, 기본값 사용');
+
         }
     },
 
@@ -183,7 +197,7 @@ const NotificationSystem = {
     startChecking: function() {
         // 알림이 비활성화되어 있으면 체크하지 않음
         if (!this.notificationEnabled) {
-            console.log('알림이 비활성화되어 있습니다.');
+            console.log('NotificationSystem: 알림이 비활성화되어 있어 체크를 시작하지 않음');
             return;
         }
 
@@ -214,20 +228,25 @@ const NotificationSystem = {
      * 새 알림 체크
      */
     checkNewNotifications: function() {
+        if (!this.notificationEnabled) {
+            console.log('NotificationSystem: 알림이 비활성화되어 있어 체크하지 않음');
+            return;
+        }
         $.ajax({
             url: 'ajax/get_notifications.php',
             type: 'GET',
             data: {
                 action: 'get',
-                limit: this.maxNotifications
+                limit: this.maxNotifications,
+                notification_enabled: this.notificationEnabled ? 'true' : 'false'  // 알림 설정 전달
             },
             dataType: 'json',
             success: function(response) {
                 if (response && response.status === 'success') {
                     NotificationSystem.updateNotificationUI(response);
 
-                    // 새 알림 토스트 표시
-                    if (response.notifications && response.notifications.length > 0) {
+                    // 알림이 활성화된 경우에만 토스트 표시
+                   if (NotificationSystem.notificationEnabled && response.notifications && response.notifications.length > 0) {
                         response.notifications.forEach(notif => {
                             // 1분 이내 알림만 토스트 표시
                             const uploadTime = new Date(notif.uploaded_at);
@@ -322,6 +341,12 @@ const NotificationSystem = {
      * 토스트 표시
      */
     showToast: function(notification) {
+        // 알림이 비활성화되어 있으면 토스트를 표시하지 않음
+        if (!this.notificationEnabled) {
+            console.log('NotificationSystem: 알림이 비활성화되어 있어 토스트를 표시하지 않음');
+            return;
+        }
+
         // 토스트 컨테이너 확인/생성
         if (!$('.toast-container').length) {
             $('body').append('<div class="toast-container"></div>');

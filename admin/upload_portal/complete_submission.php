@@ -80,12 +80,14 @@ try {
     }
 
     // 알림 생성 - notifications 테이블 사용
+    $notification_message = "'{$request['project_name']}' 프로젝트의 모든 서류가 제출되었습니다. (업체: {$request['supplier_name']})";
+
     $notification_query = "
         INSERT INTO `notifications` 
         (request_id, type, title, message, is_read, created_at) 
         VALUES 
         ('{$request_id}', 'completion', 
-         '서류 제출 완료', '{$request['supplier_name']}에서 모든 서류를 제출했습니다.', 0, NOW())
+         '서류 제출 완료', '{$notification_message}', 0, NOW())
     ";
 
     if(!$conn->query($notification_query)) {

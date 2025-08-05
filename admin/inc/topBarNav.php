@@ -141,8 +141,9 @@
 <script>
     // 알림음 토글 함수
     function toggleNotificationSound() {
-        if (typeof NotificationSystem === 'undefined') {
+        if (typeof NotificationSystem === 'undefined' || !NotificationSystem.isInitialized) {
             console.error('NotificationSystem이 아직 로드되지 않았습니다.');
+            alert('알림 시스템이 초기화 중입니다. 잠시 후 다시 시도해주세요.');
             return;
         }
 
@@ -163,8 +164,9 @@
 
     // 알림 전체 토글 함수
     function toggleNotification() {
-        if (typeof NotificationSystem === 'undefined') {
+        if (typeof NotificationSystem === 'undefined' || !NotificationSystem.isInitialized) {
             console.error('NotificationSystem이 아직 로드되지 않았습니다.');
+            alert('알림 시스템이 초기화 중입니다. 잠시 후 다시 시도해주세요.');
             return;
         }
 
@@ -185,9 +187,9 @@
 
     // 페이지 로드 시 알림 상태 확인
     $(document).ready(function() {
-        // NotificationSystem이 초기화된 후 상태 확인
-        setTimeout(function() {
-            if (typeof NotificationSystem !== 'undefined') {
+        // NotificationSystem이 초기화될 때까지 대기
+        function checkNotificationSystem() {
+            if (typeof NotificationSystem !== 'undefined' && NotificationSystem.isInitialized) {
                 // 알림음 상태
                 if (!NotificationSystem.soundEnabled) {
                     const soundIcon = document.getElementById('sound-toggle-icon');
@@ -207,7 +209,18 @@
                         notifIcon.parentElement.title = '알림 켜기';
                     }
                 }
+
+                console.log('NotificationSystem 상태:', {
+                    soundEnabled: NotificationSystem.soundEnabled,
+                    notificationEnabled: NotificationSystem.notificationEnabled
+                });
+            } else {
+                // 아직 초기화되지 않았으면 다시 시도
+                setTimeout(checkNotificationSystem, 100);
             }
-        }, 500);
+        }
+
+        // 초기 체크 시작
+        checkNotificationSystem();
     });
 </script>
