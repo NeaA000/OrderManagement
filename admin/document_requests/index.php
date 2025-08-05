@@ -115,8 +115,8 @@
                                     <span class="fa fa-link text-warning"></span> 링크 복사
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item update_status" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>" data-status="<?php echo $row['status'] ?>">
-                                    <span class="fa fa-tasks text-success"></span> 상태 변경
+                                <a class="dropdown-item print_document" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                    <span class="fa fa-print text-success"></span> 문서 인쇄
                                 </a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item delete_data" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
@@ -132,67 +132,34 @@
     </div>
 </div>
 
-<!-- 상태 변경 모달 -->
-<div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">상태 변경</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="status-form">
-                    <input type="hidden" name="id" id="status_request_id">
-                    <div class="form-group">
-                        <label>상태 선택</label>
-                        <select name="status" id="status_select" class="form-control" required>
-                            <option value="0">대기</option>
-                            <option value="1">진행중</option>
-                            <option value="2">완료</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>메모 (선택사항)</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="상태 변경 사유나 메모를 입력하세요"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
-                <button type="button" class="btn btn-primary" onclick="saveStatus()">저장</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
     /* 드롭다운 메뉴 z-index 수정 - 최상단에 표시 */
     .dropdown-menu {
         z-index: 1050 !important;
     }
-    
+
     /* DataTable 컨테이너 overflow 해결 */
     .dataTables_wrapper {
         overflow: visible !important;
     }
-    
+
     /* 행 hover 효과 - 작업 셀 제외 */
     .clickable-row:hover td:not(.action-cell) {
         background-color: #f5f5f5;
         transition: background-color 0.2s ease;
     }
-    
+
     /* 행 hover 시 shadow 효과 */
     .clickable-row:hover {
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: box-shadow 0.2s ease;
     }
-    
+
     /* 드롭다운이 열려있을 때 hover 효과 비활성화 */
     .clickable-row.dropdown-active:hover td {
         background-color: transparent;
     }
-    
+
     .clickable-row.dropdown-active:hover {
         box-shadow: none;
     }
@@ -248,20 +215,20 @@
         $(document).on('show.bs.dropdown', '.clickable-row .dropdown', function() {
             $(this).closest('.clickable-row').addClass('dropdown-active');
         });
-        
+
         $(document).on('hide.bs.dropdown', '.clickable-row .dropdown', function() {
             $(this).closest('.clickable-row').removeClass('dropdown-active');
         });
-        
+
         // 드롭다운 버튼 클릭 시 이벤트 전파 중단
         $(document).on('click', '.dropdown-toggle', function(e) {
             e.stopPropagation();
         });
-        
+
         $(document).on('click', '.dropdown-menu', function(e) {
             e.stopPropagation();
         });
-        
+
         // 행 클릭 이벤트
         $('.clickable-row').click(function(e) {
             // 드롭다운 버튼이나 메뉴를 클릭한 경우는 제외
@@ -300,15 +267,22 @@
             alert_toast("링크가 복사되었습니다!",'success');
         })
 
-        // 상태 변경
-        $('.update_status').click(function(e){
+        // 문서 인쇄
+        $('.print_document').click(function(e){
             e.preventDefault();
             e.stopPropagation();
             var id = $(this).attr('data-id');
-            var status = $(this).attr('data-status');
-            $('#status_request_id').val(id);
-            $('#status_select').val(status);
-            $('#statusModal').modal('show');
+
+            // 새 창에서 인쇄 페이지 열기
+            var printWindow = window.open(_base_url_+'admin/?page=document_requests/print_request&id=' + id,
+                'printWindow',
+                'width=1200,height=800,scrollbars=yes,resizable=yes'
+            );
+
+            // 창이 차단되었는지 확인
+            if (!printWindow || printWindow.closed || typeof printWindow.closed == 'undefined') {
+                alert_toast("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.", 'warning');
+            }
         })
 
         // DataTable 설정
@@ -380,36 +354,6 @@
                     }, 1500);
                 }else{
                     alert_toast(resp.msg || "이메일 전송에 실패했습니다.",'error');
-                    hideLoading();
-                }
-            }
-        })
-    }
-
-    // 상태 저장 함수
-    function saveStatus() {
-        var formData = $('#status-form').serialize();
-        showLoading();
-
-        $.ajax({
-            url: _base_url_+"classes/Master.php?f=update_request_status",
-            method: "POST",
-            data: formData,
-            dataType: "json",
-            error: err => {
-                console.log(err);
-                alert_toast("상태 변경 중 오류가 발생했습니다.", 'error');
-                hideLoading();
-            },
-            success: function(resp) {
-                if(typeof resp == 'object' && resp.status == 'success') {
-                    alert_toast("상태가 성공적으로 변경되었습니다.", 'success');
-                    $('#statusModal').modal('hide');
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
-                } else {
-                    alert_toast(resp.msg || "상태 변경에 실패했습니다.", 'error');
                     hideLoading();
                 }
             }

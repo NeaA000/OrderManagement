@@ -33,8 +33,14 @@ class SystemSettings extends DBConnection{
         foreach ($_POST as $key => $value) {
             // about_us와 privacy_policy를 제외한 모든 필드 처리
             if(!in_array($key,array("about_us","privacy_policy"))){
-                // Wasabi Secret Key는 암호화하여 저장
-                if($key == 'wasabi_secret' && !empty($value)){
+
+                // *** 중요 수정: Wasabi Secret Key 처리 로직 개선 ***
+                if($key == 'wasabi_secret'){
+                    // 빈 값이면 업데이트하지 않고 건너뛰기
+                    if(empty($value)){
+                        continue;
+                    }
+                    // 값이 있으면 암호화하여 저장
                     $value = $this->encrypt_data($value);
                 }
 

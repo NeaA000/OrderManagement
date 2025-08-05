@@ -162,10 +162,17 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
+                                <!-- *** 중요 수정: Secret Key UI 개선 *** -->
                                 <label for="wasabi_secret" class="control-label">Secret Key <span class="text-danger">*</span></label>
                                 <input type="password" class="form-control form-control-sm" id="wasabi_secret" name="wasabi_secret"
-                                       placeholder="변경하려면 새 키를 입력하세요">
-                                <small class="text-muted">Secret Key는 암호화되어 저장됩니다</small>
+                                       placeholder="<?php echo !empty($_settings->info('wasabi_secret')) ? '••••••••' : '새 Secret Key 입력' ?>">
+                                <small class="text-muted">
+                                    <?php if(!empty($_settings->info('wasabi_secret'))): ?>
+                                        <i class="fas fa-check-circle text-success"></i> Secret Key가 설정되어 있습니다. 변경하려면 새 값을 입력하세요.
+                                    <?php else: ?>
+                                        <i class="fas fa-exclamation-circle text-danger"></i> Secret Key를 입력해주세요.
+                                    <?php endif; ?>
+                                </small>
                             </div>
                         </div>
                     </div>

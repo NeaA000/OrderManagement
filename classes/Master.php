@@ -986,21 +986,52 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
-    // Wasabi 연결 테스트
+    // Wasabi 연결 테스트 - 완전 수정 버전
     public function test_wasabi() {
         extract($_POST);
-        
+
+        // Secret Key가 비어있으면 DB에서 가져오기
+        if(empty($secret)) {
+            // SystemSettings를 통해 Wasabi 설정 가져오기
+            $wasabi_config = $this->settings->get_wasabi_config();
+
+            // DB에서 가져온 Secret Key 사용
+            if(!empty($wasabi_config['secret'])) {
+                $secret = $wasabi_config['secret'];
+            }
+
+            // Access Key도 비어있으면 DB에서 가져오기
+            if(empty($key) && !empty($wasabi_config['key'])) {
+                $key = $wasabi_config['key'];
+            }
+
+            // Bucket도 비어있으면 DB에서 가져오기
+            if(empty($bucket) && !empty($wasabi_config['bucket'])) {
+                $bucket = $wasabi_config['bucket'];
+            }
+        }
+
+        // 디버깅을 위한 로그
+        error_log("Wasabi Test - Key exists: " . (!empty($key) ? 'Yes' : 'No'));
+        error_log("Wasabi Test - Secret exists: " . (!empty($secret) ? 'Yes' : 'No'));
+        error_log("Wasabi Test - Bucket: " . $bucket);
+
         // 입력값 검증
         if(empty($key) || empty($secret) || empty($bucket)) {
+            $missing = [];
+            if(empty($key)) $missing[] = 'Access Key';
+            if(empty($secret)) $missing[] = 'Secret Key (DB에 저장된 값도 없음)';
+            if(empty($bucket)) $missing[] = 'Bucket 이름';
+
             return json_encode([
                 'status' => 'failed',
-                'msg' => 'Access Key, Secret Key, Bucket 이름은 필수입니다.'
+                'msg' => implode(', ', $missing) . '가 비어있습니다. 시스템 설정에서 다시 저장해주세요.'
             ]);
         }
-        
+
         // Composer autoload 포함
         require_once('../vendor/autoload.php');
-        
+
         try {
             // S3 클라이언트 설정
             $s3Client = new \Aws\S3\S3Client([
@@ -1016,12 +1047,12 @@ Class Master extends DBConnection {
                     'verify' => false // 개발 환경에서 SSL 검증 비활성화
                 ]
             ]);
-            
+
             // 버킷 존재 확인
             $result = $s3Client->headBucket([
                 'Bucket' => $bucket
             ]);
-            
+
             // 테스트 파일 업로드 시도
             $testKey = 'test/connection-test-' . time() . '.txt';
             $s3Client->putObject([
@@ -1030,18 +1061,18 @@ Class Master extends DBConnection {
                 'Body' => 'Connection test successful at ' . date('Y-m-d H:i:s'),
                 'ContentType' => 'text/plain'
             ]);
-            
+
             // 테스트 파일 삭제
             $s3Client->deleteObject([
                 'Bucket' => $bucket,
                 'Key' => $testKey
             ]);
-            
+
             return json_encode([
                 'status' => 'success',
                 'msg' => '연결 성공! 버킷에 접근 가능합니다.'
             ]);
-            
+
         } catch (\Aws\S3\Exception\S3Exception $e) {
             $errorCode = $e->getAwsErrorCode();
             $errorMsg = match($errorCode) {
@@ -1051,10 +1082,15 @@ Class Master extends DBConnection {
                 'AccessDenied' => '접근 권한이 없습니다.',
                 default => '연결 실패: ' . $e->getMessage()
             };
-            
+
             return json_encode([
                 'status' => 'failed',
                 'msg' => $errorMsg
+            ]);
+        } catch (Exception $e) {
+            return json_encode([
+                'status' => 'failed',
+                'msg' => '오류 발생: ' . $e->getMessage()
             ]);
         }
     }
