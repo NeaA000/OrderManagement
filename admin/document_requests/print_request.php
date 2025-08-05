@@ -361,6 +361,90 @@ while ($row = $result->fetch_assoc()) {
                 page-break-inside: avoid;
                 grid-template-columns: repeat(5, 1fr);
             }
+
+            /* 테두리를 진하게 */
+            table, th, td {
+                border: 1.5px solid #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* 체크박스 테두리는 흰색으로 (안보이게) */
+            input[type="checkbox"] {
+                border: 2px solid #fff !important;
+                outline: 1px solid #fff !important;
+            }
+
+            /* 입력 필드 테두리는 흰색으로 (안보이게) */
+            input[type="text"],
+            input[type="date"],
+            input[type="password"],
+            input[type="email"],
+            select,
+            textarea {
+                border: 1px solid #fff !important;
+            }
+
+            /* 서류 분류 섹션은 연한 회색 테두리 유지 */
+            div.document-types {
+                border: 1px solid #ddd !important;
+                background-color: white !important;
+            }
+
+            /* 섹션 타이틀 텍스트도 검정색으로 */
+            .section-title {
+                color: #000 !important;
+                border-left: 4px solid #000 !important;
+            }
+
+            /* 모든 텍스트를 검정색으로 통일 */
+            * {
+                color: #000 !important;
+            }
+
+            /* select 박스와 옵션들도 검정색으로 */
+            select,
+            select option,
+            select:disabled {
+                color: #000 !important;
+                -webkit-text-fill-color: #000 !important;
+                opacity: 1 !important;
+            }
+
+            /* disabled 상태의 모든 입력 필드도 검정색으로 */
+            input:disabled,
+            textarea:disabled {
+                color: #000 !important;
+                -webkit-text-fill-color: #000 !important;
+                opacity: 1 !important;
+            }
+
+            /* 모든 회색 배경을 흰색으로 */
+            th,
+            input[type="text"],
+            input[type="date"],
+            input[type="password"],
+            input[type="email"],
+            select,
+            textarea,
+            input[readonly],
+            select[disabled],
+            textarea[readonly],
+            .section-title,
+            .document-types {
+                background-color: white !important;
+            }
+
+            /* 테이블 내부의 중첩 테이블 테두리도 흰색으로 */
+            table table,
+            table table td {
+                border: 1px solid #fff !important;
+            }
+
+            /* ID/비번 등의 라벨이 있는 td는 테두리 없애기 */
+            td[style*="border: none"] {
+                border: none !important;
+            }
         }
 
         /* 반응형 디자인 */
