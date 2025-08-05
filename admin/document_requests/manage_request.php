@@ -425,7 +425,7 @@ while ($row = $result->fetch_assoc()) {
     $suppliers[$row['id']] = $row['name'];
 }
 
-// 서류 카테고리 계층 구조로 조회
+// 서류 카테고리 계층 구조로 조회 함수 수정
 function getCategoryTree($conn, $parent_id = null) {
     $sql = "SELECT * FROM document_categories WHERE status = 1";
     if ($parent_id === null) {
@@ -811,15 +811,18 @@ $categoryTree = getCategoryTree($conn);
             padding: 6px 6px 6px 35px;
             cursor: pointer;
             border-radius: 3px;
-        }
-
-        .tree-document:hover {
-            background-color: #e3f2fd;
+            display: flex;  /* 추가: flex로 변경 */
+            align-items: center;  /* 추가: 수직 중앙 정렬 */
         }
 
         .tree-document::before {
             content: "📄 ";
             margin-right: 5px;
+            flex-shrink: 0;  /* 추가: 아이콘이 줄어들지 않도록 */
+        }
+
+        .tree-document:hover {
+            background-color: #e3f2fd;
         }
 
         .tree-children {
@@ -831,6 +834,16 @@ $categoryTree = getCategoryTree($conn);
 
         .tree-children.show {
             display: block;
+        }
+
+        /* 필수 서류 스타일 - 기존 디자인과 동일하게 */
+        .tree-document label {
+            display: flex;
+            align-items: center;
+        }
+
+        .doc-checkbox[onclick="return false;"] {
+            accent-color: #dc3545;  /* 체크박스 색상을 빨간색으로 */
         }
 
         .selected-info {
@@ -1380,11 +1393,33 @@ $categoryTree = getCategoryTree($conn);
                 <?php endif; ?>
             }
 
+            // ★★★ 이 부분 추가 - 필수 서류 자동 선택 ★★★
+            addRequiredDocuments(category);
+
             console.log('tempSelectedDocuments 설정 후:', Array.from(tempSelectedDocuments));
 
             renderTree(category);
             updateSelectedCount();
             document.getElementById('documentModal').style.display = 'flex';
+        }
+    }
+
+    // ★★★ 새로운 함수 추가 ★★★
+    function addRequiredDocuments(category) {
+        function findRequired(items) {
+            items.forEach(item => {
+                if (item.is_required == 1 && (!item.children || item.children.length === 0)) {
+                    // 필수 서류이면서 최하위 노드인 경우
+                    tempSelectedDocuments.add(item.id.toString());
+                }
+                if (item.children && item.children.length > 0) {
+                    findRequired(item.children);
+                }
+            });
+        }
+
+        if (category.children) {
+            findRequired(category.children);
         }
     }
 
@@ -1420,22 +1455,26 @@ $categoryTree = getCategoryTree($conn);
 
         items.forEach(item => {
             const hasChildren = item.children && item.children.length > 0;
-            const isDocument = !hasChildren; // 자식이 없으면 문서
+            const isDocument = !hasChildren;
+            const isRequired = item.is_required == 1;
 
             html += '<div class="tree-item">';
 
             if (isDocument) {
-                // 문서인 경우 - 체크박스 표시
                 const isChecked = tempSelectedDocuments.has(item.id.toString());
                 html += '<div class="tree-document">';
                 html += '<label>';
                 html += '<input type="checkbox" class="doc-checkbox" value="' + item.id + '" ' +
-                    (isChecked ? 'checked' : '') + ' onchange="toggleDocument(this)">';
+                    (isChecked ? 'checked' : '') +
+                    (isRequired ? ' onclick="return false;" style="pointer-events: none;"' : '') +  // 필수는 클릭 불가
+                    ' onchange="toggleDocument(this)">';
                 html += htmlspecialchars(item.name);
+                if (isRequired) {
+                    html += ' <span style="background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 5px;">필수</span>';
+                }
                 html += '</label>';
                 html += '</div>';
             } else {
-                // 폴더인 경우
                 html += '<div class="tree-folder" onclick="toggleFolder(this)">';
                 html += '<span class="folder-icon">▶</span> ';
                 html += htmlspecialchars(item.name);
@@ -1468,6 +1507,13 @@ $categoryTree = getCategoryTree($conn);
     // 문서 선택/해제
     function toggleDocument(checkbox) {
         const docId = checkbox.value.toString();
+
+        // ★★★ 추가 - 필수 서류인 경우 체크 해제 방지 ★★★
+        if (checkbox.disabled) {
+            checkbox.checked = true;
+            return;
+        }
+
         if (checkbox.checked) {
             tempSelectedDocuments.add(docId);
         } else {
