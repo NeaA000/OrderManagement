@@ -1,7 +1,21 @@
-<IfModule mod_rewrite.c>
+# admin/.htaccess
+# 기본적으로 admin 폴더는 로그인 필요
+# 하지만 upload_portal은 예외
 
-RewriteEngine on
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$    /index.php/$2/?page=$1   [L]
+# upload_portal 디렉토리는 별도 처리
+<If "%{REQUEST_URI} =~ m#^.*/admin/upload_portal/.*#">
+    Require all granted
+</If>
+
+# 그 외 admin 내 다른 폴더는 기존 보안 유지
+<If "%{REQUEST_URI} !~ m#^.*/admin/upload_portal/.*#">
+    # 여기에 기존 보안 규칙
+    # 예: 로그인 체크 등
+</If>
+
+# PHP 실행 허용
+<IfModule mod_php.c>
+    php_flag engine on
 </IfModule>
+
+Options -Indexes

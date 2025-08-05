@@ -2,6 +2,7 @@
 // admin/upload_portal/download.php
 require_once('upload_init.php');
 require_once(base_app . 'classes/UploadHandler.php');
+require_once('auth_check.php');   // 보안 인증 모듈 추가
 
 // 다운로드 ID 확인
 if(!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -10,11 +11,17 @@ if(!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $document_id = intval($_GET['id']);
 
-// 토큰 확인 (선택사항)
+// 토큰 확인
 $token = $_GET['token'] ?? '';
 
+// IP 기반 의심스러운 활동 체크
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if(!checkSuspiciousActivity($conn, $client_ip)) {
+    die('너무 많은 시도가 감지되었습니다. 잠시 후 다시 시도해주세요.');
+}
+
 try {
-    // 문서 정보 조회 - uploaded_files 테이블과 document_id로 조인
+    // 문서 정보 조회 - prepared statement 사용
     $stmt = $conn->prepare("
         SELECT rd.*, uf.*, dr.upload_token 
         FROM `request_documents` rd
@@ -38,11 +45,25 @@ try {
     $file_info = $result->fetch_assoc();
     $stmt->close();
 
-    // 권한 확인 (관리자가 아닌 경우 토큰 확인)
-    if(!isset($_SESSION['userdata']) || $_SESSION['userdata']['type'] != 1) {
-        if(empty($token) || $token !== $file_info['upload_token']) {
-            die('권한이 없습니다.');
+    // ★ 권한 확인 강화
+    $has_access = false;
+
+    // 관리자인 경우
+    if(isAdmin()) {
+        $has_access = true;
+    }
+    // 토큰이 있는 경우 검증
+    else if(!empty($token)) {
+        $validation = validateUploadToken($conn, $token, $file_info['request_id']);
+        if($validation['valid'] || (isset($validation['allow_view']) && $validation['allow_view'])) {
+            $has_access = true;
+        } else {
+            logFailedAttempt($conn, 'invalid_token_download', $token, $client_ip);
         }
+    }
+
+    if(!$has_access) {
+        die('권한이 없습니다.');
     }
 
     // Wasabi 파일인 경우
@@ -64,6 +85,11 @@ try {
         // 로컬 파일 다운로드
         $file_path = base_app . $file_info['file_path'];
 
+        // ★ 경로 보안 검증 (디렉토리 traversal 방지)
+        if(!isSecurePath($file_path, base_app . 'uploads/')) {
+            die('잘못된 파일 경로입니다.');
+        }
+
         if(!file_exists($file_path)) {
             die('파일이 존재하지 않습니다.');
         }
@@ -73,18 +99,40 @@ try {
         $file_name = $file_info['file_name'];
         $mime_type = mime_content_type($file_path);
 
+        // ★ Content-Type 보안 설정
+        $safe_mime_types = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'application/zip',
+            'application/x-hwp',
+            'application/vnd.hancom.hwp'
+        ];
+
+        if(!in_array($mime_type, $safe_mime_types)) {
+            $mime_type = 'application/octet-stream';
+        }
+
         // 다운로드 헤더 설정
         header('Content-Type: ' . $mime_type);
-        header('Content-Disposition: attachment; filename="' . $file_name . '"');
+        header('Content-Disposition: attachment; filename="' . addslashes($file_name) . '"');
         header('Content-Length: ' . $file_size);
         header('Cache-Control: no-cache, must-revalidate');
         header('Pragma: no-cache');
         header('Expires: 0');
 
+        // ★ 보안 헤더 추가
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+
         // 파일 출력
         readfile($file_path);
 
-        // 다운로드 로그 (선택사항)
+        // 다운로드 로그
         $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
 
@@ -108,7 +156,7 @@ try {
     }
 
 } catch(Exception $e) {
-    error_log('Download error: ' . $e->getMessage());
+    error_log("Download error: " . $e->getMessage());
     die('다운로드 중 오류가 발생했습니다.');
 }
 ?>

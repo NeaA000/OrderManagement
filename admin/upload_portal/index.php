@@ -1,9 +1,38 @@
 <?php
 // admin/upload_portal/index.php
 require_once('upload_init.php');  // 전용 초기화 파일 사용
+require_once('auth_check.php');   // ⭐ 보안 인증 모듈 추가
+
+// IP 기반 의심스러운 활동 체크 ⭐ 추가
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if(!checkSuspiciousActivity($conn, $client_ip)) {
+    die('<html>
+    <head>
+        <meta charset="utf-8">
+        <title>접근 차단</title>
+        <style>
+            body { font-family: "Noto Sans KR", sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+            .error-icon { font-size: 48px; color: #dc3545; margin-bottom: 20px; }
+            h2 { color: #333; margin-bottom: 10px; }
+            p { color: #666; }
+        </style>
+    </head>
+    <body>
+        <div class="error-box">
+            <div class="error-icon">🚫</div>
+            <h2>접근이 차단되었습니다</h2>
+            <p>너무 많은 시도가 감지되었습니다.</p>
+            <p>잠시 후 다시 시도해주세요.</p>
+        </div>
+    </body>
+    </html>');
+}
 
 // 토큰 검증
 if(!isset($_GET['token']) || empty($_GET['token'])) {
+    // ⭐ 실패 로그 기록
+    logFailedAttempt($conn, 'missing_token', '', $client_ip);
     die('<html>
     <head>
         <meta charset="utf-8">
@@ -1024,6 +1053,7 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
             sending: function(file, xhr, formData) {
                 formData.append("request_id", <?php echo $request['id'] ?>);
                 formData.append("document_id", docId);
+                formData.append("token", "<?php echo htmlspecialchars($token, ENT_QUOTES) ?>");
             },
             success: function(file, response) {
                 if(typeof response === 'string') {
@@ -1119,7 +1149,10 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         $.ajax({
             url: 'delete_file.php',
             type: 'POST',
-            data: { document_id: docId },
+            data: {
+                document_id: docId,
+                token: '<?php echo $token ?>'
+            },  // ⭐ 토큰 추가
             dataType: 'json',
             success: function(res) {
                 if(res.status == 'success') {

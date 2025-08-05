@@ -1,7 +1,24 @@
 <IfModule mod_rewrite.c>
-Header set Access-Control-Allow-Origin "*"
-RewriteEngine on
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$    /index.php/$2/?page=$1   [L]
+    RewriteEngine On
+    RewriteBase /purchase_order/
+
+    # admin/upload_portal은 토큰 기반 접근이므로 리라이트 제외
+    RewriteCond %{REQUEST_URI} ^/purchase_order/admin/upload_portal/ [OR]
+    RewriteCond %{REQUEST_URI} ^/purchase_order/uploads/ [OR]
+    RewriteCond %{REQUEST_URI} ^/purchase_order/classes/ [OR]
+    RewriteCond %{REQUEST_URI} ^/purchase_order/admin/
+    RewriteRule ^.*$ - [L]
+
+    # 실제 파일/디렉토리 체크
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # 나머지는 index.php로
+    RewriteRule ^(.*)$ index.php?page=$1 [QSA,L]
 </IfModule>
+
+# 모든 접근 허용
+Require all granted
+
+Options -Indexes
+DirectoryIndex index.php

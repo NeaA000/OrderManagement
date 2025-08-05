@@ -1,0 +1,31 @@
+# admin/upload_portal/.htaccess
+# 토큰 기반 접근만 허용
+
+# 모든 접근 허용 (토큰 검증은 PHP에서)
+Require all granted
+
+# 직접 파일 접근 제한 설정
+<Files "*.php">
+    # PHP 파일 실행은 허용
+    Require all granted
+</Files>
+
+# 설정 파일 접근 차단
+<FilesMatch "(\.htaccess|\.htpasswd|\.ini|\.log|\.sh)$">
+    Require all denied
+</FilesMatch>
+
+# PHP 실행 허용
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+
+# 디렉토리 리스팅 비활성화
+Options -Indexes
+
+# 보안 헤더
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
