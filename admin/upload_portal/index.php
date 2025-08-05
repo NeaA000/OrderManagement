@@ -97,11 +97,11 @@ $is_completed = ($request['status'] == 2);
 
 // 요청된 서류 목록 조회 - 업로드된 파일 정보도 함께 조회
 $docs_qry = $conn->query("
-    SELECT rd.*, dc.name as category_name
+    SELECT DISTINCT rd.*, dc.name as category_name
     FROM `request_documents` rd 
     LEFT JOIN `document_categories` dc ON rd.category_id = dc.id 
     WHERE rd.request_id = '{$request['id']}' 
-    ORDER BY rd.is_required DESC, rd.id ASC
+    ORDER BY rd.is_required DESC, IFNULL(dc.name, 'ZZZ') ASC, rd.document_name ASC
 ");
 
 // 전체 서류 수와 제출 완료 수 계산
@@ -111,6 +111,9 @@ $all_submitted = true;
 
 // 서류 목록을 배열에 저장
 $documents = [];
+$documents_by_category = [];
+
+// 카테고리별로 그룹화
 while($row = $docs_qry->fetch_assoc()) {
     if($row['status'] == 1) {
         $submitted_docs++;
@@ -118,6 +121,13 @@ while($row = $docs_qry->fetch_assoc()) {
         $all_submitted = false;
     }
     $documents[] = $row;
+    
+    // 카테고리별 그룹화
+    $category = $row['category_name'] ?: '기타';
+    if(!isset($documents_by_category[$category])) {
+        $documents_by_category[$category] = [];
+    }
+    $documents_by_category[$category][] = $row;
 }
 
 // 진행률 계산
@@ -806,6 +816,7 @@ $progress = $total_docs > 0 ? round(($submitted_docs / $total_docs) * 100) : 0;
         <h4>제출 서류 목록</h4>
 
         <?php if($is_completed): ?>
+        
             <!-- 이미 제출 완료된 경우 -->
             <div class="success-message">
                 <i class="fas fa-check-circle"></i>

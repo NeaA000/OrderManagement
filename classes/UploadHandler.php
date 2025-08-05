@@ -1,7 +1,13 @@
 <?php
 // classes/UploadHandler.php
 
-class UploadHandler extends DBConnection {
+// DBConnection 클래스가 있는지 확인
+if(!class_exists('DBConnection')) {
+    require_once(__DIR__ . '/DBConnection.php');
+}
+
+class UploadHandler {
+    private $conn;
     private $settings;
     private $upload_dir;
     private $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'hwp', 'hwpx'];
@@ -24,11 +30,23 @@ class UploadHandler extends DBConnection {
         'hwpx' => "\x50\x4B\x03\x04"  // HWPX
     ];
 
-    function __construct() {
+    function __construct($conn = null) {
         global $_settings;
+
+        // 전역 $conn 변수를 다른 이름으로 가져오기
+        if(!$conn) {
+            global $conn;
+        }
+
         $this->settings = $_settings;
         $this->upload_dir = base_app . 'uploads/documents/';
-        parent::__construct();
+
+        // 데이터베이스 연결 설정
+        $this->conn = $conn;
+
+        if(!$this->conn) {
+            throw new Exception('데이터베이스 연결이 필요합니다.');
+        }
 
         // Wasabi 설정 초기화
         $this->initializeWasabi();
@@ -37,6 +55,10 @@ class UploadHandler extends DBConnection {
     // Wasabi S3 클라이언트 초기화
     private function initializeWasabi() {
         // Wasabi 사용 설정 확인
+        if(!isset($this->settings) || !method_exists($this->settings, 'info')) {
+            return;
+        }
+
         if($this->settings->info('use_wasabi') !== 'true') {
             return;
         }
@@ -44,18 +66,23 @@ class UploadHandler extends DBConnection {
         // Wasabi 설정 가져오기
         $this->wasabi_config = [
             'key' => $this->settings->info('wasabi_key'),
-            'secret' => $this->settings->decrypt_data($this->settings->info('wasabi_secret')),
+            'secret' => $this->settings->info('wasabi_secret'),
             'region' => $this->settings->info('wasabi_region') ?? 'ap-northeast-1',
             'bucket' => $this->settings->info('wasabi_bucket'),
             'endpoint' => $this->settings->info('wasabi_endpoint') ?? 'https://s3.ap-northeast-1.wasabisys.com',
             'use_wasabi' => true
         ];
 
+        // decrypt_data 메소드가 있는 경우만 사용
+        if(method_exists($this->settings, 'decrypt_data') && !empty($this->wasabi_config['secret'])) {
+            $this->wasabi_config['secret'] = $this->settings->decrypt_data($this->wasabi_config['secret']);
+        }
+
         // 필수 설정 확인
         if(empty($this->wasabi_config['key']) || empty($this->wasabi_config['secret']) || empty($this->wasabi_config['bucket'])) {
-            error_log("Wasabi configuration incomplete - Key: " . (empty($this->wasabi_config['key']) ? 'empty' : 'set') . 
-                     ", Secret: " . (empty($this->wasabi_config['secret']) ? 'empty' : 'set') . 
-                     ", Bucket: " . (empty($this->wasabi_config['bucket']) ? 'empty' : 'set'));
+            error_log("Wasabi configuration incomplete - Key: " . (empty($this->wasabi_config['key']) ? 'empty' : 'set') .
+                ", Secret: " . (empty($this->wasabi_config['secret']) ? 'empty' : 'set') .
+                ", Bucket: " . (empty($this->wasabi_config['bucket']) ? 'empty' : 'set'));
             return;
         }
 
@@ -99,7 +126,7 @@ class UploadHandler extends DBConnection {
         $file_name = $this->generateFileName($file['name'], $request_id, $document_id);
 
         // Wasabi 사용 여부에 따라 분기
-        if($this->s3Client !== null && $this->settings->info('use_wasabi') === 'true') {
+        if($this->s3Client !== null && isset($this->settings) && method_exists($this->settings, 'info') && $this->settings->info('use_wasabi') === 'true') {
             return $this->uploadToWasabi($file, $file_name, $request_id, $document_id, $document_name);
         } else {
             return $this->uploadToLocal($file, $file_name, $request_id, $document_id, $document_name);
@@ -351,7 +378,9 @@ class UploadHandler extends DBConnection {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
 
-                $uploaded_by = $this->settings->userdata('username') ?: 'system';
+                $uploaded_by = (isset($this->settings) && method_exists($this->settings, 'userdata'))
+                    ? $this->settings->userdata('username')
+                    : 'system';
 
                 $stmt->bind_param("iisssssssiss",
                     $request_id,
