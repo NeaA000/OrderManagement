@@ -104,7 +104,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
                 $current_workflow = $workflow_labels[$project['workflow_step']] ?? $workflow_labels['created'];
                 ?>
                 <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-<?php echo $project['status'] == 2 ? 'success' : ($project['status'] == 1 ? 'primary' : 'secondary') ?> text-white">
+                    <div class="card-header bg-<?php echo $project['status'] == 2 ? 'success' : ($project['status'] == 1 ? 'primary' : 'secondary') ?>">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-hard-hat"></i> <?php echo $project['project_name'] ?>
                             <span class="badge badge-light float-right">

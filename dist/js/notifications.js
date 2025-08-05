@@ -16,6 +16,7 @@ const NotificationSystem = {
     notificationSound: null,
     isInitialized: false,
     unreadCount: 0,
+    shownNotificationIds: new Set(), // 이미 표시한 알림 ID 저장
 
     /**
      * 시스템 초기화
@@ -27,6 +28,9 @@ const NotificationSystem = {
 
         // 설정을 먼저 로드
         this.loadSettings();
+        
+        // 세션 스토리지에서 표시된 알림 ID 로드
+        this.loadShownNotifications();
 
         // 초기 설정
         this.lastCheck = new Date().toISOString();
@@ -50,6 +54,23 @@ const NotificationSystem = {
 
         this.isInitialized = true;
         console.log('NotificationSystem: 초기화 완료, 알림 상태:', this.notificationEnabled);
+    },
+
+    /**
+     * 표시된 알림 ID 로드
+     */
+    loadShownNotifications: function() {
+        const saved = sessionStorage.getItem('shownNotificationIds');
+        if (saved) {
+            try {
+                const ids = JSON.parse(saved);
+                this.shownNotificationIds = new Set(ids);
+                console.log('NotificationSystem: 표시된 알림 ID 로드됨', ids.length + '개');
+            } catch (e) {
+                console.error('표시된 알림 ID 로드 실패:', e);
+                this.shownNotificationIds = new Set();
+            }
+        }
     },
 
     /**
@@ -88,6 +109,14 @@ const NotificationSystem = {
             checkInterval: this.checkInterval
         };
         localStorage.setItem('notificationSettings', JSON.stringify(settings));
+    },
+    
+    /**
+     * 표시된 알림 ID 저장
+     */
+    saveShownNotifications: function() {
+        const ids = Array.from(this.shownNotificationIds);
+        sessionStorage.setItem('shownNotificationIds', JSON.stringify(ids));
     },
 
     /**
@@ -221,6 +250,8 @@ const NotificationSystem = {
         if (this.checkTimer) {
             clearInterval(this.checkTimer);
             this.checkTimer = null;
+            this.shownNotificationIds.clear(); // 체크 중단 시 표시된 알림 초기화
+            sessionStorage.removeItem('shownNotificationIds'); // 세션 스토리지도 초기화
         }
     },
 
@@ -248,13 +279,21 @@ const NotificationSystem = {
                     // 알림이 활성화된 경우에만 토스트 표시
                    if (NotificationSystem.notificationEnabled && response.notifications && response.notifications.length > 0) {
                         response.notifications.forEach(notif => {
-                            // 1분 이내 알림만 토스트 표시
-                            const uploadTime = new Date(notif.uploaded_at);
-                            const now = new Date();
-                            const diffMinutes = (now - uploadTime) / 60000;
+                            // 이미 표시한 알림인지 확인
+                            const notificationKey = `${notif.id}_${notif.uploaded_at}`;
+                            if (!NotificationSystem.shownNotificationIds.has(notificationKey)) {
+                                // 1분 이내 알림만 토스트 표시
+                                const uploadTime = new Date(notif.uploaded_at);
+                                const now = new Date();
+                                const diffMinutes = (now - uploadTime) / 60000;
 
-                            if (diffMinutes <= 1) {
-                                NotificationSystem.showToast(notif);
+                                if (diffMinutes <= 1) {
+                                    NotificationSystem.showToast(notif);
+                                    // 표시한 알림으로 등록
+                                    NotificationSystem.shownNotificationIds.add(notificationKey);
+                                    // 세션 스토리지에 저장
+                                    NotificationSystem.saveShownNotifications();
+                                }
                             }
                         });
                     }
@@ -358,6 +397,18 @@ const NotificationSystem = {
         if ($(`#${toastId}`).length > 0) {
             return;
         }
+        
+        // 중복 체크를 위한 키 생성
+        const notificationKey = `${notification.id}_${notification.uploaded_at}`;
+        if (this.shownNotificationIds.has(notificationKey)) {
+            console.log('이미 표시된 알림:', notificationKey);
+            return;
+        }
+        
+        // 표시한 알림으로 등록
+        this.shownNotificationIds.add(notificationKey);
+        // 세션 스토리지에 저장
+        this.saveShownNotifications();
 
         // 토스트 HTML
         const toastHtml = `
@@ -579,6 +630,8 @@ const NotificationSystem = {
         this.saveSettings();
 
         if (this.notificationEnabled) {
+            this.shownNotificationIds.clear(); // 알림을 다시 켤 때 초기화
+            sessionStorage.removeItem('shownNotificationIds'); // 세션 스토리지도 초기화
             // 알림을 다시 켜면 체크 재시작
             this.startChecking();
             this.checkNewNotifications();
@@ -650,6 +703,7 @@ const NotificationSystem = {
         $('.toast-container').remove();
         $(document).off('click.notification');
         this.isInitialized = false;
+        sessionStorage.removeItem('shownNotificationIds');
     }
 };
 
