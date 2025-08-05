@@ -58,11 +58,13 @@ $writers = $writers_stmt->get_result()->fetch_assoc();
 // 요청된 서류 목록 조회
 $docs_stmt = $conn->prepare("
     SELECT rd.*, dc.name as category_name,
-           (SELECT COUNT(*) FROM document_uploads WHERE document_id = rd.id) as upload_count
+           (SELECT COUNT(*) FROM document_uploads WHERE document_id = rd.id) as upload_count,
+           uf.document_name as wasabi_document_name
     FROM request_documents rd
     LEFT JOIN document_categories dc ON rd.category_id = dc.id
+    LEFT JOIN uploaded_files uf ON uf.document_id = rd.id AND uf.is_deleted = 0
     WHERE rd.request_id = ?
-    ORDER BY dc.display_order, rd.id
+    ORDER BY dc.display_order, rd.id, uf.id DESC
 ");
 $docs_stmt->bind_param("i", $request_id);
 $docs_stmt->execute();

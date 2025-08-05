@@ -101,7 +101,7 @@ class UploadHandler extends DBConnection {
     }
 
     // 파일 업로드 처리
-    public function uploadDocument($file, $request_id, $document_id) {
+    public function uploadDocument($file, $request_id, $document_id, $document_name = null) {
         try {
             // 파일 유효성 검사
             $validation = $this->validateFile($file);
@@ -115,10 +115,10 @@ class UploadHandler extends DBConnection {
 
             if($this->wasabi_config['use_wasabi']) {
                 // Wasabi로 업로드
-                return $this->uploadToWasabi($file, $file_name, $request_id, $document_id);
+                return $this->uploadToWasabi($file, $file_name, $request_id, $document_id, $document_name);
             } else {
                 // 로컬로 업로드
-                return $this->uploadToLocal($file, $file_name, $request_id, $document_id);
+                return $this->uploadToLocal($file, $file_name, $request_id, $document_id, $document_name);
             }
 
         } catch(Exception $e) {
@@ -128,7 +128,7 @@ class UploadHandler extends DBConnection {
     }
 
     // Wasabi로 파일 업로드
-    private function uploadToWasabi($file, $file_name, $request_id, $document_id) {
+    private function uploadToWasabi($file, $file_name, $request_id, $document_id, $document_name = null) {
         try {
             // S3 키 생성 (경로 포함)
             $key = 'documents/' . date('Y') . '/' . date('m') . '/' . $file_name;
@@ -173,17 +173,18 @@ class UploadHandler extends DBConnection {
                 // uploaded_files 테이블에 저장
                 $stmt = $this->conn->prepare("
                     INSERT INTO uploaded_files (
-                        request_id, document_id, original_name, stored_name, 
+                        request_id, document_id, document_name, original_name, stored_name, 
                         wasabi_key, wasabi_bucket, wasabi_region, wasabi_url, 
                         file_size, mime_type, uploaded_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
 
                 $uploaded_by = $this->settings->userdata('username') ?: 'system';
 
-                $stmt->bind_param("iissssssiss",
+                $stmt->bind_param("iisssssssiss",
                     $request_id,
                     $document_id,
+                    $document_name,
                     $file['name'],
                     $file_name,
                     $key,
@@ -235,7 +236,7 @@ class UploadHandler extends DBConnection {
     }
 
     // 로컬로 파일 업로드 (기존 코드)
-    private function uploadToLocal($file, $file_name, $request_id, $document_id) {
+    private function uploadToLocal($file, $file_name, $request_id, $document_id, $document_name = null) {
         $upload_path = $this->getUploadPath() . $file_name;
 
         // 디렉토리 존재 확인

@@ -65,16 +65,33 @@ try {
         throw new Exception("요청 상태 업데이트 실패");
     }
 
-    // 알림 생성
-    $notification_query = "
-        INSERT INTO `upload_notifications` 
-        (request_id, supplier_id, type, title, message, created_at) 
+    // 워크플로우 상태 업데이트
+    $workflow_query = "
+        INSERT INTO `workflow_status` 
+        (request_id, current_step, step_name, step_description, started_at, is_current) 
         VALUES 
-        ('{$request_id}', '{$request['supplier_id']}', 'completion', 
-         '서류 제출 완료', '{$request['supplier_name']}에서 모든 서류를 제출했습니다.', NOW())
+        ('{$request_id}', 'completed', '제출완료', 
+         '모든 필수 서류가 제출되어 완료 처리되었습니다.', NOW(), 1)
     ";
 
-    $conn->query($notification_query);
+    if($conn->query($workflow_query)) {
+        // 기존 current 상태 해제
+        $conn->query("UPDATE workflow_status SET is_current = 0 WHERE request_id = '{$request_id}' AND id != LAST_INSERT_ID()");
+    }
+
+    // 알림 생성 - notifications 테이블 사용
+    $notification_query = "
+        INSERT INTO `notifications` 
+        (request_id, type, title, message, is_read, created_at) 
+        VALUES 
+        ('{$request_id}', 'completion', 
+         '서류 제출 완료', '{$request['supplier_name']}에서 모든 서류를 제출했습니다.', 0, NOW())
+    ";
+
+    if(!$conn->query($notification_query)) {
+        // 알림 생성 실패는 로그에만 기록하고 진행
+        error_log("알림 생성 실패: " . $conn->error);
+    }
 
     // 업로드 로그 기록
     $log_query = "

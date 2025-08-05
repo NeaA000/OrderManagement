@@ -101,12 +101,16 @@ try {
         exit;
     }
 
+    // 서류명 가져오기
+    $document_name = $doc_info['document_name'];
+
     // 현재 요청 상태 저장
     $current_request_status = $doc_info['request_status'];
 
     // 업로드 처리
     $uploadHandler = new UploadHandler();
-    $result = $uploadHandler->uploadDocument($_FILES['file'], $request_id, $document_id);
+    // 서류명을 추가 파라미터로 전달
+    $result = $uploadHandler->uploadDocument($_FILES['file'], $request_id, $document_id, $document_name);
 
     // 업로드 성공 시 추가 작업
     if($result['status'] === 'success') {
