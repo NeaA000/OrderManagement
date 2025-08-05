@@ -55,31 +55,72 @@ class SystemSettings extends DBConnection{
         if(isset($_POST['privacy_policy'])){
             file_put_contents('../privacy_policy.html',$_POST['privacy_policy']);
         }
+
+        // 로고 파일 업로드 처리 - 수정된 부분
         if(isset($_FILES['img']) && $_FILES['img']['tmp_name'] != ''){
-            $fname = 'uploads/'.strtotime(date('y-m-d H:i')).'_'.$_FILES['img']['name'];
-            $move = move_uploaded_file($_FILES['img']['tmp_name'],'../'. $fname);
-            if(isset($_SESSION['system_info']['logo'])){
-                $qry = $this->conn->query("UPDATE system_info set meta_value = '{$fname}' where meta_field = 'logo' ");
-                if(is_file('../'.$_SESSION['system_info']['logo'])) unlink('../'.$_SESSION['system_info']['logo']);
-            }else{
-                $qry = $this->conn->query("INSERT into system_info set meta_value = '{$fname}',meta_field = 'logo' ");
+            // uploads 폴더 생성 (없는 경우)
+            if(!is_dir('../uploads')){
+                mkdir('../uploads', 0755, true);
+            }
+
+            // 안전한 파일명 생성
+            $ext = pathinfo($_FILES['img']['name'], PATHINFO_EXTENSION);
+            $fname = 'uploads/' . time() . '_' . uniqid() . '.' . $ext;
+
+            // 파일 이동
+            $move = move_uploaded_file($_FILES['img']['tmp_name'], '../' . $fname);
+
+            if($move){
+                // 기존 로고 파일 삭제
+                if(isset($_SESSION['system_info']['logo']) && is_file('../'.$_SESSION['system_info']['logo'])){
+                    unlink('../'.$_SESSION['system_info']['logo']);
+                }
+
+                // DB 업데이트
+                $check = $this->conn->query("SELECT * FROM system_info WHERE meta_field = 'logo'")->num_rows;
+                if($check > 0){
+                    $qry = $this->conn->query("UPDATE system_info SET meta_value = '{$fname}' WHERE meta_field = 'logo'");
+                }else{
+                    $qry = $this->conn->query("INSERT INTO system_info SET meta_value = '{$fname}', meta_field = 'logo'");
+                }
+
+                if($qry){
+                    $_SESSION['system_info']['logo'] = $fname;
+                }
             }
         }
+
+        // cover 이미지 처리
         if(isset($_FILES['cover']) && $_FILES['cover']['tmp_name'] != ''){
-            $fname = 'uploads/'.strtotime(date('y-m-d H:i')).'_'.$_FILES['cover']['name'];
-            $move = move_uploaded_file($_FILES['cover']['tmp_name'],'../'. $fname);
-            if(isset($_SESSION['system_info']['cover'])){
-                $qry = $this->conn->query("UPDATE system_info set meta_value = '{$fname}' where meta_field = 'cover' ");
-                if(is_file('../'.$_SESSION['system_info']['cover'])) unlink('../'.$_SESSION['system_info']['cover']);
-            }else{
-                $qry = $this->conn->query("INSERT into system_info set meta_value = '{$fname}',meta_field = 'cover' ");
+            if(!is_dir('../uploads')){
+                mkdir('../uploads', 0755, true);
+            }
+
+            $ext = pathinfo($_FILES['cover']['name'], PATHINFO_EXTENSION);
+            $fname = 'uploads/' . time() . '_' . uniqid() . '_cover.' . $ext;
+            $move = move_uploaded_file($_FILES['cover']['tmp_name'], '../' . $fname);
+
+            if($move){
+                if(isset($_SESSION['system_info']['cover']) && is_file('../'.$_SESSION['system_info']['cover'])){
+                    unlink('../'.$_SESSION['system_info']['cover']);
+                }
+
+                $check = $this->conn->query("SELECT * FROM system_info WHERE meta_field = 'cover'")->num_rows;
+                if($check > 0){
+                    $qry = $this->conn->query("UPDATE system_info SET meta_value = '{$fname}' WHERE meta_field = 'cover'");
+                }else{
+                    $qry = $this->conn->query("INSERT INTO system_info SET meta_value = '{$fname}', meta_field = 'cover'");
+                }
+
+                if($qry){
+                    $_SESSION['system_info']['cover'] = $fname;
+                }
             }
         }
 
         $update = $this->update_system_info();
         $flash = $this->set_flashdata('success','시스템 정보가 성공적으로 업데이트되었습니다.');
         if($update && $flash){
-            // var_dump($_SESSION);
             return 1; // AJAX 응답을 위해 1 반환
         }
         return 0; // 실패 시 0 반환

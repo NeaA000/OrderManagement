@@ -126,16 +126,17 @@ while ($row = $result->fetch_assoc()) {
 
         body {
             font-family: 'Malgun Gothic', sans-serif;
-            font-size: 14px;
+            font-size: 13px;
             background-color: #f5f5f5;
-            padding: 20px;
+            padding: 5px;
+            margin: 0;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             background-color: white;
-            padding: 30px;
+            padding: 10px 15px 15px 15px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
             border-radius: 8px;
         }
@@ -154,6 +155,18 @@ while ($row = $result->fetch_assoc()) {
             margin-right: 8px;
             cursor: pointer;
             vertical-align: middle;
+        }
+
+        /* 체크된 체크박스 빨간색 */
+        input[type="checkbox"]:checked {
+            accent-color: #d32f2f;
+            background-color: #d32f2f;
+            border-color: #d32f2f;
+        }
+
+        /* 웹킷 브라우저용 추가 스타일 */
+        input[type="checkbox"]:checked::-webkit-inner-spin-button {
+            background-color: #d32f2f;
         }
 
         input[type="radio"] {
@@ -175,12 +188,12 @@ while ($row = $result->fetch_assoc()) {
         div.document-types {
             display: grid !important;
             grid-template-columns: repeat(5, 1fr) !important;
-            gap: 15px !important;
-            padding: 20px !important;
+            gap: 10px !important;
+            padding: 10px !important;
             background-color: #f9f9f9 !important;
             border: 2px solid #e0e0e0 !important;
             border-radius: 5px !important;
-            margin-bottom: 30px !important;
+            margin-bottom: 10px !important;
             width: 100% !important;
             box-sizing: border-box !important;
         }
@@ -201,13 +214,14 @@ while ($row = $result->fetch_assoc()) {
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 25px;
+            margin-bottom: 10px;
         }
 
         th, td {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 5px;
             text-align: left;
+            font-size: 12px;
         }
 
         th {
@@ -215,6 +229,7 @@ while ($row = $result->fetch_assoc()) {
             font-weight: bold;
             text-align: center;
             color: #333;
+            padding: 4px;
         }
 
         /* 입력 필드 */
@@ -225,10 +240,10 @@ while ($row = $result->fetch_assoc()) {
         select,
         textarea {
             width: 100%;
-            padding: 8px;
+            padding: 4px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 12px;
             font-family: inherit;
             background-color: #f9f9f9;
         }
@@ -244,14 +259,19 @@ while ($row = $result->fetch_assoc()) {
         /* 섹션 타이틀 */
         .section-title {
             background-color: #e8e8e8;
-            padding: 12px 20px;
-            margin-bottom: 15px;
+            padding: 6px 15px;
+            margin-bottom: 6px;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
             border-left: 4px solid #d32f2f;
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+
+        /* 첫 번째 섹션 타이틀은 위 여백 제거 */
+        .section-title:first-child {
+            margin-top: 0;
         }
 
         /* 버튼 스타일 */
@@ -259,7 +279,7 @@ while ($row = $result->fetch_assoc()) {
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-top: 30px;
+            margin-top: 10px;
         }
 
         button {
@@ -294,15 +314,21 @@ while ($row = $result->fetch_assoc()) {
 
         /* 인쇄 스타일 */
         @media print {
+            @page {
+                margin: 10mm;
+            }
+
             body {
                 background-color: white;
                 padding: 0;
+                margin: 0;
             }
 
             .container {
                 box-shadow: none;
-                padding: 20px;
+                padding: 0;
                 max-width: 100%;
+                margin: 0;
             }
 
             .button-group {
@@ -312,6 +338,13 @@ while ($row = $result->fetch_assoc()) {
             /* 인쇄 시에만 체크박스 비활성화 표시 */
             input[type="checkbox"] {
                 pointer-events: none;
+            }
+
+            /* 체크된 체크박스 빨간색 유지 */
+            input[type="checkbox"]:checked {
+                accent-color: #d32f2f !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             /* 페이지 나눔 방지 */
@@ -368,7 +401,7 @@ while ($row = $result->fetch_assoc()) {
 
 
     <!-- 서류 분류 체크박스 -->
-    <div class="section-title">서류 분류 선택</div>
+    <div class="section-title" style="margin-top: 0;">서류 분류 선택</div>
     <div class="document-types">
         <?php foreach ($categories as $category): ?>
             <?php
@@ -385,7 +418,7 @@ while ($row = $result->fetch_assoc()) {
 
     <!-- 관리번호 -->
     <div class="section-title">
-        관리번호: <input type="text" value="<?php echo htmlspecialchars($request_data['request_no']); ?>" style="width: 200px; margin-left: 10px;" readonly>
+        관리번호: <input type="text" value="<?php echo htmlspecialchars($request_data['request_no']); ?>" style="width: 200px; margin-left: 10px; padding: 3px;" readonly>
     </div>
 
     <!-- 의뢰처 -->
@@ -416,17 +449,17 @@ while ($row = $result->fetch_assoc()) {
             <th rowspan="2">담당자</th>
             <th width="10%">담당</th>
             <td>
-                <input type="text" placeholder="담당자 이름" style="width: 40%; display: inline;" value="<?php echo htmlspecialchars($details_data['manager_name'] ?? ''); ?>" readonly>
-                <input type="text" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo htmlspecialchars($details_data['manager_contact'] ?? ''); ?>" readonly>
+                <input type="text" style="width: 40%; display: inline;" value="<?php echo htmlspecialchars($details_data['manager_name'] ?? ''); ?>" readonly>
+                <input type="text" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo htmlspecialchars($details_data['manager_contact'] ?? ''); ?>" readonly>
             </td>
             <th>이메일</th>
-            <td><input type="email" placeholder="이메일 주소" value="<?php echo htmlspecialchars($details_data['manager_email'] ?? ''); ?>" readonly></td>
+            <td><input type="email" value="<?php echo htmlspecialchars($details_data['manager_email'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>소장</th>
             <td colspan="3">
-                <input type="text" placeholder="소장 이름" style="width: 40%; display: inline;" value="<?php echo htmlspecialchars($details_data['director_name'] ?? ''); ?>" readonly>
-                <input type="text" placeholder="연락처" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo htmlspecialchars($details_data['director_contact'] ?? ''); ?>" readonly>
+                <input type="text" style="width: 40%; display: inline;" value="<?php echo htmlspecialchars($details_data['director_name'] ?? ''); ?>" readonly>
+                <input type="text" style="width: 40%; display: inline; margin-left: 10px;" value="<?php echo htmlspecialchars($details_data['director_contact'] ?? ''); ?>" readonly>
             </td>
         </tr>
     </table>
@@ -465,7 +498,7 @@ while ($row = $result->fetch_assoc()) {
                 </select>
             </td>
             <th>안전보건공단</th>
-            <td><input type="text" placeholder="강원동부지사" value="<?php echo htmlspecialchars($targets_data['safety_health_agency'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($targets_data['safety_health_agency'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>안전보건대장</th>
@@ -489,15 +522,15 @@ while ($row = $result->fetch_assoc()) {
         </tr>
         <tr>
             <th>교육시설</th>
-            <td><input type="text" placeholder="교육시설 정보 입력" value="<?php echo htmlspecialchars($targets_data['education_facility'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($targets_data['education_facility'] ?? ''); ?>" readonly></td>
             <th>관할교육청</th>
-            <td><input type="text" placeholder="관할교육청 입력" value="<?php echo htmlspecialchars($targets_data['education_office'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($targets_data['education_office'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>철도보호지구</th>
-            <td><input type="text" placeholder="철도보호지구 관련정보" value="<?php echo htmlspecialchars($targets_data['railway_protection'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($targets_data['railway_protection'] ?? ''); ?>" readonly></td>
             <th>철도보호지구관리자</th>
-            <td><input type="text" placeholder="철도보호지구관리자 입력" value="<?php echo htmlspecialchars($targets_data['railway_manager'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($targets_data['railway_manager'] ?? ''); ?>" readonly></td>
         </tr>
     </table>
 
@@ -506,41 +539,45 @@ while ($row = $result->fetch_assoc()) {
     <table>
         <tr>
             <th width="20%">안전관리계획서</th>
-            <td width="30%"><input type="text" placeholder="안전관리계획비 입력(만원)" value="<?php echo $costs_data['safety_plan_cost'] ? number_format($costs_data['safety_plan_cost']) . '만원' : ''; ?>" readonly></td>
+            <td width="30%"><input type="text" value="<?php echo $costs_data['safety_plan_cost'] ? number_format($costs_data['safety_plan_cost']) . '만원' : ''; ?>" readonly></td>
             <th width="20%">유해위험방지계획서</th>
-            <td width="30%"><input type="text" placeholder="유해위험방지계획비 입력(만원)" value="<?php echo $costs_data['hazard_prevention_cost'] ? number_format($costs_data['hazard_prevention_cost']) . '만원' : ''; ?>" readonly></td>
+            <td width="30%"><input type="text" value="<?php echo $costs_data['hazard_prevention_cost'] ? number_format($costs_data['hazard_prevention_cost']) . '만원' : ''; ?>" readonly></td>
         </tr>
         <tr>
             <th>구조검토비</th>
-            <td><input type="text" placeholder="구조검토비 입력(만원)" value="<?php echo $costs_data['structure_review_cost'] ? number_format($costs_data['structure_review_cost']) . '만원' : ''; ?>" readonly></td>
+            <td><input type="text" value="<?php echo $costs_data['structure_review_cost'] ? number_format($costs_data['structure_review_cost']) . '만원' : ''; ?>" readonly></td>
             <th>위탁처</th>
-            <td><input type="text" placeholder="위탁처 입력" value="<?php echo htmlspecialchars($costs_data['structure_review_agency'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($costs_data['structure_review_agency'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>계획서검토비</th>
-            <td><input type="text" placeholder="계획서검토비 입력(만원)" value="<?php echo $costs_data['plan_review_cost'] ? number_format($costs_data['plan_review_cost']) . '만원' : ''; ?>" readonly></td>
+            <td><input type="text" value="<?php echo $costs_data['plan_review_cost'] ? number_format($costs_data['plan_review_cost']) . '만원' : ''; ?>" readonly></td>
             <th>검토처</th>
-            <td><input type="text" placeholder="검토처 입력" value="<?php echo htmlspecialchars($costs_data['plan_review_agency'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($costs_data['plan_review_agency'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>안전보건대장</th>
-            <td><input type="text" placeholder="안전관리계획비 입력(만원)" value="<?php echo $costs_data['safety_health_cost'] ? number_format($costs_data['safety_health_cost']) . '만원' : ''; ?>" readonly></td>
+            <td><input type="text" value="<?php echo $costs_data['safety_health_cost'] ? number_format($costs_data['safety_health_cost']) . '만원' : ''; ?>" readonly></td>
             <th>교육시설</th>
-            <td><input type="text" placeholder="교육시설 비용 입력(만원)" value="<?php echo $costs_data['education_facility_cost'] ? number_format($costs_data['education_facility_cost']) . '만원' : ''; ?>" readonly></td>
+            <td><input type="text" value="<?php echo $costs_data['education_facility_cost'] ? number_format($costs_data['education_facility_cost']) . '만원' : ''; ?>" readonly></td>
         </tr>
         <tr>
             <th>철도보호</th>
-            <td><input type="text" placeholder="철도보호 비용 입력(만원)" value="<?php echo $costs_data['railway_protection_cost'] ? number_format($costs_data['railway_protection_cost']) . '만원' : ''; ?>" readonly></td>
+            <td><input type="text" value="<?php echo $costs_data['railway_protection_cost'] ? number_format($costs_data['railway_protection_cost']) . '만원' : ''; ?>" readonly></td>
             <th>적정성평가</th>
-            <td><input type="text" placeholder="적정성평가 정보 입력" value="<?php echo htmlspecialchars($costs_data['evaluation_cost'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($costs_data['evaluation_cost'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>종합계</th>
             <td colspan="3">
                 <?php
-                $vat_text = $details_data['vat_included'] == 1 ? ' (VAT포함)' : ' (VAT별도)';
+                $total_display = '';
+                if ($details_data['total_cost'] > 0) {
+                    $vat_text = $details_data['vat_included'] == 1 ? ' (VAT포함)' : ' (VAT별도)';
+                    $total_display = number_format($details_data['total_cost']) . '만원' . $vat_text;
+                }
                 ?>
-                <input type="text" placeholder="0만원" style="width: 200px; display: inline;" readonly value="<?php echo number_format($details_data['total_cost']) . '만원' . $vat_text; ?>">
+                <input type="text" style="width: 200px; display: inline;" readonly value="<?php echo $total_display; ?>">
                 <label style="margin-left: 20px;">
                     <input type="radio" disabled <?php echo ($details_data['vat_included'] == 1) ? 'checked' : ''; ?>> VAT 포함
                 </label>
@@ -563,7 +600,7 @@ while ($row = $result->fetch_assoc()) {
         <tr>
             <th>분야별 작성자</th>
             <td colspan="3">
-                <input type="text" placeholder="※ 정병 구분하여 작성시 기재" value="<?php echo htmlspecialchars($writers_data['field_writers'] ?? ''); ?>" readonly>
+                <input type="text" value="<?php echo htmlspecialchars($writers_data['field_writers'] ?? ''); ?>" readonly>
             </td>
         </tr>
     </table>
@@ -583,24 +620,24 @@ while ($row = $result->fetch_assoc()) {
                 <table style="width: 100%; border: none; margin: 0;">
                     <tr>
                         <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" placeholder="아이디" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['csi_id'] ?? ''); ?>" readonly></td>
+                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['csi_id'] ?? ''); ?>" readonly></td>
                     </tr>
                 </table>
             </td>
-            <td><input type="text" placeholder="" value="<?php echo htmlspecialchars($review_data['csi_supervisor'] ?? ''); ?>" readonly></td>
-            <td><input type="text" placeholder="" value="<?php echo htmlspecialchars($review_data['csi_client'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($review_data['csi_supervisor'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($review_data['csi_client'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <td>
                 <table style="width: 100%; border: none; margin: 0;">
                     <tr>
                         <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" placeholder="" style="width: 95%; border: none;" value="****" readonly></td>
+                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" style="width: 95%; border: none;" value="<?php echo !empty($review_data['csi_password']) ? '****' : ''; ?>" readonly></td>
                     </tr>
                 </table>
             </td>
-            <td><input type="text" placeholder="" value="<?php echo htmlspecialchars($review_data['csi_supervisor_info'] ?? ''); ?>" readonly></td>
-            <td><input type="text" placeholder="" value="<?php echo htmlspecialchars($review_data['csi_client_info'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($review_data['csi_supervisor_info'] ?? ''); ?>" readonly></td>
+            <td><input type="text" value="<?php echo htmlspecialchars($review_data['csi_client_info'] ?? ''); ?>" readonly></td>
         </tr>
         <tr>
             <th>안전보건공단</th>
@@ -608,7 +645,7 @@ while ($row = $result->fetch_assoc()) {
                 <table style="width: 100%; border: none; margin: 0;">
                     <tr>
                         <td style="border: none; padding: 3px; width: 15%; text-align: center;">ID</td>
-                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" placeholder="아이디" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['kosha_id'] ?? ''); ?>" readonly></td>
+                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['kosha_id'] ?? ''); ?>" readonly></td>
                     </tr>
                 </table>
             </td>
@@ -616,7 +653,7 @@ while ($row = $result->fetch_assoc()) {
                 <table style="width: 100%; border: none; margin: 0;">
                     <tr>
                         <td style="border: none; padding: 3px; width: 15%; text-align: center;">비번</td>
-                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" placeholder="" style="width: 95%; border: none;" value="****" readonly></td>
+                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="password" style="width: 95%; border: none;" value="<?php echo !empty($review_data['kosha_password']) ? '****' : ''; ?>" readonly></td>
                     </tr>
                 </table>
             </td>
@@ -624,7 +661,7 @@ while ($row = $result->fetch_assoc()) {
                 <table style="width: 100%; border: none; margin: 0;">
                     <tr>
                         <td style="border: none; padding: 3px; width: 25%; text-align: center;">기타사항</td>
-                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" placeholder="" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['kosha_notes'] ?? ''); ?>" readonly></td>
+                        <td style="border: 1px solid #ddd; padding: 3px;"><input type="text" style="width: 95%; border: none;" value="<?php echo htmlspecialchars($review_data['kosha_notes'] ?? ''); ?>" readonly></td>
                     </tr>
                 </table>
             </td>
