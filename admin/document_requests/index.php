@@ -8,6 +8,12 @@
     <div class="card-header">
         <h3 class="card-title">서류 요청 목록</h3>
         <div class="card-tools">
+            <!-- 일괄 작업 버튼 추가 -->
+            <div class="btn-group mr-2" id="bulk-actions" style="display: none;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()">
+                    <i class="fas fa-trash"></i> 선택 삭제 (<span id="selected-count">0</span>)
+                </button>
+            </div>
             <a href="./?page=document_requests/manage_request" class="btn btn-flat btn-primary">
                 <span class="fas fa-plus"></span> 새 요청 생성
             </a>
@@ -18,15 +24,19 @@
             <table class="table table-hover table-striped" id="request-table">
                 <colgroup>
                     <col width="5%">
+                    <col width="5%">
                     <col width="15%">
                     <col width="20%">
-                    <col width="25%">
+                    <col width="20%">
                     <col width="10%">
                     <col width="10%">
                     <col width="15%">
                 </colgroup>
                 <thead>
                 <tr>
+                    <th class="text-center">
+                        <input type="checkbox" id="check-all" class="check-all">
+                    </th>
                     <th>#</th>
                     <th>요청번호</th>
                     <th>의뢰처</th>
@@ -51,7 +61,10 @@
                 while($row = $qry->fetch_assoc()):
                     $progress = $row['total_docs'] > 0 ? round(($row['completed_docs'] / $row['total_docs']) * 100) : 0;
                     ?>
-                    <tr class="clickable-row" data-id="<?php echo $row['id'] ?>" style="cursor: pointer;">
+                    <tr class="clickable-row" data-id="<?php echo $row['id'] ?>">
+                        <td class="text-center action-cell">
+                            <input type="checkbox" class="check-item" value="<?php echo $row['id'] ?>">
+                        </td>
                         <td class="text-center"><?php echo $i++; ?></td>
                         <td><?php echo $row['request_no'] ?></td>
                         <td><?php echo $row['supplier_name'] ?></td>
@@ -119,7 +132,9 @@
                                     <span class="fa fa-print text-success"></span> 문서 인쇄
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item delete_data" href="javascript:void(0)" data-id="<?php echo $row['id'] ?>">
+                                <a class="dropdown-item delete_data" href="javascript:void(0)"
+                                   data-id="<?php echo $row['id'] ?>"
+                                   data-request-no="<?php echo $row['request_no'] ?>">
                                     <span class="fa fa-trash text-danger"></span> 삭제
                                 </a>
                             </div>
@@ -147,6 +162,7 @@
     .clickable-row:hover td:not(.action-cell) {
         background-color: #f5f5f5;
         transition: background-color 0.2s ease;
+        cursor: pointer;
     }
 
     /* 행 hover 시 shadow 효과 */
@@ -178,6 +194,14 @@
     /* 액션 버튼이 있는 셀은 클릭 방지 */
     .action-cell {
         position: static !important;
+        cursor: default !important;
+    }
+
+    /* 체크박스 스타일 */
+    .check-all, .check-item {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
     }
 
     /* 로딩 오버레이 */
@@ -196,6 +220,12 @@
 
     .loading-overlay.show {
         display: flex;
+    }
+
+    /* 일괄 작업 버튼 스타일 */
+    #bulk-actions {
+        display: inline-block;
+        vertical-align: middle;
     }
 </style>
 
@@ -229,10 +259,15 @@
             e.stopPropagation();
         });
 
+        // 체크박스 클릭 시 이벤트 전파 중단
+        $(document).on('click', '.check-item, .check-all', function(e) {
+            e.stopPropagation();
+        });
+
         // 행 클릭 이벤트
         $('.clickable-row').click(function(e) {
-            // 드롭다운 버튼이나 메뉴를 클릭한 경우는 제외
-            if($(e.target).closest('.dropdown-toggle, .dropdown-menu').length) {
+            // 드롭다운 버튼이나 메뉴, 체크박스를 클릭한 경우는 제외
+            if($(e.target).closest('.dropdown-toggle, .dropdown-menu, .check-item, .check-all').length) {
                 return;
             }
 
@@ -240,11 +275,30 @@
             window.location.href = './?page=document_requests/view_request&id=' + id;
         });
 
+        // 개별 삭제
         $('.delete_data').click(function(e){
             e.preventDefault();
             e.stopPropagation();
-            _conf("정말로 이 요청을 삭제하시겠습니까?","delete_request",[$(this).attr('data-id')])
-        })
+            var id = $(this).attr('data-id');
+            var requestNo = $(this).attr('data-request-no');
+
+            Swal.fire({
+                title: '삭제 확인',
+                html: `요청번호 <b>${requestNo}</b>를 삭제하시겠습니까?<br><br>
+                       <span class="text-danger">⚠️ 이 작업은 되돌릴 수 없습니다!</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: '삭제',
+                cancelButtonText: '취소',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    delete_request(id);
+                }
+            });
+        });
 
         // 이메일 전송
         $('.send_email').click(function(e){
@@ -285,12 +339,27 @@
             }
         })
 
+        // 전체 선택 체크박스
+        $('#check-all').on('change', function() {
+            $('.check-item').prop('checked', $(this).prop('checked'));
+            updateBulkActions();
+        });
+
+        // 개별 체크박스
+        $(document).on('change', '.check-item', function() {
+            var totalCheckboxes = $('.check-item').length;
+            var checkedCheckboxes = $('.check-item:checked').length;
+
+            $('#check-all').prop('checked', totalCheckboxes === checkedCheckboxes);
+            updateBulkActions();
+        });
+
         // DataTable 설정
         var table = $('#request-table').DataTable({
             columnDefs: [
-                { orderable: false, targets: [6] }
+                { orderable: false, targets: [0, 7] }
             ],
-            order: [[0, 'asc']],
+            order: [[1, 'asc']],
             language: {
                 "lengthMenu": "페이지당 _MENU_ 개씩 보기",
                 "zeroRecords": "검색 결과가 없습니다",
@@ -310,23 +379,115 @@
         $('.dataTable td,.dataTable th').addClass('py-1 px-2 align-middle')
     })
 
-    function delete_request($id){
+    // 일괄 작업 버튼 표시/숨김
+    function updateBulkActions() {
+        var checkedCount = $('.check-item:checked').length;
+        $('#selected-count').text(checkedCount);
+
+        if (checkedCount > 0) {
+            $('#bulk-actions').fadeIn();
+        } else {
+            $('#bulk-actions').fadeOut();
+        }
+    }
+
+    // 선택된 항목 삭제
+    function deleteSelected() {
+        const checkboxes = document.querySelectorAll('.check-item:checked');
+
+        if (checkboxes.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: '선택된 항목 없음',
+                text: '삭제할 항목을 선택해주세요.',
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+
+        // 선택된 ID들 수집
+        const ids = Array.from(checkboxes).map(cb => cb.value);
+        const count = ids.length;
+
+        // 삭제 확인 대화상자
+        Swal.fire({
+            title: '일괄 삭제 확인',
+            html: `선택한 <b>${count}개</b>의 서류 요청을 삭제하시겠습니까?<br><br>
+                   <span class="text-danger">⚠️ 이 작업은 되돌릴 수 없습니다!</span><br>
+                   <small>관련된 모든 파일과 데이터가 함께 삭제됩니다.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: '삭제',
+            cancelButtonText: '취소',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                delete_multiple_requests(ids);
+            }
+        });
+    }
+
+    // 개별 삭제 함수
+    function delete_request(id){
         start_loader();
         $.ajax({
             url:_base_url_+"classes/Master.php?f=delete_request",
             method:"POST",
-            data:{id: $id},
+            data:{id: id},
             dataType:"json",
             error:err=>{
                 console.log(err)
-                alert_toast("An error occured.",'error');
+                alert_toast("삭제 중 오류가 발생했습니다.",'error');
                 end_loader();
             },
             success:function(resp){
                 if(typeof resp== 'object' && resp.status == 'success'){
                     location.reload();
                 }else{
-                    alert_toast("An error occured.",'error');
+                    alert_toast("삭제에 실패했습니다.",'error');
+                    end_loader();
+                }
+            }
+        })
+    }
+
+    // 일괄 삭제 함수
+    function delete_multiple_requests(ids){
+        start_loader();
+        $.ajax({
+            url:_base_url_+"classes/Master.php?f=delete_multiple_requests",
+            method:"POST",
+            data:{ids: ids},
+            dataType:"json",
+            error:err=>{
+                console.log(err)
+                alert_toast("삭제 중 오류가 발생했습니다.",'error');
+                end_loader();
+            },
+            success:function(resp){
+                if(typeof resp== 'object' && resp.status == 'success'){
+                    Swal.fire({
+                        icon: 'success',
+                        title: '삭제 완료',
+                        text: resp.msg || '선택한 항목들이 삭제되었습니다.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();
+                    });
+                }else if(resp.status == 'partial'){
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '부분 삭제',
+                        html: resp.msg,
+                        confirmButtonColor: '#3085d6'
+                    }).then(() => {
+                        location.reload();
+                    });
+                }else{
+                    alert_toast(resp.msg || "삭제에 실패했습니다.",'error');
                     end_loader();
                 }
             }

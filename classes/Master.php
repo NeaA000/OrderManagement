@@ -507,6 +507,111 @@ Class Master extends DBConnection {
 
         return json_encode($resp);
     }
+    function delete_multiple_requests(){
+        extract($_POST);
+
+        if(!isset($ids) || empty($ids) || !is_array($ids)){
+            $resp['status'] = 'failed';
+            $resp['msg'] = "삭제할 항목을 선택해주세요.";
+            return json_encode($resp);
+        }
+
+        $deleted_count = 0;
+        $failed_count = 0;
+        $errors = [];
+
+        // 트랜잭션 시작
+        $this->conn->begin_transaction();
+
+        try {
+            foreach($ids as $id){
+                $id = $this->conn->real_escape_string($id);
+
+                // 1. uploaded_files 테이블에서 Wasabi 파일 정보 조회 및 삭제
+                $wasabi_qry = $this->conn->query("
+                    SELECT * FROM uploaded_files 
+                    WHERE request_id = '{$id}'
+                ");
+
+                while($file = $wasabi_qry->fetch_assoc()){
+                    // Wasabi에서 파일 삭제
+                    if(!empty($file['wasabi_key']) && !empty($file['wasabi_bucket'])){
+                        require_once('../classes/UploadHandler.php');
+                        $uploadHandler = new UploadHandler();
+
+                        $delete_result = $uploadHandler->deleteFromWasabi($file['wasabi_key'], $file['wasabi_bucket']);
+                        if(!$delete_result){
+                            error_log("Wasabi 파일 삭제 실패: " . $file['wasabi_key']);
+                        }
+                    }
+
+                    // 로컬 파일 삭제
+                    if(!empty($file['file_path'])){
+                        $local_path = '../uploads/' . $file['file_path'];
+                        if(file_exists($local_path)){
+                            unlink($local_path);
+                        }
+                    }
+                }
+
+                // 2. document_uploads 테이블 파일 삭제
+                $upload_qry = $this->conn->query("
+                    SELECT du.file_path 
+                    FROM document_uploads du 
+                    INNER JOIN request_documents rd ON du.document_id = rd.id 
+                    WHERE rd.request_id = '{$id}'
+                ");
+
+                while($upload = $upload_qry->fetch_assoc()){
+                    $file_path = '../uploads/' . $upload['file_path'];
+                    if(file_exists($file_path)){
+                        unlink($file_path);
+                    }
+                }
+
+                // 3. 메인 테이블 삭제 (CASCADE로 관련 테이블도 자동 삭제)
+                $delete_main = $this->conn->query("DELETE FROM document_requests WHERE id = '{$id}'");
+
+                if($delete_main){
+                    $deleted_count++;
+
+                    // 삭제 로그
+                    $user_name = $_SESSION['userdata']['firstname'] . ' ' . $_SESSION['userdata']['lastname'];
+                    error_log("Document request deleted - ID: {$id}, User: {$user_name}");
+                } else {
+                    $failed_count++;
+                    $errors[] = "ID {$id}: " . $this->conn->error;
+                }
+            }
+
+            // 트랜잭션 커밋
+            $this->conn->commit();
+
+            // 결과 반환
+            if($deleted_count > 0 && $failed_count == 0){
+                $resp['status'] = 'success';
+                $resp['msg'] = "{$deleted_count}개의 서류 요청이 삭제되었습니다.";
+                $this->settings->set_flashdata('success', "{$deleted_count}개의 서류 요청이 삭제되었습니다.");
+            } else if($deleted_count > 0 && $failed_count > 0){
+                $resp['status'] = 'partial';
+                $resp['msg'] = "{$deleted_count}개 삭제 성공, {$failed_count}개 삭제 실패<br><small>" . implode("<br>", $errors) . "</small>";
+                $this->settings->set_flashdata('warning', "{$deleted_count}개 삭제 성공, {$failed_count}개 삭제 실패");
+            } else {
+                throw new Exception("삭제 실패: " . implode(", ", $errors));
+            }
+
+        } catch (Exception $e) {
+            // 트랜잭션 롤백
+            $this->conn->rollback();
+
+            $resp['status'] = 'failed';
+            $resp['msg'] = "삭제 중 오류가 발생했습니다.";
+            $resp['error'] = $e->getMessage();
+            $this->settings->set_flashdata('error', "삭제 중 오류가 발생했습니다: " . $e->getMessage());
+        }
+
+        return json_encode($resp);
+    }
 
     function send_request_email(){
         extract($_POST);
@@ -1145,6 +1250,10 @@ switch ($action) {
     case 'delete_request':
         echo $Master->delete_request();
         break;
+
+    case 'delete_multiple_requests':
+       echo $Master->delete_multiple_requests();
+       break;
     case 'send_request_email':
         echo $Master->send_request_email();
         break;
