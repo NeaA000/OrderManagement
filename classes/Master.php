@@ -671,13 +671,23 @@ Class Master extends DBConnection {
         $upload_link = base_url . "admin/upload_portal/?token=" . $request['upload_token'];
 
         // 업로드 링크를 버튼 HTML로 생성 (인라인 스타일 완전 적용)
-        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
-            '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; ' .
-            'background-color: #007bff; color: white !important; ' .
-            'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
-            'box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' .
+        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
+            '<tr>' .
+            '<td align="center" style="padding: 30px 0;">' .
+            '<table cellpadding="0" cellspacing="0" border="0">' .
+            '<tr>' .
+            '<td align="center" bgcolor="#007bff">' .
+            '<a href="'.$upload_link.'" style="font-family: Arial, sans-serif; ' .
+            'font-size: 16px; color: #ffffff; text-decoration: none; ' .
+            'padding: 12px 30px; display: block;">' .
             '서류 업로드하기' .
-            '</a></div>';
+            '</a>' .
+            '</td>' .
+            '</tr>' .
+            '</table>' .
+            '</td>' .
+            '</tr>' .
+            '</table>';
 
         // 요청된 서류 목록 조회
         $docs_qry = $this->conn->query("
@@ -706,31 +716,31 @@ Class Master extends DBConnection {
         $all_docs_html = "";
 
         if(!empty($required_docs)){
-            $required_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
+            $required_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
             foreach($required_docs as $doc) {
-                $required_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
+                $required_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
             }
-            $required_docs_html .= '</ul>';
+            $required_docs_html .= '</table>';
         } else {
             $required_docs_html = '<span style="color: #6c757d;">없음</span>';
         }
 
         if(!empty($optional_docs)){
-            $optional_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
+            $optional_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
             foreach($optional_docs as $doc) {
-                $optional_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
+                $optional_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
             }
-            $optional_docs_html .= '</ul>';
+            $optional_docs_html .= '</table>';
         } else {
             $optional_docs_html = '<span style="color: #6c757d;">없음</span>';
         }
 
         if(!empty($all_docs)){
-            $all_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
+            $all_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
             foreach($all_docs as $doc) {
-                $all_docs_html .= '<li style="margin: 5px 0;">' . htmlspecialchars($doc) . '</li>';
+                $all_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
             }
-            $all_docs_html .= '</ul>';
+            $all_docs_html .= '</table>';
         } else {
             $all_docs_html = '<span style="color: #6c757d;">서류 목록이 없습니다.</span>';
         }
@@ -751,6 +761,11 @@ Class Master extends DBConnection {
                 '<span style="color: #6c757d;">없음</span>'
         );
 
+        // 변수명 길이 순으로 정렬 (긴 것부터)
+        uksort($replacements, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+
         // 템플릿 내용에서 변수 치환
         $subject = $template['subject'];
         $content = $template['content'];
@@ -760,26 +775,26 @@ Class Master extends DBConnection {
             $content = str_replace($key, $value, $content);
         }
 
-           // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
+        // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
         if(strpos($content, '<!DOCTYPE') === false) {
-               // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
-                $full_html = '<!DOCTYPE html>
-   <html>
-   <head>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   </head>
-   <body>
-       ' . $content . '
-   </body>
-   </html>';
+            // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
+            $full_html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--[if !mso]><!-->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--<![endif]-->
+</head>
+<body style="margin: 0; padding: 0;">
+    ' . $content . '
+</body>
+</html>';
         } else {
             // 이미 완전한 HTML 구조가 있으면 그대로 사용
-               $full_html = $content;
-           }
-
-
-
+            $full_html = $content;
+        }
 
         // EmailSender 클래스 사용
         require_once('EmailSender.php');
@@ -955,33 +970,56 @@ Class Master extends DBConnection {
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
+        // DB에서 현재 활성화된 템플릿 가져오기
+        $template_qry = $this->conn->query("SELECT * FROM email_templates WHERE template_type = 'request_notification' AND is_default = 1 LIMIT 1");
+        if($template_qry->num_rows > 0) {
+            $template = $template_qry->fetch_assoc();
+            $subject = $template['subject'];
+            $content = $template['content'];
+        } else {
+            // 템플릿이 없으면 전달받은 값 사용
+            $subject = isset($subject) ? $subject : '';
+            $content = isset($content) ? $content : '';
+        }
+
         // 업로드 버튼 HTML 생성 (인라인 스타일 완전 적용)
-        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
-            '<a href="#" style="display: inline-block; padding: 12px 30px; ' .
-            'background-color: #007bff; color: white !important; ' .
-            'text-decoration: none !important; border-radius: 5px; font-weight: 500; font-size: 16px; ' .
-            'box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' .
-            '서류 업로드하기</a></div>';
+        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
+            '<tr>' .
+            '<td align="center" style="padding: 30px 0;">' .
+            '<table cellpadding="0" cellspacing="0" border="0">' .
+            '<tr>' .
+            '<td align="center" bgcolor="#007bff">' .
+            '<a href="#" style="font-family: Arial, sans-serif; ' .
+            'font-size: 16px; color: #ffffff; text-decoration: none; ' .
+            'padding: 12px 30px; display: block;">' .
+            '서류 업로드하기' .
+            '</a>' .
+            '</td>' .
+            '</tr>' .
+            '</table>' .
+            '</td>' .
+            '</tr>' .
+            '</table>';
 
         // 필수 서류 HTML
-        $required_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
-            '<li style="margin: 5px 0;">안전관리계획서</li>' .
-            '<li style="margin: 5px 0;">유해위험방지계획서</li>' .
-            '<li style="margin: 5px 0;">사업자등록증</li>' .
-            '</ul>';
+        $required_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 안전관리계획서</td></tr>' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 유해위험방지계획서</td></tr>' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 사업자등록증</td></tr>' .
+            '</table>';
 
         // 선택 서류 HTML
-        $optional_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
-            '<li style="margin: 5px 0;">건설업면허증</li>' .
-            '</ul>';
+        $optional_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 건설업면허증</td></tr>' .
+            '</table>';
 
         // 전체 서류 목록 HTML
-        $all_docs_html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">' .
-            '<li style="margin: 5px 0;">안전관리계획서 (필수)</li>' .
-            '<li style="margin: 5px 0;">유해위험방지계획서 (필수)</li>' .
-            '<li style="margin: 5px 0;">사업자등록증 (필수)</li>' .
-            '<li style="margin: 5px 0;">건설업면허증 (선택)</li>' .
-            '</ul>';
+        $all_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 안전관리계획서 (필수)</td></tr>' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 유해위험방지계획서 (필수)</td></tr>' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 사업자등록증 (필수)</td></tr>' .
+            '<tr><td style="padding: 5px 0; color: #333;">• 건설업면허증 (선택)</td></tr>' .
+            '</table>';
 
         // 샘플 데이터로 변수 치환 - 모든 변수 포함
         $sampleData = [
@@ -997,9 +1035,14 @@ Class Master extends DBConnection {
             '{{document_list}}' => $all_docs_html
         ];
 
+        // 변수명 길이 순으로 정렬 (긴 것부터)
+        uksort($sampleData, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+
         // 변수 치환
-        $test_subject = $subject;
-        $test_content = $content;
+        $test_subject = !empty($subject) ? $subject : '';
+        $test_content = !empty($content) ? $content : '';
 
         // 모든 변수를 치환
         foreach($sampleData as $key => $value) {
@@ -1010,7 +1053,7 @@ Class Master extends DBConnection {
         // 테스트 이메일임을 표시
         $test_subject = "[테스트] " . $test_subject;
 
-// 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
+        // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
         if(strpos($test_content, '<!DOCTYPE') === false) {
             // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
             $full_html = '<!DOCTYPE html>
@@ -1018,8 +1061,11 @@ Class Master extends DBConnection {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--[if !mso]><!-->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--<![endif]-->
 </head>
-<body>
+<body style="margin: 0; padding: 0;">
     ' . $test_content . '
 </body>
 </html>';
@@ -1028,7 +1074,7 @@ Class Master extends DBConnection {
             $full_html = $test_content;
         }
 
-// 이메일 발송
+        // 이메일 발송
         $result = $emailSender->sendEmail($email, '담당자', $test_subject, $full_html);
 
         return json_encode($result);

@@ -428,7 +428,7 @@ $default_content = '<!DOCTYPE html>
                     
                     <!-- 업로드 버튼 -->
                     <tr>
-                        <td align="center" style="padding: 30px 40px;">
+                        <td style="padding: 0 40px;">
                             {{upload_link}}
                         </td>
                     </tr>
@@ -655,6 +655,9 @@ echo $template['content'] ?? $default_content;
     function previewEmail() {
         const subject = document.getElementById('email-subject').value;
         const content = $('.summernote').summernote('code');
+        
+        console.log('Original content:', content); // 디버깅용
+        console.log('Content length:', content.length);
 
         // 샘플 데이터로 변수 치환
         const sampleData = {
@@ -663,7 +666,7 @@ echo $template['content'] ?? $default_content;
             '{{supplier_name}}': '(주)건설안전',
             '{{project_name}}': '서울시 도시재생 프로젝트',
             '{{due_date}}': '2025년 8월 15일',
-            '{{upload_link}}': '<table cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#007bff" style="border-radius: 5px;"><a href="#" target="_blank" style="display: inline-block; padding: 12px 30px; font-family: sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">서류 업로드하기</a></td></tr></table>',
+            '{{upload_link}}': '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td align="center" style="padding: 30px 0;"><table cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#007bff"><a href="#" style="font-family: Arial, sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; padding: 12px 30px; display: block;">서류 업로드하기</a></td></tr></table></td></tr></table>',
             '{{document_list}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr><td style="padding: 5px 0;"><span style="color: #333;">• 안전관리계획서 (필수)</span></td></tr>
                 <tr><td style="padding: 5px 0;"><span style="color: #333;">• 유해위험방지계획서 (필수)</span></td></tr>
@@ -685,15 +688,22 @@ echo $template['content'] ?? $default_content;
         let previewContent = content;
 
         // 변수 치환
-        for (const [key, value] of Object.entries(sampleData)) {
-            const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        // 긴 변수부터 치환하도록 정렬
+        const sortedData = Object.entries(sampleData).sort((a, b) => b[0].length - a[0].length);
+        
+        for (const [key, value] of sortedData) {
+            // 모든 정규식 특수문자를 이스케이프
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedKey, 'g');
             previewSubject = previewSubject.replace(regex, value);
             previewContent = previewContent.replace(regex, value);
         }
+        
+        console.log('After replacement:', previewContent); // 디버깅용
 
         // 미리보기 표시
-        document.getElementById('preview-subject').innerHTML = previewSubject;
-        document.getElementById('preview-body').innerHTML = previewContent;
+        $('#preview-subject').text(previewSubject);
+        $('#preview-body').html(previewContent);
         document.getElementById('preview-section').style.display = 'block';
 
         // 미리보기로 스크롤

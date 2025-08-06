@@ -126,10 +126,16 @@ class EmailSender extends DBConnection {
         }
 
         // 이메일 호환 업로드 버튼 HTML (테이블 기반)
-        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" align="center">
+        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
-                <td align="center" bgcolor="#007bff" style="border-radius: 5px;">
-                    <a href="'.$upload_link.'" target="_blank" style="display: inline-block; padding: 12px 30px; font-family: \'Noto Sans KR\', sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">서류 업로드하기</a>
+                <td align="center" style="padding: 30px 0;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td align="center" bgcolor="#007bff">
+                                <a href="'.$upload_link.'" style="font-family: Arial, sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; padding: 12px 30px; display: block;">서류 업로드하기</a>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         </table>';
@@ -157,6 +163,11 @@ class EmailSender extends DBConnection {
             '{{optional_documents}}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentListForEmail($optional_docs),
             '{{additional_notes}}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>'
         ];
+
+        // 변수명 길이 순으로 정렬
+        uksort($variables, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
 
         // 템플릿의 변수를 실제 값으로 치환
         foreach($variables as $key => $value) {
@@ -224,7 +235,7 @@ class EmailSender extends DBConnection {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>서류 제출 요청</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: \'Noto Sans KR\', \'Malgun Gothic\', \'맑은 고딕\', sans-serif;">
+<body>
     <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
         <tr>
             <td align="center" style="padding: 20px 0;">
@@ -287,7 +298,7 @@ class EmailSender extends DBConnection {
                     
                     <!-- 업로드 버튼 -->
                     <tr>
-                        <td align="center" style="padding: 30px 40px;">
+                        <td style="padding: 0 40px;">
                             {{upload_link}}
                         </td>
                     </tr>
