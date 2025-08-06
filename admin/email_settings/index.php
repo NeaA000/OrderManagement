@@ -357,35 +357,102 @@ $smtp_from_email = $_settings->info('smtp_from_email') ?? '';
                         </label>
                         <textarea name="content" id="email-content" class="form-control summernote">
 <?php
-$default_content = '<div style="font-family: \'Noto Sans KR\', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h2>서류 제출 요청</h2>
-    <p>안녕하세요, {{contact_person}}님</p>
-    <p>{{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>
-    
-    <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px;">
-        <h3>프로젝트 정보</h3>
-        <p><strong>프로젝트명:</strong> {{project_name}}</p>
-        <p><strong>제출 기한:</strong> <span style="color: #dc3545;">{{due_date}}</span></p>
-    </div>
-    
-    <div style="margin: 20px 0;">
-        <h3>필수 제출 서류</h3>
-        {{required_documents}}
-        
-        <h3>선택 제출 서류</h3>
-        {{optional_documents}}
-        
-        <h3>추가 요청사항</h3>
-        <p>{{additional_notes}}</p>
-    </div>
-    
-    <div style="text-align: center; margin: 30px 0;">
-        {{upload_link}}
-    </div>
-    
-    <p>문의사항이 있으시면 회신 부탁드립니다.</p>
-    <p>감사합니다.</p>
-</div>';
+// 이메일 호환성이 높은 기본 템플릿
+$default_content = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서류 제출 요청</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: \'Noto Sans KR\', \'Malgun Gothic\', \'맑은 고딕\', sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border: 1px solid #e0e0e0;">
+                    <!-- 헤더 -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f8f9fa; border-bottom: 1px solid #e0e0e0;">
+                            <h2 style="margin: 0; color: #333; font-size: 24px;">서류 제출 요청</h2>
+                        </td>
+                    </tr>
+                    
+                    <!-- 인사말 -->
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <p style="margin: 0 0 15px 0; color: #333; font-size: 16px; line-height: 1.6;">
+                                안녕하세요, {{contact_person}}님
+                            </p>
+                            <p style="margin: 0 0 25px 0; color: #333; font-size: 16px; line-height: 1.6;">
+                                {{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- 프로젝트 정보 -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8f9fa; border: 1px solid #e0e0e0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">프로젝트 정보</h3>
+                                        <table width="100%" cellpadding="5" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="30%" style="color: #666; font-size: 14px;"><strong>프로젝트명:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">{{project_name}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>제출 기한:</strong></td>
+                                                <td style="color: #dc3545; font-size: 14px; font-weight: bold;">{{due_date}}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- 서류 목록 -->
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">필수 제출 서류</h3>
+                            {{required_documents}}
+                            
+                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">선택 제출 서류</h3>
+                            {{optional_documents}}
+                            
+                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">추가 요청사항</h3>
+                            <p style="margin: 0; color: #333; font-size: 14px; line-height: 1.6;">{{additional_notes}}</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- 업로드 버튼 -->
+                    <tr>
+                        <td align="center" style="padding: 30px 40px;">
+                            {{upload_link}}
+                        </td>
+                    </tr>
+                    
+                    <!-- 푸터 -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f8f9fa; border-top: 1px solid #e0e0e0;">
+                            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                이 링크는 보안을 위해 제출 기한까지만 유효합니다.
+                            </p>
+                            <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                문의사항이 있으시면 회신 부탁드립니다.
+                            </p>
+                            <p style="margin: 15px 0 0 0; color: #333; font-size: 14px;">
+                                감사합니다.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
 
 echo $template['content'] ?? $default_content;
 ?>
@@ -596,21 +663,21 @@ echo $template['content'] ?? $default_content;
             '{{supplier_name}}': '(주)건설안전',
             '{{project_name}}': '서울시 도시재생 프로젝트',
             '{{due_date}}': '2025년 8월 15일',
-            '{{upload_link}}': '<a href="#" class="email-button" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white !important; text-decoration: none !important; border-radius: 5px;">서류 업로드하기</a>',
-            '{{document_list}}': `<ul>
-                <li>안전관리계획서 (필수)</li>
-                <li>유해위험방지계획서 (필수)</li>
-                <li>사업자등록증 (필수)</li>
-                <li>건설업면허증 (선택)</li>
-            </ul>`,
-            '{{required_documents}}': `<ul>
-                <li>안전관리계획서</li>
-                <li>유해위험방지계획서</li>
-                <li>사업자등록증</li>
-            </ul>`,
-            '{{optional_documents}}': `<ul>
-                <li>건설업면허증</li>
-            </ul>`,
+            '{{upload_link}}': '<table cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#007bff" style="border-radius: 5px;"><a href="#" target="_blank" style="display: inline-block; padding: 12px 30px; font-family: sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">서류 업로드하기</a></td></tr></table>',
+            '{{document_list}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 안전관리계획서 (필수)</span></td></tr>
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 유해위험방지계획서 (필수)</span></td></tr>
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 사업자등록증 (필수)</span></td></tr>
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 건설업면허증 (선택)</span></td></tr>
+            </table>`,
+            '{{required_documents}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 안전관리계획서</span></td></tr>
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 유해위험방지계획서</span></td></tr>
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 사업자등록증</span></td></tr>
+            </table>`,
+            '{{optional_documents}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr><td style="padding: 5px 0;"><span style="color: #333;">• 건설업면허증</span></td></tr>
+            </table>`,
             '{{additional_notes}}': '서류는 PDF 형식으로 제출해주시기 바랍니다.'
         };
 

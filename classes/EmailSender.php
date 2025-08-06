@@ -125,14 +125,14 @@ class EmailSender extends DBConnection {
             $email_body = $this->getDefaultEmailTemplate();
         }
 
-        // 업로드 링크를 버튼 HTML로 생성
-        $upload_button = '<div style="text-align: center; margin: 30px 0;">' .
-            '<a href="'.$upload_link.'" style="display: inline-block; padding: 12px 30px; ' .
-            'background-color: #007bff; color: white !important; text-decoration: none !important; ' .
-            'border-radius: 5px; font-weight: 500; font-size: 16px; ' .
-            'box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">' .
-            '서류 업로드하기' .
-            '</a></div>';
+        // 이메일 호환 업로드 버튼 HTML (테이블 기반)
+        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" align="center">
+            <tr>
+                <td align="center" bgcolor="#007bff" style="border-radius: 5px;">
+                    <a href="'.$upload_link.'" target="_blank" style="display: inline-block; padding: 12px 30px; font-family: \'Noto Sans KR\', sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">서류 업로드하기</a>
+                </td>
+            </tr>
+        </table>';
 
         // 전체 서류 목록 생성 (document_list용)
         $all_docs = array();
@@ -152,9 +152,9 @@ class EmailSender extends DBConnection {
             '{{project_name}}' => $request['project_name'],
             '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
             '{{upload_link}}' => $upload_button,
-            '{{document_list}}' => $this->formatDocumentList($all_docs),
-            '{{required_documents}}' => $this->formatDocumentList($required_docs),
-            '{{optional_documents}}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentList($optional_docs),
+            '{{document_list}}' => $this->formatDocumentListForEmail($all_docs),
+            '{{required_documents}}' => $this->formatDocumentListForEmail($required_docs),
+            '{{optional_documents}}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentListForEmail($optional_docs),
             '{{additional_notes}}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>'
         ];
 
@@ -185,7 +185,22 @@ class EmailSender extends DBConnection {
         return $result;
     }
 
-    // 서류 목록 포맷팅
+    // 이메일 호환 서류 목록 포맷팅 (테이블 기반)
+    private function formatDocumentListForEmail($docs) {
+        if(empty($docs)) {
+            return '<span style="color: #6c757d;">없음</span>';
+        }
+
+        $html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
+        foreach($docs as $doc) {
+            $html .= '<tr><td style="padding: 5px 0; color: #333; font-size: 14px;">• ' . htmlspecialchars($doc) . '</td></tr>';
+        }
+        $html .= '</table>';
+
+        return $html;
+    }
+
+    // 서류 목록 포맷팅 (일반 용도)
     private function formatDocumentList($docs) {
         if(empty($docs)) {
             return '<span style="color: #6c757d;">없음</span>';
@@ -200,52 +215,101 @@ class EmailSender extends DBConnection {
         return $html;
     }
 
-    // 기본 이메일 템플릿
+    // 기본 이메일 템플릿 (테이블 기반 레이아웃)
     private function getDefaultEmailTemplate() {
         return '<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <style>
-        body { font-family: "Noto Sans KR", sans-serif; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { background-color: #f8f9fa; padding: 20px; border-radius: 10px; }
-        .content { background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px; }
-        .button { background-color: #007bff; color: white; padding: 10px 30px; text-decoration: none; border-radius: 5px; display: inline-block; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서류 제출 요청</title>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>서류 제출 요청</h2>
-            <p>안녕하세요, {contact_person}님</p>
-            <p>{company_name}에서 서류 제출을 요청드립니다.</p>
-            
-            <div class="content">
-                <h3>프로젝트 정보</h3>
-                <p><strong>프로젝트명:</strong> {project_name}</p>
-                <p><strong>제출 기한:</strong> <span style="color: #dc3545; font-weight: bold;">{due_date}</span></p>
-                
-                <h3>필수 제출 서류</h3>
-                {required_documents}
-                
-                <h3>선택 제출 서류</h3>
-                {optional_documents}
-                
-                <h3>추가 요청사항</h3>
-                <p>{additional_notes}</p>
-            </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="{upload_link}" class="button">서류 업로드하기</a>
-            </div>
-            
-            <p style="color: #666; font-size: 14px;">
-                이 링크는 보안을 위해 제출 기한까지만 유효합니다.<br>
-                문의사항이 있으시면 회신 부탁드립니다.
-            </p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; font-family: \'Noto Sans KR\', \'Malgun Gothic\', \'맑은 고딕\', sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="border: 1px solid #e0e0e0;">
+                    <!-- 헤더 -->
+                    <tr>
+                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-bottom: 1px solid #e0e0e0;">
+                            <h2 style="margin: 0; color: #333; font-size: 24px;">서류 제출 요청</h2>
+                        </td>
+                    </tr>
+                    
+                    <!-- 인사말 -->
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <p style="margin: 0 0 15px 0; color: #333; font-size: 16px; line-height: 1.6;">
+                                안녕하세요, {{contact_person}}님
+                            </p>
+                            <p style="margin: 0 0 25px 0; color: #333; font-size: 16px; line-height: 1.6;">
+                                {{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- 프로젝트 정보 -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa" style="border: 1px solid #e0e0e0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">프로젝트 정보</h3>
+                                        <table width="100%" cellpadding="5" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="30%" style="color: #666; font-size: 14px;"><strong>프로젝트명:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">{{project_name}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>제출 기한:</strong></td>
+                                                <td style="color: #dc3545; font-size: 14px; font-weight: bold;">{{due_date}}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- 서류 목록 -->
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">필수 제출 서류</h3>
+                            {{required_documents}}
+                            
+                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">선택 제출 서류</h3>
+                            {{optional_documents}}
+                            
+                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">추가 요청사항</h3>
+                            <p style="margin: 0; color: #333; font-size: 14px; line-height: 1.6;">{{additional_notes}}</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- 업로드 버튼 -->
+                    <tr>
+                        <td align="center" style="padding: 30px 40px;">
+                            {{upload_link}}
+                        </td>
+                    </tr>
+                    
+                    <!-- 푸터 -->
+                    <tr>
+                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-top: 1px solid #e0e0e0;">
+                            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                이 링크는 보안을 위해 제출 기한까지만 유효합니다.
+                            </p>
+                            <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                문의사항이 있으시면 회신 부탁드립니다.
+                            </p>
+                            <p style="margin: 15px 0 0 0; color: #333; font-size: 14px;">
+                                감사합니다.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>';
     }
@@ -356,29 +420,73 @@ class EmailSender extends DBConnection {
     // 테스트 이메일 전송 (시스템 설정 확인용)
     public function sendTestEmail($to_email) {
         $subject = "[테스트] SMTP 설정 확인";
-        $body = "
-        <div style='font-family: \"Noto Sans KR\", sans-serif; max-width: 600px; margin: 0 auto;'>
-            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px;'>
-                <h2 style='color: #333;'>SMTP 설정 테스트</h2>
-                <p>이 메일을 받으셨다면 SMTP 설정이 올바르게 구성되었습니다.</p>
-                
-                <div style='background-color: #fff; padding: 20px; margin: 20px 0; border-radius: 5px;'>
-                    <h3>현재 설정 정보:</h3>
-                    <ul>
-                        <li>SMTP 호스트: " . $this->settings->info('smtp_host') . "</li>
-                        <li>SMTP 포트: " . $this->settings->info('smtp_port') . "</li>
-                        <li>보안 방식: " . $this->settings->info('smtp_secure') . "</li>
-                        <li>발신자명: " . $this->settings->info('smtp_from_name') . "</li>
-                        <li>발신 이메일: " . $this->settings->info('smtp_from_email') . "</li>
-                    </ul>
-                </div>
-                
-                <p style='color: #666; font-size: 14px;'>
-                    이 이메일은 " . $this->settings->info('name') . " 시스템에서 발송되었습니다.
-                </p>
-            </div>
-        </div>
-        ";
+        $body = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMTP 테스트</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: \'Noto Sans KR\', \'Malgun Gothic\', \'맑은 고딕\', sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="border: 1px solid #e0e0e0;">
+                    <tr>
+                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-bottom: 1px solid #e0e0e0;">
+                            <h2 style="margin: 0; color: #333; font-size: 24px;">SMTP 설정 테스트</h2>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <p style="margin: 0 0 20px 0; color: #333; font-size: 16px;">
+                                이 메일을 받으셨다면 SMTP 설정이 올바르게 구성되었습니다.
+                            </p>
+                            
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa" style="border: 1px solid #e0e0e0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">현재 설정 정보</h3>
+                                        <table width="100%" cellpadding="5" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="40%" style="color: #666; font-size: 14px;"><strong>SMTP 호스트:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_host') . '</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>SMTP 포트:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_port') . '</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>보안 방식:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_secure') . '</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>발신자명:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_from_name') . '</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #666; font-size: 14px;"><strong>발신 이메일:</strong></td>
+                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_from_email') . '</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td bgcolor="#f8f9fa" style="padding: 20px 40px; border-top: 1px solid #e0e0e0;">
+                            <p style="margin: 0; color: #666; font-size: 14px; text-align: center;">
+                                이 이메일은 ' . $this->settings->info('name') . ' 시스템에서 발송되었습니다.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
 
         return $this->sendEmail($to_email, '관리자', $subject, $body);
     }

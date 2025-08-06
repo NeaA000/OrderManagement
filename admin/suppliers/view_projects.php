@@ -199,7 +199,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
                                             </td>
                                             <td class="text-center">
                                                 <?php if($doc['file_name']): ?>
-                                                    <button class="btn btn-xs btn-info" onclick="downloadFile('<?php echo $doc['file_path'] ?>')">
+                                                    <button class="btn btn-xs btn-info" onclick="downloadFile(<?php echo $doc['id'] ?>)">
                                                         <i class="fa fa-download"></i>
                                                     </button>
                                                 <?php else: ?>
@@ -272,10 +272,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
     }
 
     function downloadFile(filepath){
-        if(filepath && filepath.trim() !== '') {
-            window.open(_base_url_ + filepath, '_blank');
-        } else {
-            alert_toast("다운로드할 파일이 없습니다.", 'warning');
-        }
+        // document_requests/view_request.php의 downloadFile 함수와 동일하게 수정
+        window.location.href = '<?php echo base_url ?>admin/upload_portal/download.php?id=' + filepath + '&internal_download=1';
     }
 </script>

@@ -1071,6 +1071,13 @@ Class Master extends DBConnection {
             die('다운로드할 파일이 없습니다.');
         }
 
+        // ZIP 확장 모듈 확인
+        if(!class_exists('ZipArchive')){
+            // ZIP을 사용할 수 없는 경우 대체 방법 제공
+            echo $this->generate_download_list_page($files, $request);
+            exit;
+        }
+
         // ZIP 파일 생성
         $zip = new ZipArchive();
 
@@ -1152,6 +1159,71 @@ Class Master extends DBConnection {
         unlink($zipFilePath);
 
         exit;
+    }
+
+    // ZIP을 사용할 수 없을 때 파일 목록 페이지 생성
+    private function generate_download_list_page($files, $request){
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>파일 다운로드 - ' . htmlspecialchars($request['project_name']) . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .info { background: #e8f4f8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .file-list { list-style: none; padding: 0; }
+        .file-item { background: #f8f9fa; margin: 10px 0; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .file-name { font-weight: bold; color: #333; }
+        .download-btn { background: #007bff; color: white; padding: 8px 20px; text-decoration: none; border-radius: 4px; }
+        .download-btn:hover { background: #0056b3; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 12px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>파일 다운로드</h1>
+        <div class="warning">
+            <strong>알림:</strong> ZIP 압축 기능을 사용할 수 없어 개별 파일 다운로드 목록을 제공합니다.
+        </div>
+        <div class="info">
+            <p><strong>프로젝트:</strong> ' . htmlspecialchars($request['project_name']) . '</p>
+            <p><strong>요청번호:</strong> ' . htmlspecialchars($request['request_no']) . '</p>
+            <p><strong>의뢰처:</strong> ' . htmlspecialchars($request['supplier_name']) . '</p>
+        </div>
+        <ul class="file-list">';
+
+        $files->data_seek(0); // 커서를 처음으로 되돌림
+        while($file = $files->fetch_assoc()){
+            $download_url = '';
+            $file_name = $file['document_name'];
+            
+            // 파일 다운로드 URL 생성
+            if(!empty($file['wasabi_key']) && $this->settings->info('use_wasabi') === 'true'){
+                // Wasabi 파일인 경우
+                $download_url = base_url . 'admin/upload_portal/download.php?id=' . $file['id'] . '&internal_download=1';
+            } elseif(!empty($file['file_path'])) {
+                // 로컬 파일인 경우
+                $download_url = base_url . 'admin/upload_portal/download.php?id=' . $file['id'] . '&internal_download=1';
+            }
+            
+            if($download_url){
+                $html .= '
+            <li class="file-item">
+                <span class="file-name">' . htmlspecialchars($file_name) . '</span>
+                <a href="' . $download_url . '" class="download-btn" target="_blank">다운로드</a>
+            </li>';
+            }
+        }
+
+        $html .= '
+        </ul>
+    </div>
+</body>
+</html>';
+
+        return $html;
     }
 
     // 요청 상태 업데이트 함수 추가
