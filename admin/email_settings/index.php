@@ -583,9 +583,11 @@ echo $template['content'] ?? $default_content;
 </div>
 
 <script>
-    // 전역 변수로 Summernote 인스턴스와 Range 저장
-    var savedRange = null;
+    // 전역 변수로 Summernote 인스턴스 저장
     var $summerNote = null;
+    var lastFocusedElement = null;
+    var lastCursorPosition = null;
+    var savedSelection = null;
 
     $(document).ready(function() {
         // Summernote 초기화
@@ -608,60 +610,43 @@ echo $template['content'] ?? $default_content;
             fontNames: ['Arial', 'Arial Black', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', '돋움', '굴림'],
             fontNamesIgnoreCheck: ['Noto Sans KR'],
             callbacks: {
+                onInit: function() {
+                    // 에디터 초기화 후 이벤트 바인딩
+                    $('.note-editable').on('mouseup keyup', function() {
+                        // 현재 선택 영역 저장
+                        saveCurrentSelection();
+                    });
+                },
+                onFocus: function() {
+                    lastFocusedElement = 'editor';
+                },
                 onBlur: function() {
-                    // 포커스를 잃을 때 현재 Range 저장
-                    savedRange = $summerNote.summernote('createRange');
+                    // 포커스를 잃을 때 선택 영역 저장
+                    saveCurrentSelection();
                 }
             }
         });
 
-        // 변수 아이템에 마우스 오버 시 Range 저장 (클릭 전에 저장)
-        $(document).on('mouseenter', '.variable-item', function() {
-            // 에디터가 포커스되어 있을 때만 Range 저장
-            if ($('.note-editable').is(':focus')) {
-                savedRange = $summerNote.summernote('createRange');
-            }
+        // 제목 입력 필드 포커스 추적
+        $('#email-subject').on('focus', function() {
+            lastFocusedElement = 'subject';
+        }).on('blur', function() {
+            // 커서 위치 저장
+            lastCursorPosition = this.selectionStart;
         });
 
-        // 변수 클릭 이벤트
-        $(document).on('click', '.variable-item', function(e) {
+        // 변수 클릭 이벤트 - mousedown으로 변경하여 포커스 전환 전에 처리
+        $(document).on('mousedown', '.variable-item', function(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            
             const variable = $(this).data('variable');
-
-            // 포커스된 요소 확인
-            const $focused = $(':focus');
-
-            // 제목 필드가 포커스된 경우
-            if ($focused.attr('id') === 'email-subject') {
-                const input = document.getElementById('email-subject');
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                const text = input.value;
-
-                input.value = text.substring(0, start) + variable + text.substring(end);
-                input.selectionStart = input.selectionEnd = start + variable.length;
-                input.focus();
-            }
-            // Summernote에 삽입
-            else {
-                // 에디터에 포커스 주기
-                $summerNote.summernote('focus');
-
-                // 저장된 Range가 있으면 복원
-                if (savedRange) {
-                    savedRange.select();
-                    savedRange.insertNode(document.createTextNode(variable));
-
-                    // 커서를 삽입한 텍스트 뒤로 이동
-                    const newRange = $summerNote.summernote('createRange');
-                    newRange.collapse(false);
-                    newRange.select();
-                } else {
-                    // Range가 없으면 현재 위치에 삽입
-                    $summerNote.summernote('insertText', variable);
-                }
+            
+            // 현재 포커스된 요소 확인
+            if (lastFocusedElement === 'subject' || $('#email-subject').is(':focus')) {
+                insertVariableToSubject(variable);
+            } else {
+                insertVariableToEditor(variable);
             }
 
             // 클릭 효과
@@ -669,6 +654,8 @@ echo $template['content'] ?? $default_content;
             setTimeout(() => {
                 $(this).removeClass('clicked');
             }, 300);
+            
+            return false;
         });
 
         // 폼 제출 처리
@@ -677,7 +664,7 @@ echo $template['content'] ?? $default_content;
 
             // Summernote 내용을 명시적으로 textarea에 업데이트
             var content = $('.summernote').summernote('code');
-            $('#email-content').val(content);  // textarea 값 업데이트
+            $('#email-content').val(content);
 
             start_loader();
 
@@ -708,13 +695,51 @@ echo $template['content'] ?? $default_content;
         });
     });
 
+    // 현재 선택 영역 저장
+    function saveCurrentSelection() {
+        if ($('.note-editable').is(':focus')) {
+            savedSelection = $summerNote.summernote('createRange');
+        }
+    }
+
+    // 제목 필드에 변수 삽입
+    function insertVariableToSubject(variable) {
+        const input = document.getElementById('email-subject');
+        const start = lastCursorPosition || input.selectionStart;
+        const end = input.selectionEnd;
+        const text = input.value;
+        
+        input.value = text.substring(0, start) + variable + text.substring(end);
+        input.focus();
+        input.selectionStart = input.selectionEnd = start + variable.length;
+        lastCursorPosition = start + variable.length;
+    }
+
+    // 에디터에 변수 삽입
+    function insertVariableToEditor(variable) {
+        // 에디터에 포커스
+        $summerNote.summernote('focus');
+        
+        // 저장된 선택 영역이 있으면 복원
+        if (savedSelection) {
+            savedSelection.select();
+        }
+        
+        // 변수 삽입
+        $summerNote.summernote('insertText', variable);
+        
+        // 선택 영역 초기화
+        savedSelection = null;
+    }
+
     // 미리보기 함수
     function previewEmail() {
         const subject = document.getElementById('email-subject').value;
         const content = $('.summernote').summernote('code');
-        
-        console.log('Original content:', content); // 디버깅용
-        console.log('Content length:', content.length);
+
+        // 디버깅 정보
+        console.log('Preview - Original content length:', content.length);
+        console.log('Preview - Contains variables:', content.includes('{{'));
 
         // 샘플 데이터로 변수 치환
         const sampleData = {
@@ -723,6 +748,7 @@ echo $template['content'] ?? $default_content;
             '{{supplier_name}}': '(주)건설안전',
             '{{project_name}}': '서울시 도시재생 프로젝트',
             '{{due_date}}': '2025년 8월 15일',
+            '{{upload_button}}': '', // upload_link와 중복 방지
             '{{upload_link}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                     <td align="center" style="padding: 30px 0;">
@@ -745,7 +771,6 @@ echo $template['content'] ?? $default_content;
                     </td>
                 </tr>
             </table>`,
-            '{{upload_button}}': '', // upload_link와 동일하게 처리
             '{{document_list}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 안전관리계획서 <span style="color: #dc3545;">(필수)</span></td></tr>
                 <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 유해위험방지계획서 <span style="color: #dc3545;">(필수)</span></td></tr>

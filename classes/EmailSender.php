@@ -177,6 +177,9 @@ class EmailSender extends DBConnection {
         // 업로드 링크 생성
         $upload_link = $this->generateUploadLink($request['upload_token']);
 
+        // 업로드 버튼 HTML 생성
+        $upload_button_html = $this->generateUploadButton($upload_link);
+
         // 변수 배열
         $variables = [
             '{{contact_person}}' => $request['contact_person'] ?? '',
@@ -184,8 +187,8 @@ class EmailSender extends DBConnection {
             '{{supplier_name}}' => $request['supplier_name'] ?? '',
             '{{project_name}}' => $request['project_name'] ?? '',
             '{{due_date}}' => !empty($request['due_date']) ? date('Y년 m월 d일', strtotime($request['due_date'])) : '',
-            '{{upload_link}}' => $this->generateUploadButton($upload_link),
-            '{{upload_button}}' => $this->generateUploadButton($upload_link), // 별칭
+            '{{upload_link}}' => $upload_button_html,
+            '{{upload_button}}' => $upload_button_html, // 별칭
             '{{required_documents}}' => $this->formatDocumentListForEmail($required_docs),
             '{{optional_documents}}' => $this->formatDocumentListForEmail($optional_docs),
             '{{document_list}}' => $this->formatAllDocumentsList($required_docs, $optional_docs),
@@ -278,15 +281,34 @@ class EmailSender extends DBConnection {
 
     // 템플릿 변수 치환
     private function replaceTemplateVariables($template, $variables) {
-        // 변수명 길이 순으로 정렬 (긴 것부터)
-        uksort($variables, function($a, $b) {
+        // 디버깅을 위한 로그
+        error_log("Template before replacement: " . substr($template, 0, 200));
+        error_log("Variables: " . print_r(array_keys($variables), true));
+
+        // 변수를 길이 순으로 정렬 (긴 것부터 치환)
+        $sortedVariables = $variables;
+        uksort($sortedVariables, function($a, $b) {
             return strlen($b) - strlen($a);
         });
-
-        // 치환 수행
-        foreach($variables as $key => $value) {
-            $template = str_replace($key, $value, $template);
+        
+        // 각 변수에 대해 치환 수행
+        foreach($sortedVariables as $key => $value) {
+            // 정규식을 사용하여 정확한 매칭
+            $pattern = '/' . preg_quote($key, '/') . '/';
+            $count = 0;
+            $template = preg_replace($pattern, $value, $template, -1, $count);
+            
+            if($count > 0) {
+                error_log("Replaced {$key} -> {$count} times");
+            }
         }
+        
+        // 치환되지 않은 변수가 있는지 확인
+        if(preg_match_all('/\{\{[^}]+\}\}/', $template, $matches)) {
+            error_log("Unreplaced variables: " . print_r($matches[0], true));
+        }
+
+        error_log("Template after replacement: " . substr($template, 0, 200));
 
         return $template;
     }
@@ -298,7 +320,12 @@ class EmailSender extends DBConnection {
             return $content;
         }
 
-        // 기본 HTML 구조로 감싸기
+        // body 태그가 있는지 확인
+        if(strpos($content, '<body') !== false) {
+            return $content;
+        }
+
+        // 기본 HTML 구조로 감싸기 (이메일 호환성 향상)
         return '<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -315,8 +342,14 @@ class EmailSender extends DBConnection {
     </noscript>
     <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+<body style="margin: 0; padding: 0; font-family: Arial, \'Malgun Gothic\', \'맑은 고딕\', sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+            <td align="center">
     ' . $content . '
+            </td>
+        </tr>
+    </table>
 </body>
 </html>';
     }
@@ -604,9 +637,15 @@ class EmailSender extends DBConnection {
         // 변수 준비
         $variables = $this->prepareTemplateVariables($sample_request, $sample_required, $sample_optional);
 
+        // 디버깅용 로그
+        error_log("Test email - Subject template: " . $template['subject']);
+        error_log("Test email - Variables: " . print_r(array_keys($variables), true));
+
         // 변수 치환
         $test_subject = '[테스트] ' . $this->replaceTemplateVariables($template['subject'], $variables);
         $test_body = $this->replaceTemplateVariables($template['content'], $variables);
+
+        error_log("Test email - Final subject: " . $test_subject);
 
         // HTML 구조 보장
         $test_body = $this->ensureHTMLStructure($test_body);

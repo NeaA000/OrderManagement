@@ -704,6 +704,13 @@ Class Master extends DBConnection {
             return json_encode($resp);
         }
 
+        // HTML 엔티티 디코딩 (Summernote가 인코딩한 경우)
+        $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // 디버깅을 위한 로그
+        error_log("Template content length: " . strlen($content));
+        error_log("Template contains variables: " . (strpos($content, '{{') !== false ? 'Yes' : 'No'));
+
         // 데이터 준비
         $subject = $this->conn->real_escape_string($subject);
         $content = $this->conn->real_escape_string($content);
@@ -712,18 +719,37 @@ Class Master extends DBConnection {
         $this->conn->begin_transaction();
 
         try {
-            // 1. 기존의 모든 request_notification 타입 템플릿의 is_default를 0으로 변경
-            $this->conn->query("UPDATE email_templates SET is_default = 0 WHERE template_type = 'request_notification'");
+            // email_templates 테이블이 없으면 생성
+            $table_check = $this->conn->query("SHOW TABLES LIKE 'email_templates'");
+            if($table_check->num_rows == 0) {
+                $create_table = "CREATE TABLE `email_templates` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `template_name` varchar(255) NOT NULL,
+                    `template_type` varchar(50) NOT NULL,
+                    `subject` varchar(500) NOT NULL,
+                    `content` longtext NOT NULL,
+                    `is_html` tinyint(1) DEFAULT 1,
+                    `is_default` tinyint(1) DEFAULT 0,
+                    `status` tinyint(1) DEFAULT 1,
+                    `date_created` datetime DEFAULT current_timestamp(),
+                    `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                
+                $this->conn->query($create_table);
+            }
 
             if(!empty($template_id)) {
                 // 기존 템플릿 업데이트
                 $sql = "UPDATE email_templates SET 
                     subject = '{$subject}',
                     content = '{$content}',
-                    is_default = 1,
                     date_updated = NOW()
                     WHERE id = '{$template_id}'";
             } else {
+                // 기존 기본 템플릿 해제
+                $this->conn->query("UPDATE email_templates SET is_default = 0 WHERE template_type = 'request_notification'");
+                
                 // 새 템플릿 생성
                 $sql = "INSERT INTO email_templates SET
                     template_name = '서류 요청 알림',
@@ -738,21 +764,6 @@ Class Master extends DBConnection {
             $save = $this->conn->query($sql);
 
             if($save) {
-                // 선택적: 오래된 템플릿 삭제 (최근 5개만 유지)
-                $this->conn->query("
-                    DELETE FROM email_templates 
-                    WHERE template_type = 'request_notification' 
-                    AND is_default = 0 
-                    AND id NOT IN (
-                        SELECT id FROM (
-                            SELECT id FROM email_templates 
-                            WHERE template_type = 'request_notification' 
-                            ORDER BY date_created DESC 
-                            LIMIT 5
-                        ) AS keep_templates
-                    )
-                ");
-
                 $this->conn->commit();
                 $resp['status'] = 'success';
                 $resp['msg'] = "이메일 템플릿이 성공적으로 저장되었습니다.";
@@ -761,6 +772,14 @@ Class Master extends DBConnection {
                 if(empty($template_id)) {
                     $resp['template_id'] = $this->conn->insert_id;
                 }
+                
+                // 저장된 내용 확인
+                $check = $this->conn->query("SELECT LENGTH(content) as len, content FROM email_templates WHERE id = " . 
+                    (empty($template_id) ? $this->conn->insert_id : $template_id))->fetch_assoc();
+                
+                error_log("Saved template length: " . $check['len']);
+                error_log("Saved template has variables: " . (strpos($check['content'], '{{') !== false ? 'Yes' : 'No'));
+                
             } else {
                 throw new Exception($this->conn->error);
             }
@@ -785,6 +804,11 @@ Class Master extends DBConnection {
             return json_encode($resp);
         }
 
+        // 디버깅용 로그
+        error_log("Test email request - To: " . $email);
+        error_log("Test email request - Subject provided: " . (!empty($subject) ? 'Yes' : 'No'));
+        error_log("Test email request - Content provided: " . (!empty($content) ? 'Yes' : 'No'));
+
         // EmailSender 클래스 사용
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
@@ -792,6 +816,9 @@ Class Master extends DBConnection {
         // 테스트 이메일 발송
         // subject와 content가 전달되면 사용, 아니면 기본 템플릿 사용
         $result = $emailSender->sendTestEmail($email, $subject ?? null, $content ?? null);
+
+        // 결과 로그
+        error_log("Test email result: " . json_encode($result));
 
         return json_encode($result);
     }
