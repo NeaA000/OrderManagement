@@ -609,6 +609,10 @@ echo $template['content'] ?? $default_content;
             ],
             fontNames: ['Arial', 'Arial Black', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', '돋움', '굴림'],
             fontNamesIgnoreCheck: ['Noto Sans KR'],
+            // HTML 인코딩 방지 설정
+            codeviewFilter: false,
+            codeviewFilterRegex: null,
+            
             callbacks: {
                 onInit: function() {
                     // 에디터 초기화 후 이벤트 바인딩
@@ -623,6 +627,14 @@ echo $template['content'] ?? $default_content;
                 onBlur: function() {
                     // 포커스를 잃을 때 선택 영역 저장
                     saveCurrentSelection();
+                },
+                // 코드뷰 모드에서 나올 때 처리
+                onCodeview: function(isCodeview) {
+                    if (!isCodeview) {
+                        // 코드뷰에서 나올 때 MSO 주석이 변환되지 않도록 처리
+                        var content = $summerNote.summernote('code');
+                        $summerNote.summernote('code', content);
+                    }
                 }
             }
         });

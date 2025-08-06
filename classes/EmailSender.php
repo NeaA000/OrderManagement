@@ -108,6 +108,9 @@ class EmailSender extends DBConnection {
         // 템플릿 변수 치환
         $subject = $this->replaceTemplateVariables($template['subject'], $variables);
         $body = $this->replaceTemplateVariables($template['content'], $variables);
+        
+        // MSO 조건부 주석 복원 (Outlook 호환성)
+        $body = $this->restoreMsoComments($body);
 
         // HTML 구조 보장
         $body = $this->ensureHTMLStructure($body);
@@ -277,6 +280,43 @@ class EmailSender extends DBConnection {
             return '<span style="color: #666666;">없음</span>';
         }
         return nl2br(htmlspecialchars($notes));
+    }
+
+    /**
+     * MSO 조건부 주석 복원
+     * HTML 엔티티로 변환된 MSO 주석을 원래대로 복원
+     */
+    private function restoreMsoComments($content) {
+        // HTML 엔티티 디코딩
+        $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // MSO 조건부 주석 패턴 복원
+        $patterns = [
+            // 인코딩된 MSO 시작 태그
+            '/&lt;!--\[if mso\]&gt;/' => '<!--[if mso]>',
+            '/&lt;!\[if mso\]&gt;/' => '<!--[if mso]>',
+            
+            // 인코딩된 MSO 종료 태그
+            '/&lt;!\[endif\]--&gt;/' => '<![endif]-->',
+            '/&lt;!--\[endif\]--&gt;/' => '<!--[endif]-->',
+            
+            // VML 관련 태그
+            '/&lt;v:roundrect/' => '<v:roundrect',
+            '/&lt;\/v:roundrect&gt;/' => '</v:roundrect>',
+            '/&lt;w:anchorlock/' => '<w:anchorlock',
+            '/&lt;\/center&gt;/' => '</center>',
+            
+            // XML 네임스페이스
+            '/xmlns:v=&quot;/' => 'xmlns:v="',
+            '/xmlns:w=&quot;/' => 'xmlns:w="',
+            '/&quot;/' => '"'
+        ];
+        
+        foreach ($patterns as $pattern => $replacement) {
+            $content = preg_replace($pattern, $replacement, $content);
+        }
+        
+        return $content;
     }
 
     // 템플릿 변수 치환
@@ -644,6 +684,9 @@ class EmailSender extends DBConnection {
         // 변수 치환
         $test_subject = '[테스트] ' . $this->replaceTemplateVariables($template['subject'], $variables);
         $test_body = $this->replaceTemplateVariables($template['content'], $variables);
+        
+        // MSO 조건부 주석 복원
+        $test_body = $this->restoreMsoComments($test_body);
 
         error_log("Test email - Final subject: " . $test_subject);
 

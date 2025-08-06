@@ -704,8 +704,16 @@ Class Master extends DBConnection {
             return json_encode($resp);
         }
 
-        // HTML 엔티티 디코딩 (Summernote가 인코딩한 경우)
-        $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // MSO 조건부 주석 보존
+        // Summernote가 인코딩한 MSO 주석을 원래대로 복원하되, SQL injection 방지를 위해 이스케이프는 유지
+        $mso_patterns = [
+            '/&lt;!--\[if mso\]&gt;/' => '<!--[if mso]>',
+            '/&lt;!\[endif\]--&gt;/' => '<![endif]-->'
+        ];
+        
+        foreach ($mso_patterns as $pattern => $replacement) {
+            $content = preg_replace($pattern, $replacement, $content);
+        }
         
         // 디버깅을 위한 로그
         error_log("Template content length: " . strlen($content));
