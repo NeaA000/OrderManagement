@@ -784,10 +784,10 @@ echo $template['content'] ?? $default_content;
                 </tr>
             </table>`,
             '{{document_list}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 안전관리계획서 <span style="color: #dc3545;">(필수)</span></td></tr>
-                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 유해위험방지계획서 <span style="color: #dc3545;">(필수)</span></td></tr>
-                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 사업자등록증 <span style="color: #dc3545;">(필수)</span></td></tr>
-                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 건설업면허증 <span style="color: #6c757d;">(선택)</span></td></tr>
+                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 안전관리계획서</td></tr>
+                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 유해위험방지계획서</td></tr>
+                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 사업자등록증</td></tr>
+                <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 건설업면허증</td></tr>
             </table>`,
             '{{required_documents}}': `<table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• 안전관리계획서</td></tr>

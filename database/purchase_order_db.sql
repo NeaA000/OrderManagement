@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- 생성 시간: 25-08-05 04:42
+-- 생성 시간: 25-08-06 04:22
 -- 서버 버전: 10.4.32-MariaDB
 -- PHP 버전: 8.2.12
 
@@ -32,12 +32,44 @@ CREATE TABLE `access_tokens` (
                                  `request_id` int(30) NOT NULL COMMENT '요청 ID',
                                  `token` varchar(100) NOT NULL COMMENT '토큰',
                                  `token_type` enum('upload','view','admin') DEFAULT 'upload' COMMENT '토큰 타입',
+                                 `status` enum('active','completed','expired') DEFAULT 'active',
+                                 `completed_at` datetime DEFAULT NULL,
                                  `expires_at` datetime NOT NULL COMMENT '만료 시간',
                                  `is_used` tinyint(1) DEFAULT 0 COMMENT '사용 여부',
                                  `used_at` datetime DEFAULT NULL COMMENT '사용 시간',
                                  `ip_address` varchar(45) DEFAULT NULL COMMENT '사용된 IP',
                                  `user_agent` text DEFAULT NULL COMMENT '사용된 브라우저',
-                                 `created_at` datetime DEFAULT current_timestamp()
+                                 `created_at` datetime DEFAULT current_timestamp(),
+                                 `use_count` int(11) DEFAULT 0,
+                                 `last_used_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- 테이블의 덤프 데이터 `access_tokens`
+--
+
+INSERT INTO `access_tokens` (`id`, `request_id`, `token`, `token_type`, `status`, `completed_at`, `expires_at`, `is_used`, `used_at`, `ip_address`, `user_agent`, `created_at`, `use_count`, `last_used_at`) VALUES
+    (1, 11, '9ec9e8d946a99db6d2b4d70ab8b5a70daa9fe7d22edd6abdc28ad93741720b99', 'upload', 'active', NULL, '2025-08-12 11:57:10', 0, NULL, NULL, NULL, '2025-08-05 11:57:10', 2, '2025-08-05 15:18:52');
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `access_tokens_temp`
+--
+
+CREATE TABLE `access_tokens_temp` (
+                                      `id` int(30) NOT NULL DEFAULT 0,
+                                      `request_id` int(30) NOT NULL COMMENT '요청 ID',
+                                      `token` varchar(100) NOT NULL COMMENT '토큰',
+                                      `token_type` enum('upload','view','admin') DEFAULT 'upload' COMMENT '토큰 타입',
+                                      `expires_at` datetime NOT NULL COMMENT '만료 시간',
+                                      `is_used` tinyint(1) DEFAULT 0 COMMENT '사용 여부',
+                                      `used_at` datetime DEFAULT NULL COMMENT '사용 시간',
+                                      `ip_address` varchar(45) DEFAULT NULL COMMENT '사용된 IP',
+                                      `user_agent` text DEFAULT NULL COMMENT '사용된 브라우저',
+                                      `created_at` datetime DEFAULT current_timestamp(),
+                                      `use_count` int(11) DEFAULT 0,
+                                      `last_used_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -144,7 +176,8 @@ CREATE TABLE `document_cost_details` (
 --
 
 INSERT INTO `document_cost_details` (`id`, `request_id`, `safety_plan_cost`, `hazard_prevention_cost`, `structure_review_cost`, `structure_review_agency`, `plan_review_cost`, `plan_review_agency`, `safety_health_cost`, `education_facility_cost`, `railway_protection_cost`, `evaluation_cost`) VALUES
-    (10, 10, '11', NULL, '11', '', '11', '', '11', NULL, NULL, '');
+                                                                                                                                                                                                                                                                                                        (11, 11, NULL, NULL, NULL, '', NULL, '', NULL, NULL, NULL, ''),
+                                                                                                                                                                                                                                                                                                        (12, 12, NULL, NULL, NULL, '', NULL, '', NULL, NULL, NULL, '');
 
 -- --------------------------------------------------------
 
@@ -165,15 +198,17 @@ CREATE TABLE `document_requests` (
                                      `completed_at` datetime DEFAULT NULL,
                                      `created_by` int(30) NOT NULL COMMENT '생성자 ID',
                                      `date_created` datetime DEFAULT current_timestamp(),
-                                     `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp()
+                                     `date_updated` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+                                     `token_expires_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- 테이블의 덤프 데이터 `document_requests`
 --
 
-INSERT INTO `document_requests` (`id`, `request_no`, `supplier_id`, `project_name`, `due_date`, `additional_notes`, `upload_token`, `status`, `email_sent_at`, `completed_at`, `created_by`, `date_created`, `date_updated`) VALUES
-    (10, 'REQ-20250805-001', 3, '전천 지방하천 정비사업', '9999-12-31', '', 'decc8266e75a4364fa927e2b7c98b097f8d612020ef1cc5d1a568c36a6cd6a4a', 2, '2025-08-05 10:52:10', '2025-08-05 11:29:57', 1, '2025-08-05 10:51:20', '2025-08-05 11:29:57');
+INSERT INTO `document_requests` (`id`, `request_no`, `supplier_id`, `project_name`, `due_date`, `additional_notes`, `upload_token`, `status`, `email_sent_at`, `completed_at`, `created_by`, `date_created`, `date_updated`, `token_expires_at`) VALUES
+                                                                                                                                                                                                                                                     (11, 'REQ-20250805-001', 3, '전천 지방하천 정비사업', '9999-12-31', '', '9ec9e8d946a99db6d2b4d70ab8b5a70daa9fe7d22edd6abdc28ad93741720b99', 1, '2025-08-06 11:13:05', NULL, 1, '2025-08-05 11:57:10', '2025-08-06 11:13:05', NULL),
+                                                                                                                                                                                                                                                     (12, 'REQ-20250805-002', 3, 'aaaaa', '9999-12-31', '', 'cbe425d95e03dadf8be7e503a14067558ba4f260d7451d553d0d6391115c70ca', 0, '2025-08-05 15:35:51', NULL, 5, '2025-08-05 15:35:33', '2025-08-05 15:35:51', NULL);
 
 -- --------------------------------------------------------
 
@@ -200,7 +235,8 @@ CREATE TABLE `document_request_details` (
 --
 
 INSERT INTO `document_request_details` (`id`, `request_id`, `construction_method`, `manager_name`, `manager_contact`, `manager_email`, `director_name`, `director_contact`, `order_date`, `total_cost`, `vat_included`) VALUES
-    (10, 10, '단독', '', '', '', '', '', '2025-08-05', '44', 0);
+                                                                                                                                                                                                                            (11, 11, '단독', '', '', '', '', '', '2025-07-28', '0', 0),
+                                                                                                                                                                                                                            (12, 12, '단독', '', '', '', '', '', '2025-08-05', '0', 0);
 
 -- --------------------------------------------------------
 
@@ -228,7 +264,8 @@ CREATE TABLE `document_targets` (
 --
 
 INSERT INTO `document_targets` (`id`, `request_id`, `safety_plan_type`, `review_agency`, `hazard_prevention_type`, `safety_health_agency`, `safety_health_ledger_type`, `evaluation_type`, `education_facility`, `education_office`, `railway_protection`, `railway_manager`) VALUES
-    (10, 10, '1종', '국토안전관리원', '높이31m이상', '', '기본', '기본', '', '', '', '');
+                                                                                                                                                                                                                                                                                  (11, 11, '', '국토안전관리원', '굴착10m이상', '', '기본', '설계', '', '', '', ''),
+                                                                                                                                                                                                                                                                                  (12, 12, '', '', '', '', '', '', '', '', '', '');
 
 -- --------------------------------------------------------
 
@@ -266,7 +303,8 @@ CREATE TABLE `document_writers` (
 --
 
 INSERT INTO `document_writers` (`id`, `request_id`, `main_writer`, `revenue_manager`, `field_writers`) VALUES
-    (10, 10, '', '', '');
+                                                                                                           (11, 11, '', '', ''),
+                                                                                                           (12, 12, '', '', '');
 
 -- --------------------------------------------------------
 
@@ -313,7 +351,7 @@ CREATE TABLE `email_templates` (
 INSERT INTO `email_templates` (`id`, `template_name`, `template_type`, `subject`, `content`, `variables`, `is_html`, `is_default`, `status`, `date_created`, `date_updated`) VALUES
                                                                                                                                                                                  (1, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">서류 제출 요청</h2><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">안녕하세요, {{contact_person}}님</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">{{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">프로젝트 정보</h3>\r\n        <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><br></p><h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; color: rgb(52, 58, 64); letter-spacing: -0.14px;\">필수서류</h3><p style=\"\"><font face=\"Noto Sans KR, sans-serif\">{{document_list}}</font></p></div><div style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; margin: 20px 0px;\"><br></div>\r\n    \r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">감사합니다.</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                        ', NULL, 1, 0, 1, '2025-08-01 17:58:44', '2025-08-01 17:59:35'),
                                                                                                                                                                                  (2, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"font-size: 36px;\"><b>서류 제출 요청</b></span></h2><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">안녕하세요, {{contact_person}}님</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\">프로젝트 정보</h3>\r\n        <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif;\"><br></p><h3 style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; color: rgb(52, 58, 64); letter-spacing: -0.14px;\">필수서류</h3><p style=\"\"><font face=\"Noto Sans KR, sans-serif\">{{document_list}}</font></p></div><div style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; margin: 20px 0px;\"><br></div>\r\n    \r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\">감사합니다.</p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><br></p><p style=\"font-family: &quot;Noto Sans KR&quot;, sans-serif; text-align: center;\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                        ', NULL, 1, 0, 1, '2025-08-01 17:59:35', '2025-08-01 18:00:27'),
-                                                                                                                                                                                 (3, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"font-size: 36px;\"><b>서류 제출 요청</b></span></h2><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">{{company_name}}<br></p>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">안녕하세요, {{supplier_name}} {{contact_person}}님</p>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">프로젝트 정보</h3>\r\n        <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><br></p><h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" color:=\"\" rgb(52,=\"\" 58,=\"\" 64);=\"\" letter-spacing:=\"\" -0.14px;\"=\"\">요청 서류 목록</h3><p style=\"\">{{document_list}}<font face=\"Noto Sans KR, sans-serif\"></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p></div><div style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" margin:=\"\" 20px=\"\" 0px;\"=\"\"><br></div>\r\n    \r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">감사합니다.</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><br></p><p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                                                                                                                                                                                                                        ', NULL, 1, 1, 1, '2025-08-01 18:00:27', '2025-08-04 10:06:44');
+                                                                                                                                                                                 (3, '서류 요청 알림', 'request_notification', '[{{company_name}}] 서류 제출 요청 - {{project_name}}', '<div style=\"max-width: 600px; margin: 0px auto; padding: 20px;\">\r\n    <h2 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"font-size: 36px;\"><b>서류 제출 요청</b></span></h2><h2 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"font-size: 36px;\"><b><br></b></span></h2>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">안녕하세요, {{supplier_name}} {{contact_person}}님</p>\r\n    <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">{{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.</p>\r\n    \r\n    <div style=\"background-color: rgb(248, 249, 250); padding: 20px; margin: 20px 0px; border-radius: 5px;\">\r\n        <h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\">프로젝트 정보</h3>\r\n        <p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><strong>프로젝트명:</strong> {{project_name}}</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;\"=\"\"><br></p><h3 style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" color:=\"\" rgb(52,=\"\" 58,=\"\" 64);=\"\" letter-spacing:=\"\" -0.14px;\"=\"\">요청 서류 목록</h3><p style=\"\">{{document_list}}<font face=\"Noto Sans KR, sans-serif\"></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p><p style=\"\"><font face=\"Noto Sans KR, sans-serif\"><br></font></p></div><div style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" margin:=\"\" 20px=\"\" 0px;\"=\"\"><br></div>\r\n    \r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">문의사항이 있으시면 회신 부탁드립니다.</p>\r\n    <p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\">감사합니다.</p><p style=\"font-family: \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><br></p><p style=\"text-align: center; \" noto=\"\" sans=\"\" kr\",=\"\" sans-serif;=\"\" text-align:=\"\" center;\"=\"\"><span style=\"letter-spacing: -0.14px;\">{{upload_link}}</span></p>\r\n</div>                                                                                                                                                                                                                                                                                                                                                ', NULL, 1, 1, 1, '2025-08-01 18:00:27', '2025-08-06 10:47:45');
 
 -- --------------------------------------------------------
 
@@ -477,12 +515,17 @@ CREATE TABLE `request_documents` (
 --
 
 INSERT INTO `request_documents` (`id`, `request_id`, `category_id`, `document_name`, `is_required`, `status`, `file_name`, `file_path`, `file_size`, `upload_method`, `form_data`, `uploaded_at`, `date_created`, `file_id`) VALUES
-                                                                                                                                                                                                                                 (19, 10, 39, 'C', 1, 1, 'REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', 'documents/2025/08/REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', 93926, 'file_upload', NULL, '2025-08-05 11:05:30', '2025-08-05 10:51:20', NULL),
-                                                                                                                                                                                                                                 (20, 10, 41, 'D', 1, 1, 'REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', 'documents/2025/08/REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', 27935, 'file_upload', NULL, '2025-08-05 10:56:19', '2025-08-05 10:51:20', NULL),
-                                                                                                                                                                                                                                 (21, 10, 28, '크레인작업방지계획서', 1, 1, 'REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', 'documents/2025/08/REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', 268424, 'file_upload', NULL, '2025-08-05 10:52:20', '2025-08-05 10:51:20', NULL),
-                                                                                                                                                                                                                                 (22, 10, 29, '안전보건대장 기본양식', 1, 1, 'REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', 'documents/2025/08/REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', 1338539, 'file_upload', NULL, '2025-08-05 11:12:26', '2025-08-05 10:51:20', NULL),
-                                                                                                                                                                                                                                 (23, 10, 30, '작업일지', 1, 1, 'REQ10_DOC23_보안_체크리스트_문서_1754358766.docx', 'documents/2025/08/REQ10_DOC23_보안_체크리스트_문서_1754358766.docx', 27935, 'file_upload', NULL, '2025-08-05 10:52:46', '2025-08-05 10:51:20', NULL),
-                                                                                                                                                                                                                                 (24, 10, 31, '안전교육 기록', 1, 1, 'REQ10_DOC24_에시화면_1754360996.docx', 'documents/2025/08/REQ10_DOC24_에시화면_1754360996.docx', 769699, 'file_upload', NULL, '2025-08-05 11:29:57', '2025-08-05 10:51:20', NULL);
+                                                                                                                                                                                                                                 (25, 11, 37, 'A', 1, 1, 'REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', 'documents/2025/08/REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', 268424, 'file_upload', NULL, '2025-08-05 11:57:42', '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (26, 11, 38, 'B', 1, 1, 'REQ11_DOC26_보안_체크리스트_문서_1754374713.docx', 'uploads/documents/2025/08/REQ11_DOC26_보안_체크리스트_문서_1754374713.docx', 27935, 'file_upload', NULL, '2025-08-05 15:18:33', '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (27, 11, 41, 'D', 1, 1, 'REQ11_DOC27_보안_체크리스트_문서_1754374732.docx', 'uploads/documents/2025/08/REQ11_DOC27_보안_체크리스트_문서_1754374732.docx', 27935, 'file_upload', NULL, '2025-08-05 15:18:52', '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (28, 11, 29, '안전보건대장 기본양식', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (29, 11, 30, '작업일지', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (30, 11, 31, '안전교육 기록', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 11:57:10', NULL),
+                                                                                                                                                                                                                                 (31, 12, 39, 'C', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 15:35:33', NULL),
+                                                                                                                                                                                                                                 (32, 12, 41, 'D', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 15:35:33', NULL),
+                                                                                                                                                                                                                                 (33, 12, 28, '크레인작업방지계획서', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 15:35:33', NULL),
+                                                                                                                                                                                                                                 (34, 12, 29, '안전보건대장 기본양식', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 15:35:33', NULL),
+                                                                                                                                                                                                                                 (35, 12, 30, '작업일지', 1, 0, NULL, NULL, NULL, 'file_upload', NULL, NULL, '2025-08-05 15:35:33', NULL);
 
 -- --------------------------------------------------------
 
@@ -530,6 +573,21 @@ CREATE TABLE `review_organizations` (
 INSERT INTO `review_organizations` (`id`, `org_name`, `org_code`, `contact_person`, `phone`, `email`, `address`, `specialization`, `status`, `date_created`) VALUES
                                                                                                                                                                  (1, '중부제해예방관리원(주)', 'CSI', '관리자', NULL, 'info@csi.co.kr', NULL, NULL, 1, '2025-07-31 18:20:34'),
                                                                                                                                                                  (2, '안전보건공단', 'KOSHA', '담당자', NULL, 'contact@kosha.or.kr', NULL, NULL, 1, '2025-07-31 18:20:34');
+
+-- --------------------------------------------------------
+
+--
+-- 테이블 구조 `security_logs`
+--
+
+CREATE TABLE `security_logs` (
+                                 `id` int(11) NOT NULL,
+                                 `action` varchar(50) DEFAULT NULL,
+                                 `token` varchar(100) DEFAULT NULL,
+                                 `ip_address` varchar(45) DEFAULT NULL,
+                                 `user_agent` text DEFAULT NULL,
+                                 `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -634,12 +692,7 @@ CREATE TABLE `uploaded_files` (
 --
 
 INSERT INTO `uploaded_files` (`id`, `request_id`, `document_id`, `document_name`, `project_id`, `original_name`, `stored_name`, `wasabi_key`, `wasabi_bucket`, `wasabi_region`, `wasabi_url`, `file_size`, `mime_type`, `checksum`, `uploaded_by`, `uploaded_at`, `is_deleted`, `metadata`) VALUES
-                                                                                                                                                                                                                                                                                                (15, 10, 21, '크레인작업방지계획서', NULL, 'text_logo_on_white (1) (1).png', 'REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', 'documents/2025/08/REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', 268424, 'image/png', NULL, 'admin', '2025-08-05 01:52:20', 0, NULL),
-                                                                                                                                                                                                                                                                                                (16, 10, 23, '작업일지', NULL, '보안 체크리스트 문서.docx', 'REQ10_DOC23_보안_체크리스트_문서_1754358766.docx', 'documents/2025/08/REQ10_DOC23_보안_체크리스트_문서_1754358766.docx', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC23_%EB%B3%B4%EC%95%88_%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8_%EB%AC%B8%EC%84%9C_1754358766.docx', 27935, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', NULL, 'admin', '2025-08-05 01:52:46', 0, NULL),
-                                                                                                                                                                                                                                                                                                (17, 10, 20, 'D', NULL, '보안 체크리스트 문서.docx', 'REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', 'documents/2025/08/REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC20_%EB%B3%B4%EC%95%88_%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8_%EB%AC%B8%EC%84%9C_1754358979.docx', 27935, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', NULL, 'admin', '2025-08-05 01:56:19', 0, NULL),
-                                                                                                                                                                                                                                                                                                (18, 10, 19, 'C', NULL, 'KakaoTalk_20250502_094837196.png', 'REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', 'documents/2025/08/REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', 93926, 'image/png', NULL, 'admin', '2025-08-05 02:05:30', 0, NULL),
-                                                                                                                                                                                                                                                                                                (19, 10, 22, '안전보건대장 기본양식', NULL, 'QR 안전교육 앱 - Java 웹 하이브리드 전환 기술 문서.docx', 'REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', 'documents/2025/08/REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC22_QR_%EC%95%88%EC%A0%84%EA%B5%90%EC%9C%A1_%EC%95%B1_-_Java_%EC%9B%B9_%ED%95%98%EC%9D%B4%EB%B8%8C%EB%A6%AC%EB%93%9C_%EC%A0%84_1754359944.docx', 1338539, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', NULL, 'admin', '2025-08-05 02:12:26', 0, NULL),
-                                                                                                                                                                                                                                                                                                (20, 10, 24, '안전교육 기록', NULL, '에시화면.docx', 'REQ10_DOC24_에시화면_1754360996.docx', 'documents/2025/08/REQ10_DOC24_에시화면_1754360996.docx', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ10_DOC24_%EC%97%90%EC%8B%9C%ED%99%94%EB%A9%B4_1754360996.docx', 769699, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', NULL, 'admin', '2025-08-05 02:29:57', 0, NULL);
+    (21, 11, 25, 'A', NULL, 'text_logo_on_white (1) (1).png', 'REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', 'documents/2025/08/REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', 'jungbu-safety-docs', 'ap-northeast-1', 'https://s3.ap-northeast-1.wasabisys.com/jungbu-safety-docs/documents/2025/08/REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', 268424, 'image/png', NULL, 'admin', '2025-08-05 02:57:42', 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -701,7 +754,21 @@ INSERT INTO `upload_logs` (`id`, `request_id`, `document_id`, `action`, `file_na
                                                                                                                                                            (34, 10, 20, 'upload', 'REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 10:56:19'),
                                                                                                                                                            (35, 10, 19, 'upload', 'REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 11:05:30'),
                                                                                                                                                            (36, 10, 22, 'upload', 'REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 11:12:26'),
-                                                                                                                                                           (37, 10, 24, 'upload', 'REQ10_DOC24_에시화면_1754360996.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 11:29:57');
+                                                                                                                                                           (37, 10, 24, 'upload', 'REQ10_DOC24_에시화면_1754360996.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 11:29:57'),
+                                                                                                                                                           (38, 11, 25, 'upload', 'REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 11:57:42'),
+                                                                                                                                                           (39, 11, 26, 'upload', 'REQ11_DOC26_보안_체크리스트_문서_1754374713.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 15:18:33'),
+                                                                                                                                                           (40, 11, 27, 'upload', 'REQ11_DOC27_보안_체크리스트_문서_1754374732.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 15:18:52'),
+                                                                                                                                                           (41, 12, 31, 'upload', 'REQ12_DOC31_보안_체크리스트_문서_1754375782.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 15:36:22'),
+                                                                                                                                                           (42, 12, 34, 'upload', 'REQ12_DOC34_문서_관리_프로그램_전체_플로우_1754378375.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:19:35'),
+                                                                                                                                                           (43, 12, 31, 'delete', 'REQ12_DOC31_보안_체크리스트_문서_1754375782.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:30:17'),
+                                                                                                                                                           (44, 12, 31, 'upload', 'REQ12_DOC31_문서_관리_프로그램_전체_플로우_1754379424.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:37:05'),
+                                                                                                                                                           (45, 12, 31, 'delete', 'REQ12_DOC31_문서_관리_프로그램_전체_플로우_1754379424.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:37:09'),
+                                                                                                                                                           (46, 12, 32, 'upload', 'REQ12_DOC32_문서_관리_프로그램_전체_플로우_1754380395.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:53:17'),
+                                                                                                                                                           (47, 12, 32, 'delete', 'REQ12_DOC32_문서_관리_프로그램_전체_플로우_1754380395.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:54:07'),
+                                                                                                                                                           (48, 12, 34, 'delete', 'REQ12_DOC34_문서_관리_프로그램_전체_플로우_1754378375.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 16:59:45'),
+                                                                                                                                                           (49, 12, 34, 'upload', 'REQ12_DOC34_문서_관리_프로그램_전체_플로우_1754380892.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 17:01:34'),
+                                                                                                                                                           (50, 12, 32, 'upload', 'REQ12_DOC32_문서_관리_프로그램_전체_플로우_1754381828.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 17:17:10'),
+                                                                                                                                                           (51, 12, 31, 'upload', 'REQ12_DOC31_문서_관리_프로그램_전체_플로우_1754386355.docx', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', NULL, '2025-08-05 18:32:37');
 
 -- --------------------------------------------------------
 
@@ -728,12 +795,16 @@ CREATE TABLE `upload_notifications` (
 --
 
 INSERT INTO `upload_notifications` (`id`, `request_id`, `document_id`, `supplier_id`, `supplier_name`, `document_name`, `file_name`, `uploaded_at`, `is_read`, `read_by`, `read_at`) VALUES
-                                                                                                                                                                                         (21, 10, 21, 3, '(주)한국', '크레인작업방지계획서', 'REQ10_DOC21_text_logo_on_white__1___1__1754358739.png', '2025-08-05 10:52:20', 0, NULL, NULL),
-                                                                                                                                                                                         (22, 10, 23, 3, '(주)한국', '작업일지', 'REQ10_DOC23_보안_체크리스트_문서_1754358766.docx', '2025-08-05 10:52:46', 0, NULL, NULL),
-                                                                                                                                                                                         (23, 10, 20, 3, '(주)한국', 'D', 'REQ10_DOC20_보안_체크리스트_문서_1754358979.docx', '2025-08-05 10:56:19', 0, NULL, NULL),
-                                                                                                                                                                                         (24, 10, 19, 3, '(주)한국', 'C', 'REQ10_DOC19_KakaoTalk_20250502_094837196_1754359530.png', '2025-08-05 11:05:30', 1, 1, '2025-08-05 11:11:27'),
-                                                                                                                                                                                         (25, 10, 22, 3, '(주)한국', '안전보건대장 기본양식', 'REQ10_DOC22_QR_안전교육_앱_-_Java_웹_하이브리드_전_1754359944.docx', '2025-08-05 11:12:26', 0, NULL, NULL),
-                                                                                                                                                                                         (26, 10, 24, 3, '(주)한국', '안전교육 기록', 'REQ10_DOC24_에시화면_1754360996.docx', '2025-08-05 11:29:57', 0, NULL, NULL);
+                                                                                                                                                                                         (27, 11, 25, 3, '(주)한국', 'A', 'REQ11_DOC25_text_logo_on_white__1___1__1754362661.png', '2025-08-05 11:57:42', 1, 1, '2025-08-05 16:19:59'),
+                                                                                                                                                                                         (28, 11, 26, 3, '(주)한국', 'B', 'REQ11_DOC26_보안_체크리스트_문서_1754374713.docx', '2025-08-05 15:18:33', 1, 1, '2025-08-05 16:19:59'),
+                                                                                                                                                                                         (29, 11, 27, 3, '(주)한국', 'D', 'REQ11_DOC27_보안_체크리스트_문서_1754374732.docx', '2025-08-05 15:18:52', 1, 1, '2025-08-05 16:19:59'),
+                                                                                                                                                                                         (30, 12, 31, 3, '(주)한국', 'C', 'REQ12_DOC31_보안_체크리스트_문서_1754375782.docx', '2025-08-05 15:36:22', 1, 1, '2025-08-05 16:19:59'),
+                                                                                                                                                                                         (31, 12, 34, 3, '(주)한국', '안전보건대장 기본양식', 'REQ12_DOC34_문서_관리_프로그램_전체_플로우_1754378375.docx', '2025-08-05 16:19:35', 1, 1, '2025-08-05 16:19:59'),
+                                                                                                                                                                                         (32, 12, 31, 3, '(주)한국', 'C', 'REQ12_DOC31_문서_관리_프로그램_전체_플로우_1754379424.docx', '2025-08-05 16:37:05', 0, NULL, NULL),
+                                                                                                                                                                                         (33, 12, 32, 3, '(주)한국', 'D', 'REQ12_DOC32_문서_관리_프로그램_전체_플로우_1754380395.docx', '2025-08-05 16:53:17', 0, NULL, NULL),
+                                                                                                                                                                                         (34, 12, 34, 3, '(주)한국', '안전보건대장 기본양식', 'REQ12_DOC34_문서_관리_프로그램_전체_플로우_1754380892.docx', '2025-08-05 17:01:34', 0, NULL, NULL),
+                                                                                                                                                                                         (35, 12, 32, 3, '(주)한국', 'D', 'REQ12_DOC32_문서_관리_프로그램_전체_플로우_1754381828.docx', '2025-08-05 17:17:10', 0, NULL, NULL),
+                                                                                                                                                                                         (36, 12, 31, 3, '(주)한국', 'C', 'REQ12_DOC31_문서_관리_프로그램_전체_플로우_1754386355.docx', '2025-08-05 18:32:37', 0, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -788,8 +859,9 @@ CREATE TABLE `workflow_status` (
 --
 
 INSERT INTO `workflow_status` (`id`, `request_id`, `current_step`, `step_name`, `step_description`, `started_at`, `completed_at`, `assigned_to`, `notes`, `is_current`, `created_at`) VALUES
-                                                                                                                                                                                          (17, 10, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-05 10:51:20', NULL, 1, NULL, 0, '2025-08-05 10:51:20'),
-                                                                                                                                                                                          (18, 10, '', '진행중', '첫 번째 서류가 업로드되어 진행중 상태로 변경되었습니다.', '2025-08-05 10:52:20', NULL, NULL, NULL, 1, '2025-08-05 10:52:20');
+                                                                                                                                                                                          (19, 11, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-05 11:57:10', NULL, 1, NULL, 0, '2025-08-05 11:57:10'),
+                                                                                                                                                                                          (20, 11, '', '진행중', '첫 번째 서류가 업로드되어 진행중 상태로 변경되었습니다.', '2025-08-05 11:57:42', NULL, NULL, NULL, 1, '2025-08-05 11:57:42'),
+                                                                                                                                                                                          (21, 12, 'created', '요청 생성', '서류 요청이 생성되었습니다.', '2025-08-05 15:35:33', NULL, 5, NULL, 1, '2025-08-05 15:35:33');
 
 --
 -- 덤프된 테이블의 인덱스
@@ -925,7 +997,8 @@ ALTER TABLE `request_documents`
     ADD PRIMARY KEY (`id`),
   ADD KEY `request_id` (`request_id`),
   ADD KEY `category_id` (`category_id`),
-  ADD KEY `fk_document_file` (`file_id`);
+  ADD KEY `fk_document_file` (`file_id`),
+  ADD KEY `idx_request_status` (`request_id`,`status`);
 
 --
 -- 테이블의 인덱스 `review_credentials`
@@ -940,6 +1013,15 @@ ALTER TABLE `review_credentials`
 ALTER TABLE `review_organizations`
     ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `org_code` (`org_code`);
+
+--
+-- 테이블의 인덱스 `security_logs`
+--
+ALTER TABLE `security_logs`
+    ADD PRIMARY KEY (`id`),
+  ADD KEY `ip_address` (`ip_address`),
+  ADD KEY `action` (`action`),
+  ADD KEY `created_at` (`created_at`);
 
 --
 -- 테이블의 인덱스 `supplier_list`
@@ -969,7 +1051,10 @@ ALTER TABLE `uploaded_files`
 --
 ALTER TABLE `upload_logs`
     ADD PRIMARY KEY (`id`),
-  ADD KEY `request_id` (`request_id`);
+  ADD KEY `request_id` (`request_id`),
+  ADD KEY `idx_ip_created` (`ip_address`,`created_at`),
+  ADD KEY `idx_action` (`action`),
+  ADD KEY `idx_document_id` (`document_id`);
 
 --
 -- 테이블의 인덱스 `upload_notifications`
@@ -1005,7 +1090,7 @@ ALTER TABLE `workflow_status`
 -- 테이블의 AUTO_INCREMENT `access_tokens`
 --
 ALTER TABLE `access_tokens`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_categories`
@@ -1023,25 +1108,25 @@ ALTER TABLE `document_costs`
 -- 테이블의 AUTO_INCREMENT `document_cost_details`
 --
 ALTER TABLE `document_cost_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_requests`
 --
 ALTER TABLE `document_requests`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_request_details`
 --
 ALTER TABLE `document_request_details`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_targets`
 --
 ALTER TABLE `document_targets`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- 테이블의 AUTO_INCREMENT `document_uploads`
@@ -1053,7 +1138,7 @@ ALTER TABLE `document_uploads`
 -- 테이블의 AUTO_INCREMENT `document_writers`
 --
 ALTER TABLE `document_writers`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- 테이블의 AUTO_INCREMENT `email_logs`
@@ -1101,7 +1186,7 @@ ALTER TABLE `po_list`
 -- 테이블의 AUTO_INCREMENT `request_documents`
 --
 ALTER TABLE `request_documents`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- 테이블의 AUTO_INCREMENT `review_credentials`
@@ -1116,10 +1201,16 @@ ALTER TABLE `review_organizations`
     MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- 테이블의 AUTO_INCREMENT `security_logs`
+--
+ALTER TABLE `security_logs`
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- 테이블의 AUTO_INCREMENT `supplier_list`
 --
 ALTER TABLE `supplier_list`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- 테이블의 AUTO_INCREMENT `system_info`
@@ -1131,19 +1222,19 @@ ALTER TABLE `system_info`
 -- 테이블의 AUTO_INCREMENT `uploaded_files`
 --
 ALTER TABLE `uploaded_files`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- 테이블의 AUTO_INCREMENT `upload_logs`
 --
 ALTER TABLE `upload_logs`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
 -- 테이블의 AUTO_INCREMENT `upload_notifications`
 --
 ALTER TABLE `upload_notifications`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- 테이블의 AUTO_INCREMENT `users`
@@ -1155,7 +1246,7 @@ ALTER TABLE `users`
 -- 테이블의 AUTO_INCREMENT `workflow_status`
 --
 ALTER TABLE `workflow_status`
-    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+    MODIFY `id` int(30) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- 덤프된 테이블의 제약사항
