@@ -53,13 +53,15 @@ class EmailSender extends DBConnection {
         return $config;
     }
 
-    // 서류 요청 이메일 전송
+    // 서류 요청 이메일 전송 - 통합 버전
     public function sendDocumentRequest($request_id) {
         // 요청 정보 가져오기
         $request_qry = $this->conn->query("
-            SELECT dr.*, sl.name as supplier_name, sl.contact_person, sl.email 
+            SELECT dr.*, sl.name as supplier_name, sl.contact_person, sl.email,
+                   drd.manager_email, drd.manager_name
             FROM `document_requests` dr 
             LEFT JOIN `supplier_list` sl ON dr.supplier_id = sl.id 
+            LEFT JOIN `document_request_details` drd ON drd.request_id = dr.id
             WHERE dr.id = '{$request_id}'
         ");
 
@@ -68,6 +70,14 @@ class EmailSender extends DBConnection {
         }
 
         $request = $request_qry->fetch_assoc();
+
+        // 수신자 정보 결정
+        $to_email = !empty($request['manager_email']) ? $request['manager_email'] : $request['email'];
+        $to_name = !empty($request['manager_name']) ? $request['manager_name'] : $request['contact_person'];
+
+        if(empty($to_email)) {
+            return ['status' => 'error', 'msg' => '수신자 이메일이 없습니다.'];
+        }
 
         // 요청된 서류 목록 가져오기
         $docs_qry = $this->conn->query("
@@ -89,104 +99,21 @@ class EmailSender extends DBConnection {
             }
         }
 
-        // 업로드 링크 생성
-        if(defined('base_url')) {
-            // 정확한 경로로 수정
-            $upload_link = base_url."admin/upload_portal/?token=".$request['upload_token'];
-        } else {
-            // base_url이 정의되지 않은 경우 동적으로 생성
-            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $path = dirname(dirname($_SERVER['SCRIPT_NAME']));
-            $upload_link = $protocol . "://" . $host . $path . "/admin/upload_portal/?token=" . $request['upload_token'];
-        }
+        // 템플릿 가져오기 (우선순위: DB → 기본 템플릿)
+        $template = $this->getEmailTemplate('request_notification');
 
-        // DB에서 이메일 템플릿 가져오기
-        $template_qry = $this->conn->query("
-            SELECT * FROM email_templates 
-            WHERE template_type = 'request_notification' 
-            AND is_default = 1 
-            LIMIT 1
-        ");
+        // 변수 준비
+        $variables = $this->prepareTemplateVariables($request, $required_docs, $optional_docs);
 
-        if($template_qry && $template_qry->num_rows > 0) {
-            $template = $template_qry->fetch_assoc();
-            $subject = $template['subject'];
-            $email_body = $template['body_html'] ?? $template['content']; // body_html 또는 content 컬럼 사용
+        // 템플릿 변수 치환
+        $subject = $this->replaceTemplateVariables($template['subject'], $variables);
+        $body = $this->replaceTemplateVariables($template['content'], $variables);
 
-            // 템플릿이 비어있는지 확인
-            if(empty($email_body)) {
-                $subject = "[{company_name}] 서류 제출 요청 - {project_name}";
-                $email_body = $this->getDefaultEmailTemplate();
-            }
-        } else {
-            // 템플릿이 없으면 기본 템플릿 사용
-            $subject = "[{company_name}] 서류 제출 요청 - {project_name}";
-            $email_body = $this->getDefaultEmailTemplate();
-        }
-
-        // 이메일 호환 업로드 버튼 HTML (테이블 기반)
-        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
-                <td align="center" style="padding: 30px 0;">
-                    <table cellpadding="0" cellspacing="0" border="0">
-                        <tr>
-                            <td align="center" bgcolor="#007bff">
-                                <a href="'.$upload_link.'" style="font-family: Arial, sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; padding: 12px 30px; display: block;">서류 업로드하기</a>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>';
-
-        // 전체 서류 목록 생성 (document_list용)
-        $all_docs = array();
-        foreach($required_docs as $doc) {
-            $all_docs[] = $doc . ' (필수)';
-        }
-        foreach($optional_docs as $doc) {
-            $all_docs[] = $doc . ' (선택)';
-        }
-
-        // 변수 치환
-        $variables = [
-            // 중괄호 두 개 형태 (우선 처리)
-            '{{supplier_name}}' => $request['supplier_name'],
-            '{{contact_person}}' => $request['contact_person'],
-            '{{company_name}}' => $this->settings->info('name'),
-            '{{project_name}}' => $request['project_name'],
-            '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
-            '{{upload_link}}' => $upload_button,
-            '{{document_list}}' => $this->formatDocumentListForEmail($all_docs),
-            '{{required_documents}}' => $this->formatDocumentListForEmail($required_docs),
-            '{{optional_documents}}' => empty($optional_docs) ? '<span style="color: #6c757d;">없음</span>' : $this->formatDocumentListForEmail($optional_docs),
-            '{{additional_notes}}' => !empty($request['additional_notes']) ? nl2br(htmlspecialchars($request['additional_notes'])) : '<span style="color: #6c757d;">없음</span>'
-        ];
-
-        // 변수명 길이 순으로 정렬
-        uksort($variables, function($a, $b) {
-            return strlen($b) - strlen($a);
-        });
-
-        // 템플릿의 변수를 실제 값으로 치환
-        foreach($variables as $key => $value) {
-            $subject = str_replace($key, $value, $subject);
-            $email_body = str_replace($key, $value, $email_body);
-        }
-
-        // 최종 이메일 본문이 비어있는지 확인
-        if(empty(trim($email_body))) {
-            return ['status' => 'error', 'msg' => '이메일 본문이 비어있습니다. 템플릿을 확인해주세요.'];
-        }
+        // HTML 구조 보장
+        $body = $this->ensureHTMLStructure($body);
 
         // 이메일 발송
-        $result = $this->sendEmail(
-            $request['email'],
-            $request['contact_person'],
-            $subject,
-            $email_body
-        );
+        $result = $this->sendEmail($to_email, $to_name, $subject, $body);
 
         if($result['status'] == 'success') {
             // 이메일 전송 시간 업데이트
@@ -196,133 +123,360 @@ class EmailSender extends DBConnection {
         return $result;
     }
 
-    // 이메일 호환 서류 목록 포맷팅 (테이블 기반)
+    // 템플릿 가져오기 (DB 우선, 없으면 기본값)
+    private function getEmailTemplate($template_type) {
+        // DB에서 템플릿 조회
+        $template_qry = $this->conn->query("
+            SELECT * FROM email_templates 
+            WHERE template_type = '{$template_type}' 
+            AND is_default = 1 
+            AND status = 1
+            LIMIT 1
+        ");
+
+        if($template_qry && $template_qry->num_rows > 0) {
+            $template = $template_qry->fetch_assoc();
+
+            // content가 비어있으면 기본 템플릿 사용
+            if(empty(trim($template['content']))) {
+                return [
+                    'subject' => $template['subject'] ?? $this->getDefaultSubject($template_type),
+                    'content' => $this->getDefaultEmailTemplate($template_type)
+                ];
+            }
+
+            return [
+                'subject' => $template['subject'],
+                'content' => $template['content']
+            ];
+        }
+
+        // DB에 템플릿이 없으면 기본값 반환
+        return [
+            'subject' => $this->getDefaultSubject($template_type),
+            'content' => $this->getDefaultEmailTemplate($template_type)
+        ];
+    }
+
+    // 기본 제목
+    private function getDefaultSubject($template_type) {
+        switch($template_type) {
+            case 'request_notification':
+                return '[{{company_name}}] 서류 제출 요청 - {{project_name}}';
+            case 'reminder':
+                return '[리마인더] {{project_name}} 서류 제출 기한 임박';
+            case 'completion':
+                return '[{{company_name}}] {{project_name}} 서류 제출 완료';
+            default:
+                return '[{{company_name}}] 알림';
+        }
+    }
+
+    // 템플릿 변수 준비
+    private function prepareTemplateVariables($request, $required_docs = [], $optional_docs = []) {
+        // 업로드 링크 생성
+        $upload_link = $this->generateUploadLink($request['upload_token']);
+
+        // 변수 배열
+        $variables = [
+            '{{contact_person}}' => $request['contact_person'] ?? '',
+            '{{company_name}}' => $this->settings->info('name'),
+            '{{supplier_name}}' => $request['supplier_name'] ?? '',
+            '{{project_name}}' => $request['project_name'] ?? '',
+            '{{due_date}}' => !empty($request['due_date']) ? date('Y년 m월 d일', strtotime($request['due_date'])) : '',
+            '{{upload_link}}' => $this->generateUploadButton($upload_link),
+            '{{upload_button}}' => $this->generateUploadButton($upload_link), // 별칭
+            '{{required_documents}}' => $this->formatDocumentListForEmail($required_docs),
+            '{{optional_documents}}' => $this->formatDocumentListForEmail($optional_docs),
+            '{{document_list}}' => $this->formatAllDocumentsList($required_docs, $optional_docs),
+            '{{additional_notes}}' => $this->formatAdditionalNotes($request['additional_notes'] ?? '')
+        ];
+
+        return $variables;
+    }
+
+    // 업로드 링크 생성
+    private function generateUploadLink($token) {
+        if(defined('base_url')) {
+            return base_url . "admin/upload_portal/?token=" . $token;
+        } else {
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $path = dirname(dirname($_SERVER['SCRIPT_NAME']));
+            return $protocol . "://" . $host . $path . "/admin/upload_portal/?token=" . $token;
+        }
+    }
+
+    // 업로드 버튼 HTML 생성 (이메일 호환)
+    private function generateUploadButton($link) {
+        return '<table cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+                <td align="center" style="padding: 30px 0;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" 
+                        href="'.$link.'" 
+                        style="height:40px;v-text-anchor:middle;width:200px;" 
+                        arcsize="10%" stroke="f" fillcolor="#007bff">
+                        <w:anchorlock/>
+                        <center>
+                    <![endif]-->
+                    <a href="'.$link.'" 
+                       style="background-color:#007bff;border-radius:4px;color:#ffffff;display:inline-block;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;line-height:40px;text-align:center;text-decoration:none;width:200px;-webkit-text-size-adjust:none;">
+                        서류 업로드하기
+                    </a>
+                    <!--[if mso]>
+                        </center>
+                    </v:roundrect>
+                    <![endif]-->
+                </td>
+            </tr>
+        </table>';
+    }
+
+    // 서류 목록 포맷팅 (이메일 호환)
     private function formatDocumentListForEmail($docs) {
         if(empty($docs)) {
-            return '<span style="color: #6c757d;">없음</span>';
+            return '<span style="color: #666666;">없음</span>';
         }
 
         $html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
         foreach($docs as $doc) {
-            $html .= '<tr><td style="padding: 5px 0; color: #333; font-size: 14px;">• ' . htmlspecialchars($doc) . '</td></tr>';
+            $html .= '<tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• ' . htmlspecialchars($doc) . '</td></tr>';
         }
         $html .= '</table>';
 
         return $html;
     }
 
-    // 서류 목록 포맷팅 (일반 용도)
-    private function formatDocumentList($docs) {
-        if(empty($docs)) {
-            return '<span style="color: #6c757d;">없음</span>';
+    // 전체 서류 목록 (필수/선택 표시)
+    private function formatAllDocumentsList($required_docs, $optional_docs) {
+        $html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
+
+        foreach($required_docs as $doc) {
+            $html .= '<tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• ' . htmlspecialchars($doc) . ' <span style="color: #dc3545;">(필수)</span></td></tr>';
         }
 
-        $html = '<ul style="margin: 10px 0; padding-left: 20px; list-style-type: disc;">';
-        foreach($docs as $doc) {
-            $html .= '<li style="margin: 5px 0; line-height: 1.6;">' . htmlspecialchars($doc) . '</li>';
+        foreach($optional_docs as $doc) {
+            $html .= '<tr><td style="padding: 5px 0; color: #333333; font-size: 14px;">• ' . htmlspecialchars($doc) . ' <span style="color: #6c757d;">(선택)</span></td></tr>';
         }
-        $html .= '</ul>';
 
+        if(empty($required_docs) && empty($optional_docs)) {
+            $html .= '<tr><td style="padding: 5px 0; color: #666666; font-size: 14px;">서류 목록이 없습니다.</td></tr>';
+        }
+
+        $html .= '</table>';
         return $html;
     }
 
-    // 기본 이메일 템플릿 (테이블 기반 레이아웃)
-    private function getDefaultEmailTemplate() {
+    // 추가 요청사항 포맷팅
+    private function formatAdditionalNotes($notes) {
+        if(empty($notes)) {
+            return '<span style="color: #666666;">없음</span>';
+        }
+        return nl2br(htmlspecialchars($notes));
+    }
+
+    // 템플릿 변수 치환
+    private function replaceTemplateVariables($template, $variables) {
+        // 변수명 길이 순으로 정렬 (긴 것부터)
+        uksort($variables, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+
+        // 치환 수행
+        foreach($variables as $key => $value) {
+            $template = str_replace($key, $value, $template);
+        }
+
+        return $template;
+    }
+
+    // HTML 구조 보장
+    private function ensureHTMLStructure($content) {
+        // DOCTYPE이 있는지 확인
+        if(strpos($content, '<!DOCTYPE') !== false) {
+            return $content;
+        }
+
+        // 기본 HTML 구조로 감싸기
         return '<!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>서류 제출 요청</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
 </head>
-<body>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="border: 1px solid #e0e0e0;">
-                    <!-- 헤더 -->
-                    <tr>
-                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-bottom: 1px solid #e0e0e0;">
-                            <h2 style="margin: 0; color: #333; font-size: 24px;">서류 제출 요청</h2>
-                        </td>
-                    </tr>
-                    
-                    <!-- 인사말 -->
-                    <tr>
-                        <td style="padding: 30px 40px;">
-                            <p style="margin: 0 0 15px 0; color: #333; font-size: 16px; line-height: 1.6;">
-                                안녕하세요, {{contact_person}}님
-                            </p>
-                            <p style="margin: 0 0 25px 0; color: #333; font-size: 16px; line-height: 1.6;">
-                                {{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.
-                            </p>
-                        </td>
-                    </tr>
-                    
-                    <!-- 프로젝트 정보 -->
-                    <tr>
-                        <td style="padding: 0 40px;">
-                            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa" style="border: 1px solid #e0e0e0;">
-                                <tr>
-                                    <td style="padding: 20px;">
-                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">프로젝트 정보</h3>
-                                        <table width="100%" cellpadding="5" cellspacing="0" border="0">
-                                            <tr>
-                                                <td width="30%" style="color: #666; font-size: 14px;"><strong>프로젝트명:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">{{project_name}}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666; font-size: 14px;"><strong>제출 기한:</strong></td>
-                                                <td style="color: #dc3545; font-size: 14px; font-weight: bold;">{{due_date}}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    
-                    <!-- 서류 목록 -->
-                    <tr>
-                        <td style="padding: 30px 40px;">
-                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">필수 제출 서류</h3>
-                            {{required_documents}}
-                            
-                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">선택 제출 서류</h3>
-                            {{optional_documents}}
-                            
-                            <h3 style="margin: 25px 0 15px 0; color: #333; font-size: 18px;">추가 요청사항</h3>
-                            <p style="margin: 0; color: #333; font-size: 14px; line-height: 1.6;">{{additional_notes}}</p>
-                        </td>
-                    </tr>
-                    
-                    <!-- 업로드 버튼 -->
-                    <tr>
-                        <td style="padding: 0 40px;">
-                            {{upload_link}}
-                        </td>
-                    </tr>
-                    
-                    <!-- 푸터 -->
-                    <tr>
-                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-top: 1px solid #e0e0e0;">
-                            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.6;">
-                                이 링크는 보안을 위해 제출 기한까지만 유효합니다.
-                            </p>
-                            <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
-                                문의사항이 있으시면 회신 부탁드립니다.
-                            </p>
-                            <p style="margin: 15px 0 0 0; color: #333; font-size: 14px;">
-                                감사합니다.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+    ' . $content . '
 </body>
 </html>';
+    }
+
+    // 기본 이메일 템플릿 (완전 개선된 버전)
+    private function getDefaultEmailTemplate($template_type = 'request_notification') {
+        switch($template_type) {
+            case 'request_notification':
+                return $this->getRequestNotificationTemplate();
+            case 'reminder':
+                return $this->getReminderTemplate();
+            case 'completion':
+                return $this->getCompletionTemplate();
+            default:
+                return $this->getRequestNotificationTemplate();
+        }
+    }
+
+    // 서류 요청 알림 템플릿
+    private function getRequestNotificationTemplate() {
+        return '<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+    <tr>
+        <td align="center" style="padding: 20px 0;">
+            <!--[if mso]><table width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+            <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px;" bgcolor="#ffffff">
+                <!-- 헤더 -->
+                <tr>
+                    <td bgcolor="#f8f9fa">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="padding: 30px 40px; border-bottom: 1px solid #e0e0e0;">
+                                    <h2 style="margin: 0; color: #333333; font-size: 24px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">서류 제출 요청</h2>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- 인사말 -->
+                <tr>
+                    <td>
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="padding: 30px 40px;">
+                                    <p style="margin: 0 0 15px 0; color: #333333; font-size: 16px; line-height: 24px; font-family: Arial, \'Malgun Gothic\', sans-serif;">
+                                        안녕하세요, {{contact_person}}님
+                                    </p>
+                                    <p style="margin: 0 0 25px 0; color: #333333; font-size: 16px; line-height: 24px; font-family: Arial, \'Malgun Gothic\', sans-serif;">
+                                        {{company_name}}에서 {{project_name}} 프로젝트와 관련하여 서류 제출을 요청드립니다.
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- 프로젝트 정보 -->
+                <tr>
+                    <td>
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="padding: 0 40px;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa" style="border: 1px solid #e0e0e0;">
+                                        <tr>
+                                            <td style="padding: 20px;">
+                                                <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">프로젝트 정보</h3>
+                                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                    <tr>
+                                                        <td width="30%" style="padding: 5px 0; color: #666666; font-size: 14px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">프로젝트명:</td>
+                                                        <td style="padding: 5px 0; color: #333333; font-size: 14px; font-family: Arial, \'Malgun Gothic\', sans-serif;">{{project_name}}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding: 5px 0; color: #666666; font-size: 14px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">제출 기한:</td>
+                                                        <td style="padding: 5px 0; color: #dc3545; font-size: 14px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">{{due_date}}</td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- 서류 목록 -->
+                <tr>
+                    <td>
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="padding: 30px 40px;">
+                                    <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">필수 제출 서류</h3>
+                                    {{required_documents}}
+                                    
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr><td style="padding: 25px 0 0 0;"></td></tr>
+                                    </table>
+                                    
+                                    <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">선택 제출 서류</h3>
+                                    {{optional_documents}}
+                                    
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr><td style="padding: 25px 0 0 0;"></td></tr>
+                                    </table>
+                                    
+                                    <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: bold; font-family: Arial, \'Malgun Gothic\', sans-serif;">추가 요청사항</h3>
+                                    <p style="margin: 0; color: #333333; font-size: 14px; line-height: 22px; font-family: Arial, \'Malgun Gothic\', sans-serif;">{{additional_notes}}</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- 업로드 버튼 -->
+                <tr>
+                    <td>
+                        {{upload_link}}
+                    </td>
+                </tr>
+                
+                <!-- 푸터 -->
+                <tr>
+                    <td bgcolor="#f8f9fa">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="padding: 30px 40px; border-top: 1px solid #e0e0e0;">
+                                    <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 20px; font-family: Arial, \'Malgun Gothic\', sans-serif;">
+                                        이 링크는 보안을 위해 제출 기한까지만 유효합니다.
+                                    </p>
+                                    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 20px; font-family: Arial, \'Malgun Gothic\', sans-serif;">
+                                        문의사항이 있으시면 회신 부탁드립니다.
+                                    </p>
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr><td style="padding: 15px 0 0 0;"></td></tr>
+                                    </table>
+                                    <p style="margin: 0; color: #333333; font-size: 14px; font-family: Arial, \'Malgun Gothic\', sans-serif;">
+                                        감사합니다.
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            <!--[if mso]></td></tr></table><![endif]-->
+        </td>
+    </tr>
+</table>';
+    }
+
+    // 리마인더 템플릿
+    private function getReminderTemplate() {
+        // 리마인더용 템플릿 (추후 구현)
+        return $this->getRequestNotificationTemplate();
+    }
+
+    // 완료 알림 템플릿
+    private function getCompletionTemplate() {
+        // 완료 알림용 템플릿 (추후 구현)
+        return $this->getRequestNotificationTemplate();
     }
 
     // 기본 이메일 전송 함수
@@ -331,9 +485,6 @@ class EmailSender extends DBConnection {
         $config = $this->getSMTPConfig();
 
         try {
-            // 디버그 모드 (개발 환경에서만)
-            // $mail->SMTPDebug = SMTP::DEBUG_SERVER;
-
             // 서버 설정
             $mail->isSMTP();
             $mail->Host = $config['host'];
@@ -370,12 +521,7 @@ class EmailSender extends DBConnection {
             return ['status' => 'success', 'msg' => '이메일이 성공적으로 전송되었습니다.'];
 
         } catch (Exception $e) {
-            // 상세한 에러 메시지 (개발 환경에서만 사용)
             $error_msg = "이메일 전송 실패: {$mail->ErrorInfo}";
-
-            // 운영 환경에서는 간단한 메시지로
-            // $error_msg = "이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.";
-
             return ['status' => 'error', 'msg' => $error_msg];
         }
     }
@@ -428,78 +574,45 @@ class EmailSender extends DBConnection {
         return ['sent' => $sent, 'failed' => $failed];
     }
 
-    // 테스트 이메일 전송 (시스템 설정 확인용)
-    public function sendTestEmail($to_email) {
-        $subject = "[테스트] SMTP 설정 확인";
-        $body = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMTP 테스트</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: \'Noto Sans KR\', \'Malgun Gothic\', \'맑은 고딕\', sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="border: 1px solid #e0e0e0;">
-                    <tr>
-                        <td bgcolor="#f8f9fa" style="padding: 30px 40px; border-bottom: 1px solid #e0e0e0;">
-                            <h2 style="margin: 0; color: #333; font-size: 24px;">SMTP 설정 테스트</h2>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 30px 40px;">
-                            <p style="margin: 0 0 20px 0; color: #333; font-size: 16px;">
-                                이 메일을 받으셨다면 SMTP 설정이 올바르게 구성되었습니다.
-                            </p>
-                            
-                            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa" style="border: 1px solid #e0e0e0;">
-                                <tr>
-                                    <td style="padding: 20px;">
-                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">현재 설정 정보</h3>
-                                        <table width="100%" cellpadding="5" cellspacing="0" border="0">
-                                            <tr>
-                                                <td width="40%" style="color: #666; font-size: 14px;"><strong>SMTP 호스트:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_host') . '</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666; font-size: 14px;"><strong>SMTP 포트:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_port') . '</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666; font-size: 14px;"><strong>보안 방식:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_secure') . '</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666; font-size: 14px;"><strong>발신자명:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_from_name') . '</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666; font-size: 14px;"><strong>발신 이메일:</strong></td>
-                                                <td style="color: #333; font-size: 14px;">' . $this->settings->info('smtp_from_email') . '</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td bgcolor="#f8f9fa" style="padding: 20px 40px; border-top: 1px solid #e0e0e0;">
-                            <p style="margin: 0; color: #666; font-size: 14px; text-align: center;">
-                                이 이메일은 ' . $this->settings->info('name') . ' 시스템에서 발송되었습니다.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>';
+    // 테스트 이메일 전송
+    public function sendTestEmail($to_email, $subject = null, $content = null) {
+        // 테스트용 샘플 데이터
+        $sample_request = [
+            'contact_person' => '홍길동',
+            'supplier_name' => '테스트 의뢰처',
+            'project_name' => '테스트 프로젝트',
+            'due_date' => date('Y-m-d', strtotime('+7 days')),
+            'upload_token' => 'test-token-' . time(),
+            'additional_notes' => '서류는 PDF 형식으로 제출해주시기 바랍니다.'
+        ];
 
-        return $this->sendEmail($to_email, '관리자', $subject, $body);
+        $sample_required = ['안전관리계획서', '유해위험방지계획서', '사업자등록증'];
+        $sample_optional = ['건설업면허증', '기타 관련 서류'];
+
+        // 템플릿 처리
+        if(!empty($subject) && !empty($content)) {
+            // 전달받은 템플릿 사용
+            $template = [
+                'subject' => $subject,
+                'content' => $content
+            ];
+        } else {
+            // 기본 템플릿 사용
+            $template = $this->getEmailTemplate('request_notification');
+        }
+
+        // 변수 준비
+        $variables = $this->prepareTemplateVariables($sample_request, $sample_required, $sample_optional);
+
+        // 변수 치환
+        $test_subject = '[테스트] ' . $this->replaceTemplateVariables($template['subject'], $variables);
+        $test_body = $this->replaceTemplateVariables($template['content'], $variables);
+
+        // HTML 구조 보장
+        $test_body = $this->ensureHTMLStructure($test_body);
+
+        // 이메일 발송
+        return $this->sendEmail($to_email, '테스트 수신자', $test_subject, $test_body);
     }
 }
 ?>

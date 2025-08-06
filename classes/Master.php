@@ -613,6 +613,7 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
+    // send_request_email() - 단순화된 버전
     function send_request_email(){
         extract($_POST);
 
@@ -622,196 +623,14 @@ Class Master extends DBConnection {
             return json_encode($resp);
         }
 
-        // 요청 정보 조회
-        $qry = $this->conn->query("
-            SELECT r.*, s.email, s.name as supplier_name, s.contact_person,
-                   d.manager_email, d.manager_name
-            FROM document_requests r
-            LEFT JOIN supplier_list s ON r.supplier_id = s.id
-            LEFT JOIN document_request_details d ON d.request_id = r.id
-            WHERE r.id = '{$id}'
-        ");
-
-        if($qry->num_rows == 0){
-            $resp['status'] = 'failed';
-            $resp['msg'] = "요청을 찾을 수 없습니다.";
-            return json_encode($resp);
-        }
-
-        $request = $qry->fetch_assoc();
-
-        // 이메일 템플릿 가져오기
-        $template_qry = $this->conn->query("
-            SELECT * FROM email_templates 
-            WHERE template_type = 'request_notification' 
-            AND is_default = 1 
-            LIMIT 1
-        ");
-
-        if($template_qry->num_rows == 0){
-            $resp['status'] = 'failed';
-            $resp['msg'] = "이메일 템플릿이 설정되지 않았습니다.";
-            return json_encode($resp);
-        }
-
-        $template = $template_qry->fetch_assoc();
-
-        // 이메일 수신자 결정
-        $to_email = !empty($request['manager_email']) ? $request['manager_email'] : $request['email'];
-        $to_name = !empty($request['manager_name']) ? $request['manager_name'] : $request['contact_person'];
-
-        if(empty($to_email)){
-            $resp['status'] = 'failed';
-            $resp['msg'] = "수신자 이메일이 없습니다.";
-            return json_encode($resp);
-        }
-
-        // 업로드 링크 생성
-        // base_url 상수를 사용하여 정확한 경로 생성
-        $upload_link = base_url . "admin/upload_portal/?token=" . $request['upload_token'];
-
-        // 업로드 링크를 버튼 HTML로 생성 (인라인 스타일 완전 적용)
-        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
-            '<tr>' .
-            '<td align="center" style="padding: 30px 0;">' .
-            '<table cellpadding="0" cellspacing="0" border="0">' .
-            '<tr>' .
-            '<td align="center" bgcolor="#007bff">' .
-            '<a href="'.$upload_link.'" style="font-family: Arial, sans-serif; ' .
-            'font-size: 16px; color: #ffffff; text-decoration: none; ' .
-            'padding: 12px 30px; display: block;">' .
-            '서류 업로드하기' .
-            '</a>' .
-            '</td>' .
-            '</tr>' .
-            '</table>' .
-            '</td>' .
-            '</tr>' .
-            '</table>';
-
-        // 요청된 서류 목록 조회
-        $docs_qry = $this->conn->query("
-            SELECT document_name, is_required 
-            FROM request_documents 
-            WHERE request_id = '{$id}'
-            ORDER BY is_required DESC, document_name ASC");
-
-        $required_docs = array();
-        $optional_docs = array();
-        $all_docs = array();
-
-        while($doc = $docs_qry->fetch_assoc()){
-            if($doc['is_required'] == 1){
-                $required_docs[] = $doc['document_name'];
-                $all_docs[] = $doc['document_name'] . ' (필수)';
-            } else {
-                $optional_docs[] = $doc['document_name'];
-                $all_docs[] = $doc['document_name'] . ' (선택)';
-            }
-        }
-
-        // 서류 목록을 HTML 리스트로 변환
-        $required_docs_html = "";
-        $optional_docs_html = "";
-        $all_docs_html = "";
-
-        if(!empty($required_docs)){
-            $required_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
-            foreach($required_docs as $doc) {
-                $required_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
-            }
-            $required_docs_html .= '</table>';
-        } else {
-            $required_docs_html = '<span style="color: #6c757d;">없음</span>';
-        }
-
-        if(!empty($optional_docs)){
-            $optional_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
-            foreach($optional_docs as $doc) {
-                $optional_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
-            }
-            $optional_docs_html .= '</table>';
-        } else {
-            $optional_docs_html = '<span style="color: #6c757d;">없음</span>';
-        }
-
-        if(!empty($all_docs)){
-            $all_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">';
-            foreach($all_docs as $doc) {
-                $all_docs_html .= '<tr><td style="padding: 5px 0; color: #333;">• ' . htmlspecialchars($doc) . '</td></tr>';
-            }
-            $all_docs_html .= '</table>';
-        } else {
-            $all_docs_html = '<span style="color: #6c757d;">서류 목록이 없습니다.</span>';
-        }
-
-        // 변수 치환 데이터
-        $replacements = array(
-            '{{contact_person}}' => $to_name,
-            '{{company_name}}' => $this->settings->info('name'),
-            '{{supplier_name}}' => $request['supplier_name'],
-            '{{project_name}}' => $request['project_name'],
-            '{{due_date}}' => date('Y년 m월 d일', strtotime($request['due_date'])),
-            '{{upload_link}}' => $upload_button,
-            '{{document_list}}' => $all_docs_html,
-            '{{required_documents}}' => $required_docs_html,
-            '{{optional_documents}}' => $optional_docs_html,
-            '{{additional_notes}}' => !empty($request['additional_notes']) ?
-                nl2br(htmlspecialchars($request['additional_notes'])) :
-                '<span style="color: #6c757d;">없음</span>'
-        );
-
-        // 변수명 길이 순으로 정렬 (긴 것부터)
-        uksort($replacements, function($a, $b) {
-            return strlen($b) - strlen($a);
-        });
-
-        // 템플릿 내용에서 변수 치환
-        $subject = $template['subject'];
-        $content = $template['content'];
-
-        foreach($replacements as $key => $value){
-            $subject = str_replace($key, $value, $subject);
-            $content = str_replace($key, $value, $content);
-        }
-
-        // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
-        if(strpos($content, '<!DOCTYPE') === false) {
-            // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
-            $full_html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!--[if !mso]><!-->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--<![endif]-->
-</head>
-<body style="margin: 0; padding: 0;">
-    ' . $content . '
-</body>
-</html>';
-        } else {
-            // 이미 완전한 HTML 구조가 있으면 그대로 사용
-            $full_html = $content;
-        }
-
         // EmailSender 클래스 사용
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
-        // 이메일 발송
-        $result = $emailSender->sendEmail($to_email, $to_name, $subject, $full_html);
+        // 이메일 발송 - EmailSender가 모든 것을 처리
+        $result = $emailSender->sendDocumentRequest($id);
 
-        if($result['status'] == 'success'){
-            // 발송 시간 기록
-            $this->conn->query("UPDATE document_requests SET email_sent_at = NOW() WHERE id = '{$id}'");
-            $resp = $result;
-        } else {
-            $resp = $result;
-        }
-
-        return json_encode($resp);
+        return json_encode($result);
     }
 
     function save_document_request() {
@@ -955,7 +774,7 @@ Class Master extends DBConnection {
         return json_encode($resp);
     }
 
-    // 테스트 이메일 발송 - 수정된 버전
+    // 테스트 이메일 발송 - 단순화된 버전
     public function send_test_email() {
         extract($_POST);
 
@@ -970,112 +789,9 @@ Class Master extends DBConnection {
         require_once('EmailSender.php');
         $emailSender = new EmailSender();
 
-        // DB에서 현재 활성화된 템플릿 가져오기
-        $template_qry = $this->conn->query("SELECT * FROM email_templates WHERE template_type = 'request_notification' AND is_default = 1 LIMIT 1");
-        if($template_qry->num_rows > 0) {
-            $template = $template_qry->fetch_assoc();
-            $subject = $template['subject'];
-            $content = $template['content'];
-        } else {
-            // 템플릿이 없으면 전달받은 값 사용
-            $subject = isset($subject) ? $subject : '';
-            $content = isset($content) ? $content : '';
-        }
-
-        // 업로드 버튼 HTML 생성 (인라인 스타일 완전 적용)
-        $upload_button = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
-            '<tr>' .
-            '<td align="center" style="padding: 30px 0;">' .
-            '<table cellpadding="0" cellspacing="0" border="0">' .
-            '<tr>' .
-            '<td align="center" bgcolor="#007bff">' .
-            '<a href="#" style="font-family: Arial, sans-serif; ' .
-            'font-size: 16px; color: #ffffff; text-decoration: none; ' .
-            'padding: 12px 30px; display: block;">' .
-            '서류 업로드하기' .
-            '</a>' .
-            '</td>' .
-            '</tr>' .
-            '</table>' .
-            '</td>' .
-            '</tr>' .
-            '</table>';
-
-        // 필수 서류 HTML
-        $required_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 안전관리계획서</td></tr>' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 유해위험방지계획서</td></tr>' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 사업자등록증</td></tr>' .
-            '</table>';
-
-        // 선택 서류 HTML
-        $optional_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 건설업면허증</td></tr>' .
-            '</table>';
-
-        // 전체 서류 목록 HTML
-        $all_docs_html = '<table cellpadding="0" cellspacing="0" border="0" width="100%">' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 안전관리계획서 (필수)</td></tr>' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 유해위험방지계획서 (필수)</td></tr>' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 사업자등록증 (필수)</td></tr>' .
-            '<tr><td style="padding: 5px 0; color: #333;">• 건설업면허증 (선택)</td></tr>' .
-            '</table>';
-
-        // 샘플 데이터로 변수 치환 - 모든 변수 포함
-        $sampleData = [
-            '{{contact_person}}' => '홍길동',
-            '{{company_name}}' => $this->settings->info('name'),
-            '{{supplier_name}}' => '테스트 의뢰처',
-            '{{project_name}}' => '테스트 프로젝트',
-            '{{due_date}}' => date('Y년 m월 d일', strtotime('+7 days')),
-            '{{upload_link}}' => $upload_button,
-            '{{required_documents}}' => $required_docs_html,
-            '{{optional_documents}}' => $optional_docs_html,
-            '{{additional_notes}}' => '서류는 PDF 형식으로 제출해주시기 바랍니다.',
-            '{{document_list}}' => $all_docs_html
-        ];
-
-        // 변수명 길이 순으로 정렬 (긴 것부터)
-        uksort($sampleData, function($a, $b) {
-            return strlen($b) - strlen($a);
-        });
-
-        // 변수 치환
-        $test_subject = !empty($subject) ? $subject : '';
-        $test_content = !empty($content) ? $content : '';
-
-        // 모든 변수를 치환
-        foreach($sampleData as $key => $value) {
-            $test_subject = str_replace($key, $value, $test_subject);
-            $test_content = str_replace($key, $value, $test_content);
-        }
-
-        // 테스트 이메일임을 표시
-        $test_subject = "[테스트] " . $test_subject;
-
-        // 템플릿 내용에 DOCTYPE이 없으면 기본 HTML 구조 추가
-        if(strpos($test_content, '<!DOCTYPE') === false) {
-            // DOCTYPE이 없으면 최소한의 HTML 구조만 추가
-            $full_html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!--[if !mso]><!-->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--<![endif]-->
-</head>
-<body style="margin: 0; padding: 0;">
-    ' . $test_content . '
-</body>
-</html>';
-        } else {
-            // 이미 완전한 HTML 구조가 있으면 그대로 사용
-            $full_html = $test_content;
-        }
-
-        // 이메일 발송
-        $result = $emailSender->sendEmail($email, '담당자', $test_subject, $full_html);
+        // 테스트 이메일 발송
+        // subject와 content가 전달되면 사용, 아니면 기본 템플릿 사용
+        $result = $emailSender->sendTestEmail($email, $subject ?? null, $content ?? null);
 
         return json_encode($result);
     }
